@@ -150,6 +150,8 @@ Globals:
   Function:
     Timeout: 900 # 15 minutes - max for Lambda
     MemorySize: 512
+    Architectures:
+      - arm64
     Environment:
       Variables:
         # Stage awareness for code-level profiles
@@ -777,7 +779,7 @@ Resources:
       CompatibleRuntimes:
         - python3.12
       CompatibleArchitectures:
-        - x86_64
+        - arm64
       RetentionPolicy: Retain
     Metadata:
       BuildMethod: makefile
@@ -845,7 +847,7 @@ Resources:
       CompatibleRuntimes:
         - python3.12
       CompatibleArchitectures:
-        - x86_64
+        - arm64
       RetentionPolicy: Retain
     Metadata:
       BuildMethod: makefile
@@ -864,7 +866,7 @@ Resources:
       CompatibleRuntimes:
         - python3.12
       CompatibleArchitectures:
-        - x86_64
+        - arm64
       RetentionPolicy: Retain
     Metadata:
       BuildMethod: python3.12
@@ -1335,8 +1337,6 @@ Resources:
         - !Sub "${StackName}-strategy-worker"
         - !Sub "alchemiser-${Stage}-strategy-worker"
       Runtime: python3.12
-      Architectures:
-        - x86_64
       CodeUri: functions/strategy_worker/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt StrategyExecutionRole.Arn
@@ -1447,8 +1447,6 @@ Resources:
         - !Sub "${StackName}-strategy-orchestrator"
         - !Sub "alchemiser-${Stage}-strategy-orchestrator"
       Runtime: python3.12
-      Architectures:
-        - x86_64
       CodeUri: functions/strategy_orchestrator/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt StrategyOrchestratorExecutionRole.Arn
@@ -1505,8 +1503,6 @@ Resources:
         - !Sub "${StackName}-signal-aggregator"
         - !Sub "alchemiser-${Stage}-signal-aggregator"
       Runtime: python3.12
-      Architectures:
-        - x86_64
       CodeUri: functions/strategy_aggregator/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt StrategyAggregatorExecutionRole.Arn
@@ -1573,8 +1569,6 @@ Resources:
         - !Sub "${StackName}-rebalance-planner"
         - !Sub "alchemiser-${Stage}-rebalance-planner"
       Runtime: python3.12
-      Architectures:
-        - x86_64
       CodeUri: functions/portfolio/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt RebalancePlannerExecutionRole.Arn
@@ -1655,8 +1649,6 @@ Resources:
         - !Sub "${StackName}-execution"
         - !Sub "alchemiser-${Stage}-execution"
       Runtime: python3.12
-      Architectures:
-        - x86_64
       CodeUri: functions/execution/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt ExecutionExecutionRole.Arn
@@ -1754,8 +1746,6 @@ Resources:
         - !Sub "${StackName}-trade-aggregator"
         - !Sub "alchemiser-${Stage}-trade-aggregator"
       Runtime: python3.12
-      Architectures:
-        - x86_64
       CodeUri: functions/trade_aggregator/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt TradeAggregatorExecutionRole.Arn
@@ -1817,8 +1807,6 @@ Resources:
         - !Sub "${StackName}-notifications"
         - !Sub "alchemiser-${Stage}-notifications"
       Runtime: python3.12
-      Architectures:
-        - x86_64
       CodeUri: functions/notifications/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt NotificationsExecutionRole.Arn
@@ -1976,8 +1964,6 @@ Resources:
     Properties:
       FunctionName: !Sub "alchemiser-${Stage}-strategy-performance"
       Runtime: python3.12
-      Architectures:
-        - x86_64
       CodeUri: functions/strategy_performance/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt StrategyPerformanceExecutionRole.Arn
@@ -2041,8 +2027,6 @@ Resources:
         - !Sub "${StackName}-hedge-evaluator"
         - !Sub "alchemiser-${Stage}-hedge-evaluator"
       Runtime: python3.12
-      Architectures:
-        - x86_64
       CodeUri: functions/hedge_evaluator/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt HedgeEvaluatorExecutionRole.Arn
@@ -2170,8 +2154,6 @@ Resources:
         - !Sub "${StackName}-hedge-executor"
         - !Sub "alchemiser-${Stage}-hedge-executor"
       Runtime: python3.12
-      Architectures:
-        - x86_64
       CodeUri: functions/hedge_executor/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt HedgeExecutorExecutionRole.Arn
@@ -2256,8 +2238,6 @@ Resources:
         - !Sub "${StackName}-hedge-roll-manager"
         - !Sub "alchemiser-${Stage}-hedge-roll-manager"
       Runtime: python3.12
-      Architectures:
-        - x86_64
       CodeUri: functions/hedge_roll_manager/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt HedgeRollManagerExecutionRole.Arn
@@ -2333,8 +2313,6 @@ Resources:
         - !Sub "${StackName}-data"
         - !Sub "alchemiser-${Stage}-data"
       Runtime: python3.12
-      Architectures:
-        - x86_64
       CodeUri: functions/data/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt DataExecutionRole.Arn
@@ -2461,8 +2439,6 @@ Resources:
         - !Sub "${StackName}-schedule-manager"
         - !Sub "alchemiser-${Stage}-schedule-manager"
       Runtime: python3.12
-      Architectures:
-        - x86_64
       CodeUri: functions/schedule_manager/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt ScheduleManagerExecutionRole.Arn
@@ -2592,8 +2568,6 @@ Resources:
         - !Sub "${StackName}-account-data"
         - !Sub "alchemiser-${Stage}-account-data"
       Runtime: python3.12
-      Architectures:
-        - x86_64
       CodeUri: functions/account_data/
       Handler: lambda_handler.handler
       Role: !GetAtt AccountDataExecutionRole.Arn
