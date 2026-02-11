@@ -11,7 +11,7 @@ permissions:
 jobs:
   sonarqube:
     name: Run SonarQube and Sync
-    runs-on: ubuntu-24.04-arm
+    runs-on: [self-hosted, linux, ARM64]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
