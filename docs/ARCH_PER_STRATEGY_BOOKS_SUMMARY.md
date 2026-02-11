@@ -149,6 +149,6 @@ Notifications
 
 ## Status
 
-**✅ EXPLORATION COMPLETE**: This proposal fulfills the issue requirement to "explore this idea in depth, and create the plan to action it."
+**[DONE] EXPLORATION COMPLETE**: This proposal fulfills the issue requirement to "explore this idea in depth, and create the plan to action it."
 
-**⏸️ IMPLEMENTATION PENDING**: Awaiting approval to proceed with implementation phases.
+**[PENDING] IMPLEMENTATION**: Awaiting approval to proceed with implementation phases.

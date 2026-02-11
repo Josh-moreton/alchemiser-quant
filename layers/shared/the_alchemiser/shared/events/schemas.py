@@ -15,7 +15,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import Field, ValidationInfo, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from ..constants import (
     CONTRACT_VERSION,
@@ -975,9 +975,6 @@ class HedgeRollTriggered(BaseEvent):
 # ========== PER-STRATEGY BOOK ARCHITECTURE (PROPOSED) ==========
 # The following event schemas support the proposed per-strategy book architecture.
 # See docs/ARCH_PER_STRATEGY_BOOKS.md for full design details.
-# Status: PROOF OF CONCEPT - Not yet integrated into workflow
-
-
 class StrategyExecutionRequested(BaseEvent):
     """Event emitted when a strategy requests trade execution.
 
@@ -1078,9 +1075,16 @@ class StrategyExecutionRequested(BaseEvent):
             raise ValueError("target_qty must be non-negative")
         return v
 
-    @field_validator("direction", "phase")
-    @classmethod
-    def validate_direction_phase_alignment(cls, v: str, info: ValidationInfo) -> str:
-        """Validate that direction and phase are aligned."""
-        # Note: This validator runs per field, full cross-validation would need model_validator
-        return v
+    @model_validator(mode="after")
+    def validate_direction_phase_alignment(self) -> StrategyExecutionRequested:
+        """Validate that direction and phase are aligned.
+
+        BUY trades must be in the BUY phase, SELL trades in the SELL phase.
+        Mismatches would break two-phase execution ordering.
+        """
+        if self.direction != self.phase:
+            raise ValueError(
+                f"direction '{self.direction}' must match phase '{self.phase}' "
+                f"for correct two-phase execution ordering"
+            )
+        return self

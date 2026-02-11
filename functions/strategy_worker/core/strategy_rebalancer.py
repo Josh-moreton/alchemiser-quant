@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-MODULE_NAME = "strategy_v2.core.strategy_rebalancer"
+MODULE_NAME = "strategy.core.strategy_rebalancer"
 
 
 @dataclass(frozen=True)

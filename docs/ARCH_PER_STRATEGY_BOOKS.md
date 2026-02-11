@@ -326,13 +326,12 @@ strategy_allocations = {
 ### Phase 6: Testing and Validation
 
 **Tasks:**
-1. Unit testing
-   - Test strategy rebalance calculation
-   - Test trade message generation
-   - Test ledger queries by strategy
+1. Type checking
+   - Validate all new/changed code: `make type-check`
+   - Ensure strict mypy compliance across modules
 
-2. Integration testing
-   - Test full flow: Orchestrator → Strategy → Execution
+2. Integration testing (manual)
+   - Test full flow: Orchestrator -> Strategy -> Execution
    - Test multiple strategies running in parallel
    - Test position tracking per strategy
 
@@ -349,8 +348,8 @@ strategy_allocations = {
    - Monitor for errors, edge cases
 
 **Testing Scope:**
-- No existing unit tests (repo doesn't use pytest)
-- Focus on type checking: `make type-check`
+- This repo does not use pytest or unit tests
+- Primary validation: type checking (`make type-check`)
 - Manual testing via deployed Lambdas
 - Monitor CloudWatch logs for errors
 
@@ -415,7 +414,7 @@ STRATEGY_ROUTING = {
 - **Mitigation**: 
   - Strategy allocations must sum to ≤ 1.0 (validated in Coordinator)
   - Each strategy operates on independent capital slice
-  - No overlap by design
+  - Symbol overlap is allowed but controlled: the Coordinator warns on overlapping symbols and validates combined target exposure per symbol and in aggregate against account-level risk limits
 
 **2. Position Tracking Accuracy**
 - **Risk**: Strategy position state gets out of sync with actual broker positions

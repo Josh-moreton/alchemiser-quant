@@ -136,12 +136,12 @@ Issues:
               └──────────────────────────────┘
 
 Benefits:
-✅ No aggregation needed
-✅ No rebalance planner bottleneck
-✅ Simple per-strategy attribution
-✅ Independent strategy execution
-✅ Strategies decoupled
-✅ Cleaner P&L tracking
+- No aggregation needed
+- No rebalance planner bottleneck
+- Simple per-strategy attribution
+- Independent strategy execution
+- Strategies decoupled
+- Cleaner P&L tracking
 ```
 
 ## Key Differences

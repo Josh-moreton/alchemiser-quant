@@ -390,6 +390,35 @@ class TradeLedgerService:
 
         # Primary: strategy_id from TradeMessage (per-strategy books)
         if strategy_id:
+            # Cross-check against other attribution sources for consistency
+            if direct_attribution:
+                symbol_attr = direct_attribution.get(symbol_upper, {}) or direct_attribution.get(
+                    symbol, {}
+                )
+                if symbol_attr and strategy_id not in symbol_attr:
+                    logger.warning(
+                        "Strategy ID conflicts with direct attribution",
+                        extra={
+                            "symbol": symbol_upper,
+                            "strategy_id": strategy_id,
+                            "attribution_strategies": list(symbol_attr.keys()),
+                            "resolution": "using strategy_id (authoritative)",
+                        },
+                    )
+            if order_result and order_result.client_order_id:
+                parsed = parse_client_order_id(order_result.client_order_id)
+                if parsed:
+                    parsed_id = parsed.get("strategy_id")
+                    if parsed_id and parsed_id != "unknown" and parsed_id != strategy_id:
+                        logger.warning(
+                            "Strategy ID conflicts with client_order_id",
+                            extra={
+                                "symbol": symbol_upper,
+                                "strategy_id": strategy_id,
+                                "client_order_strategy": parsed_id,
+                                "resolution": "using strategy_id (authoritative)",
+                            },
+                        )
             logger.debug(
                 "Strategy attribution from strategy_id",
                 extra={

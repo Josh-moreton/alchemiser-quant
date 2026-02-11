@@ -295,8 +295,9 @@ Resources:
           Value: trade-ledger
 
   # ========== EXECUTION RUNS TABLE (PER-TRADE SCALING) ==========
-  # DynamoDB Table for tracking per-trade execution run state
-  # Tracks per-trade execution run state for two-phase parallel execution
+  # DynamoDB Table for tracking execution run state
+  # Tracks per-trade execution runs AND per-strategy rebalance session state
+  # for two-phase parallel execution
   ExecutionRunsTable:
     Type: AWS::DynamoDB::Table
     Properties:
