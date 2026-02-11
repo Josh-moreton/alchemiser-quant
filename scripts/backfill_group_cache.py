@@ -69,6 +69,10 @@ import pandas as pd
 # ---------------------------------------------------------------------------
 # Environment
 # ---------------------------------------------------------------------------
+# macOS: prevent fork-safety crashes in child processes when the parent has
+# already initialised Apple networking frameworks (boto3/S3 preload).
+os.environ.setdefault("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES")
+
 os.environ.setdefault("MARKET_DATA_BUCKET", "alchemiser-dev-market-data")
 os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
 os.environ.setdefault("GROUP_HISTORY_TABLE", "alchemiser-dev-group-history")
