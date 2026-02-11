@@ -9,18 +9,20 @@
     "kmlm_switcher.clj",
     "hedged_sector_rotator.clj",
     "defence.clj",
-    "gold.clj"
+    "gold.clj",
+    "ftl_starburst.clj"
   ],
   "allocations": {
-    "rains_em_dancer.clj": 0.094,
-    "rains_concise_em.clj": 0.107,
-    "sisyphus_lowvol.clj": 0.189,
+    "rains_em_dancer.clj": 0.082,
+    "rains_concise_em.clj": 0.094,
+    "sisyphus_lowvol.clj": 0.165,
     "ftlt/tqqq_ftlt.clj": 0.065,
     "ftlt/tqqq_ftlt_2.clj": 0.108,
     "ftlt/holy_grail.clj": 0.077,
-    "kmlm_switcher.clj": 0.127,
-    "hedged_sector_rotator.clj": 0.071,
-    "defence.clj": 0.107,
-    "gold.clj": 0.055
+    "kmlm_switcher.clj": 0.111,
+    "hedged_sector_rotator.clj": 0.062,
+    "defence.clj": 0.094,
+    "gold.clj": 0.048,
+    "ftl_starburst.clj": 0.094
   }
 }
