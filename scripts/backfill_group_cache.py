@@ -15,7 +15,7 @@ Performance optimisations:
     - DynamoDB writes are batched (25 items per request) instead of
       individual put_item calls.
     - Groups at the same nesting depth are processed in parallel using
-      fork-based multiprocessing (``--parallel N``).
+      spawn-based multiprocessing (``--parallel N``).
     - Depth-level passes process deepest groups first so that outer
       groups can rely on completed inner-group caches.
 
@@ -125,9 +125,34 @@ RESET = "\033[0m"
 
 
 # ---------------------------------------------------------------------------
-# Module-level shared state for parallel workers (set before fork)
+# Module-level shared state for parallel workers (set by _worker_init)
 # ---------------------------------------------------------------------------
 _WORKER_STATE: dict[str, Any] = {}
+
+
+def _worker_init(
+    groups_by_name_data: dict[str, Any],
+    trading_days_by_group_data: dict[str, list[date]],
+    preloaded_data_arg: dict[str, Any],
+    strategies_dir_str: str,
+    clj_filename: str,
+    correlation_id: str,
+) -> None:
+    """Initializer for spawn-mode process pool workers.
+
+    Called once per worker process before any tasks are dispatched.
+    Populates the module-level ``_WORKER_STATE`` dict so that
+    ``_parallel_worker`` can access shared data.
+    """
+    global _WORKER_STATE
+    _WORKER_STATE = {
+        "groups_by_name": groups_by_name_data,
+        "trading_days_by_group": trading_days_by_group_data,
+        "preloaded_data": preloaded_data_arg,
+        "strategies_dir": Path(strategies_dir_str),
+        "clj_filename": clj_filename,
+        "correlation_id": correlation_id,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +180,15 @@ class GroupInfo:
             f"GroupInfo(name={self.name!r}, depth={self.depth}, "
             f"metric={self.parent_filter_metric!r})"
         )
+
+    # Explicit pickle support for __slots__-only class (required by spawn
+    # multiprocessing which serialises objects across process boundaries).
+    def __getstate__(self) -> dict[str, Any]:
+        return {slot: getattr(self, slot) for slot in self.__slots__}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        for slot, value in state.items():
+            object.__setattr__(self, slot, value)
 
 
 # ---------------------------------------------------------------------------
@@ -1094,10 +1128,11 @@ def _backfill_single_group(
 # Parallel worker (runs in forked subprocess)
 # ---------------------------------------------------------------------------
 def _parallel_worker(group_name: str) -> dict[str, Any]:
-    """Worker function for ProcessPoolExecutor (fork mode).
+    """Worker function for ProcessPoolExecutor (spawn mode).
 
-    Reads shared state from module-level ``_WORKER_STATE`` (inherited
-    via fork).  Builds its own DslEngine to avoid shared mutable state.
+    Reads shared state from module-level ``_WORKER_STATE`` (populated
+    by ``_worker_init`` in the initializer).  Builds its own DslEngine
+    to avoid shared mutable state.
 
     Args:
         group_name: Name of the group to backfill.
@@ -1411,21 +1446,19 @@ def backfill_strategy_groups(
             print(f"\n  {CYAN}Processing {len(processable)} groups in parallel "
                   f"({parallel_workers} workers) ...{RESET}")
 
-            # Set up shared state for workers (inherited via fork)
-            global _WORKER_STATE
-            _WORKER_STATE = {
-                "groups_by_name": {gi.name: gi for gi in processable},
-                "trading_days_by_group": trading_days_by_group,
-                "preloaded_data": preloaded_data,
-                "strategies_dir": STRATEGIES_DIR,
-                "clj_filename": clj_file.name,
-                "correlation_id": correlation_id,
-            }
-
-            ctx = mp.get_context("fork")
+            ctx = mp.get_context("spawn")
             with ProcessPoolExecutor(
                 max_workers=min(parallel_workers, len(processable)),
                 mp_context=ctx,
+                initializer=_worker_init,
+                initargs=(
+                    {gi.name: gi for gi in processable},
+                    trading_days_by_group,
+                    preloaded_data,
+                    str(STRATEGIES_DIR),
+                    clj_file.name,
+                    correlation_id,
+                ),
             ) as executor:
                 future_to_name = {
                     executor.submit(_parallel_worker, gi.name): gi.name
@@ -1644,7 +1677,7 @@ Examples:
         default=1,
         metavar="N",
         help="Number of parallel workers for groups at same depth level. "
-             "Uses fork-based multiprocessing. Default: 1 (sequential).",
+             "Uses spawn-based multiprocessing. Default: 1 (sequential).",
     )
     parser.add_argument(
         "--level",
