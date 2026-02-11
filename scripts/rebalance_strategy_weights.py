@@ -358,14 +358,14 @@ def calculate_calmar_tilt_weights(
     base_calmar_ratios = {k: v for k, v in calmar_ratios.items() if not k.startswith(FTLT_PREFIX)}
     
     print(f"\n📁 Strategy Groups:")
-    print(f"  FTLT strategies: {len(ftlt_config_files)} (target: 50% portfolio weight)")
-    print(f"  Base strategies: {len(base_config_files)} (target: 50% portfolio weight)")
+    print(f"  FTLT strategies: {len(ftlt_config_files)} (target: 25% portfolio weight)")
+    print(f"  Base strategies: {len(base_config_files)} (target: 75% portfolio weight)")
     
     # Calculate weights for each group independently, each summing to 50%
     ftlt_weights = calculate_group_weights(
         calmar_ratios=ftlt_calmar_ratios,
         config_files=ftlt_config_files,
-        target_weight=Decimal("0.5"),
+        target_weight=Decimal("0.25"),
         alpha=alpha,
         f_min=f_min,
         f_max=f_max,
@@ -375,7 +375,7 @@ def calculate_calmar_tilt_weights(
     base_weights = calculate_group_weights(
         calmar_ratios=base_calmar_ratios,
         config_files=base_config_files,
-        target_weight=Decimal("0.5"),
+        target_weight=Decimal("0.75"),
         alpha=alpha,
         f_min=f_min,
         f_max=f_max,
