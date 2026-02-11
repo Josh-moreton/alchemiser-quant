@@ -383,8 +383,12 @@ def _preload_all_market_data(symbols: set[str]) -> dict[str, pd.DataFrame]:
                 data[sym] = df
             else:
                 failed.append(sym)
-        except Exception:
+        except Exception as exc:
             failed.append(sym)
+            print(
+                f"  {YELLOW}Error loading symbol {sym}: "
+                f"{type(exc).__name__}: {exc}{RESET}"
+            )
 
     elapsed = time.time() - start
     print(f"  {GREEN}Loaded {len(data)}/{len(symbols)} symbols "
@@ -650,11 +654,17 @@ def _calculate_position_return(
                 ret = (curr_close - prev_close) / prev_close
                 weighted_return += weight * ret
                 total_weight += weight
-        except Exception:
-            # Symbol has no data for this date -- skip silently.
+        except (KeyError, IndexError, ValueError, ZeroDivisionError):
+            # Symbol has no data or incompatible data for this date.
             # Expected when backfilling with symbols that have different
             # data availability (e.g. FNGU started later than SPY).
             pass
+        except Exception as exc:
+            print(
+                f"  {YELLOW}Unexpected error computing return for "
+                f"{symbol_str} on {return_date}: "
+                f"{type(exc).__name__}: {exc}{RESET}"
+            )
 
     if total_weight <= Decimal("0"):
         return None
@@ -711,14 +721,16 @@ def _discover_available_date_range(
     earliest_latest: date | None = None
     symbol_ranges: dict[str, tuple[date, date]] = {}
 
+    fallback_store: Any = None
     for symbol in symbols:
         try:
             if preloaded_data and symbol in preloaded_data:
                 df = preloaded_data[symbol]
             else:
-                from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
-                store = MarketDataStore()
-                df = store.read_symbol_data(symbol)
+                if fallback_store is None:
+                    from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
+                    fallback_store = MarketDataStore()
+                df = fallback_store.read_symbol_data(symbol)
 
             if df is None or df.empty:
                 continue
@@ -857,10 +869,20 @@ def _batch_write_dynamodb(
                         }
                     )
                     written += 1
-                except Exception:
+                except Exception as exc:
                     failed += 1
-    except Exception:
+                    print(
+                        f"  {YELLOW}DynamoDB put_item failed for "
+                        f"group_id={item.get('group_id')}, "
+                        f"record_date={item.get('record_date')}: "
+                        f"{type(exc).__name__}: {exc}{RESET}"
+                    )
+    except Exception as exc:
         # Entire batch operation failed
+        print(
+            f"  {RED}DynamoDB batch_writer failed: "
+            f"{type(exc).__name__}: {exc}{RESET}"
+        )
         return written, len(items) - written
 
     return written, failed
@@ -1197,8 +1219,10 @@ def backfill_strategy_groups(
     # ---- Discover ALL symbols across ALL groups ----
     print(f"\n{DIM}Discovering symbols across all groups ...{RESET}")
     all_symbols: set[str] = set()
+    symbols_by_group: dict[str, set[str]] = {}
     for gi in unique_groups_sorted:
         group_syms = _discover_single_group_symbols(gi, discovery_engine)
+        symbols_by_group[gi.name] = group_syms
         all_symbols.update(group_syms)
         if group_syms:
             print(f"  {DIM}{gi.name[:40]}: {', '.join(sorted(group_syms))}{RESET}")
@@ -1234,15 +1258,7 @@ def backfill_strategy_groups(
             group_id = _derive_group_id(gi.name)
 
             if backfill_all:
-                group_symbols = _discover_single_group_symbols(
-                    gi,
-                    # Quick engine just for symbol discovery
-                    DslEngine(
-                        strategy_config_path=STRATEGIES_DIR,
-                        market_data_adapter=_InMemoryAdapter(preloaded_data),
-                        debug_mode=False,
-                    ),
-                )
+                group_symbols = symbols_by_group.get(gi.name, set())
                 if not group_symbols:
                     print(f"  {YELLOW}WARNING: No symbols for {gi.name}, skipping{RESET}")
                     results[gi.name] = {

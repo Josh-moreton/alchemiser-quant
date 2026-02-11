@@ -829,16 +829,15 @@ def _backfill_trading_days(
                 context=context,
             )
 
-            logger.info(
+            logger.debug(
                 "Backfill: group resolved for date",
                 extra={
                     "group_id": group_id,
                     "group_name": group_name,
                     "eval_date": eval_date.isoformat(),
-                    "held_selections": {k: str(v) for k, v in prev_weights.items()},
-                    "new_signal": (
-                        {k: str(v) for k, v in today_weights.items()} if today_weights else {}
-                    ),
+                    "held_count": len(prev_weights),
+                    "held_symbols": sorted(prev_weights.keys()),
+                    "new_count": len(today_weights) if today_weights else 0,
                     "daily_return": str(daily_ret) if daily_ret is not None else "None",
                     "correlation_id": context.correlation_id,
                 },
