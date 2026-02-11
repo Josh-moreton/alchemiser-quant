@@ -56,6 +56,50 @@ class DynamoDBTradeLedgerRepository:
         self._table = self._dynamodb.Table(table_name)
         logger.debug("Initialized DynamoDB trade ledger repository", table=table_name)
 
+    def _paginated_query(
+        self,
+        index_name: str,
+        key_condition_expr: str,
+        expr_attr_values: dict[str, Any],
+        *,
+        scan_forward: bool = False,
+        limit: int | None = None,
+        filter_expr: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Execute a paginated query, collecting all pages of results.
+
+        DynamoDB returns at most 1 MB per request. This helper continues
+        fetching until all matching items are retrieved (or *limit* items
+        have been collected).
+
+        """
+        kwargs: dict[str, Any] = {
+            "IndexName": index_name,
+            "KeyConditionExpression": key_condition_expr,
+            "ExpressionAttributeValues": expr_attr_values,
+            "ScanIndexForward": scan_forward,
+        }
+
+        if filter_expr:
+            kwargs["FilterExpression"] = filter_expr
+
+        response = self._table.query(**kwargs)
+        items: list[Any] = list(response.get("Items", []))
+
+        while "LastEvaluatedKey" in response:
+            if limit is not None and len(items) >= limit:
+                break
+            response = self._table.query(
+                **kwargs,
+                ExclusiveStartKey=response["LastEvaluatedKey"],
+            )
+            items.extend(response.get("Items", []))
+
+        if limit is not None:
+            items = items[:limit]
+
+        return [dict(item) for item in items]
+
     def put_trade(self, entry: TradeLedgerEntry, ledger_id: str) -> None:
         """Write a trade entry to DynamoDB.
 
@@ -204,19 +248,12 @@ class DynamoDBTradeLedgerRepository:
 
         """
         try:
-            kwargs: dict[str, Any] = {
-                "IndexName": "GSI1-CorrelationIndex",
-                "KeyConditionExpression": "GSI1PK = :pk",
-                "ExpressionAttributeValues": {":pk": f"CORR#{correlation_id}"},
-                "ScanIndexForward": False,  # Most recent first
-            }
-
-            if limit:
-                kwargs["Limit"] = limit
-
-            response = self._table.query(**kwargs)
-            items = response.get("Items", [])
-            return [dict(item) for item in items]
+            return self._paginated_query(
+                index_name="GSI1-CorrelationIndex",
+                key_condition_expr="GSI1PK = :pk",
+                expr_attr_values={":pk": f"CORR#{correlation_id}"},
+                limit=limit,
+            )
         except DynamoDBException as e:
             logger.error(
                 "Failed to query trades by correlation",
@@ -237,19 +274,12 @@ class DynamoDBTradeLedgerRepository:
 
         """
         try:
-            kwargs: dict[str, Any] = {
-                "IndexName": "GSI2-SymbolIndex",
-                "KeyConditionExpression": "GSI2PK = :pk",
-                "ExpressionAttributeValues": {":pk": f"SYMBOL#{symbol.upper()}"},
-                "ScanIndexForward": False,
-            }
-
-            if limit:
-                kwargs["Limit"] = limit
-
-            response = self._table.query(**kwargs)
-            items = response.get("Items", [])
-            return [dict(item) for item in items]
+            return self._paginated_query(
+                index_name="GSI2-SymbolIndex",
+                key_condition_expr="GSI2PK = :pk",
+                expr_attr_values={":pk": f"SYMBOL#{symbol.upper()}"},
+                limit=limit,
+            )
         except DynamoDBException as e:
             logger.error("Failed to query trades by symbol", symbol=symbol, error=str(e))
             return []
@@ -268,28 +298,19 @@ class DynamoDBTradeLedgerRepository:
 
         """
         try:
-            # Use the strategy GSI and filter to only return strategy-link items
-            # (EntityType == 'STRATEGY_TRADE'). Main trade items use the same
-            # GSI keys but do not contain `quantity`/`price`, which breaks FIFO
-            # matching. Filtering avoids returning those items.
-            kwargs: dict[str, Any] = {
-                "IndexName": "GSI3-StrategyIndex",
-                "KeyConditionExpression": "GSI3PK = :pk AND begins_with(GSI3SK, :sk)",
-                "FilterExpression": "EntityType = :etype",
-                "ExpressionAttributeValues": {
+            # Filter to only return strategy-link items (EntityType == 'STRATEGY_TRADE').
+            # Main trade items share the same GSI keys but lack quantity/price fields.
+            return self._paginated_query(
+                index_name="GSI3-StrategyIndex",
+                key_condition_expr="GSI3PK = :pk AND begins_with(GSI3SK, :sk)",
+                expr_attr_values={
                     ":pk": f"STRATEGY#{strategy_name}",
                     ":sk": "TRADE#",
                     ":etype": "STRATEGY_TRADE",
                 },
-                "ScanIndexForward": False,
-            }
-
-            if limit:
-                kwargs["Limit"] = limit
-
-            response = self._table.query(**kwargs)
-            items = response.get("Items", [])
-            return [dict(item) for item in items]
+                filter_expr="EntityType = :etype",
+                limit=limit,
+            )
         except DynamoDBException as e:
             logger.error(
                 "Failed to query trades by strategy",
@@ -600,22 +621,15 @@ class DynamoDBTradeLedgerRepository:
 
         """
         try:
-            kwargs: dict[str, Any] = {
-                "IndexName": "GSI1-CorrelationIndex",
-                "KeyConditionExpression": "GSI1PK = :pk AND begins_with(GSI1SK, :sk)",
-                "ExpressionAttributeValues": {
+            return self._paginated_query(
+                index_name="GSI1-CorrelationIndex",
+                key_condition_expr="GSI1PK = :pk AND begins_with(GSI1SK, :sk)",
+                expr_attr_values={
                     ":pk": f"CORR#{correlation_id}",
                     ":sk": SIGNAL_PREFIX,
                 },
-                "ScanIndexForward": False,  # Most recent first
-            }
-
-            if limit:
-                kwargs["Limit"] = limit
-
-            response = self._table.query(**kwargs)
-            items = response.get("Items", [])
-            return [dict(item) for item in items]
+                limit=limit,
+            )
         except DynamoDBException as e:
             logger.error(
                 "Failed to query signals by correlation",
@@ -638,22 +652,15 @@ class DynamoDBTradeLedgerRepository:
 
         """
         try:
-            kwargs: dict[str, Any] = {
-                "IndexName": "GSI2-SymbolIndex",
-                "KeyConditionExpression": "GSI2PK = :pk AND begins_with(GSI2SK, :sk)",
-                "ExpressionAttributeValues": {
+            return self._paginated_query(
+                index_name="GSI2-SymbolIndex",
+                key_condition_expr="GSI2PK = :pk AND begins_with(GSI2SK, :sk)",
+                expr_attr_values={
                     ":pk": f"SYMBOL#{symbol.upper()}",
                     ":sk": SIGNAL_PREFIX,
                 },
-                "ScanIndexForward": False,
-            }
-
-            if limit:
-                kwargs["Limit"] = limit
-
-            response = self._table.query(**kwargs)
-            items = response.get("Items", [])
-            return [dict(item) for item in items]
+                limit=limit,
+            )
         except DynamoDBException as e:
             logger.error("Failed to query signals by symbol", symbol=symbol, error=str(e))
             return []
@@ -672,22 +679,15 @@ class DynamoDBTradeLedgerRepository:
 
         """
         try:
-            kwargs: dict[str, Any] = {
-                "IndexName": "GSI3-StrategyIndex",
-                "KeyConditionExpression": "GSI3PK = :pk AND begins_with(GSI3SK, :sk)",
-                "ExpressionAttributeValues": {
+            return self._paginated_query(
+                index_name="GSI3-StrategyIndex",
+                key_condition_expr="GSI3PK = :pk AND begins_with(GSI3SK, :sk)",
+                expr_attr_values={
                     ":pk": f"STRATEGY#{strategy_name}",
                     ":sk": SIGNAL_PREFIX,
                 },
-                "ScanIndexForward": False,
-            }
-
-            if limit:
-                kwargs["Limit"] = limit
-
-            response = self._table.query(**kwargs)
-            items = response.get("Items", [])
-            return [dict(item) for item in items]
+                limit=limit,
+            )
         except DynamoDBException as e:
             logger.error(
                 "Failed to query signals by strategy",
@@ -710,22 +710,15 @@ class DynamoDBTradeLedgerRepository:
 
         """
         try:
-            kwargs: dict[str, Any] = {
-                "IndexName": "GSI4-StateIndex",
-                "KeyConditionExpression": "GSI4PK = :pk AND begins_with(GSI4SK, :sk)",
-                "ExpressionAttributeValues": {
+            return self._paginated_query(
+                index_name="GSI4-StateIndex",
+                key_condition_expr="GSI4PK = :pk AND begins_with(GSI4SK, :sk)",
+                expr_attr_values={
                     ":pk": f"STATE#{lifecycle_state}",
                     ":sk": SIGNAL_PREFIX,
                 },
-                "ScanIndexForward": False,
-            }
-
-            if limit:
-                kwargs["Limit"] = limit
-
-            response = self._table.query(**kwargs)
-            items = response.get("Items", [])
-            return [dict(item) for item in items]
+                limit=limit,
+            )
         except DynamoDBException as e:
             logger.error(
                 "Failed to query signals by state",
@@ -1041,19 +1034,29 @@ class DynamoDBTradeLedgerRepository:
                 "ScanIndexForward": False,
             }
 
-            if limit:
-                kwargs["Limit"] = limit
-
             response = self._table.query(**kwargs)
-            items = response.get("Items", [])
+            lots: list[StrategyLot] = []
 
-            lots = []
-            for item in items:
-                try:
-                    lot = StrategyLot.from_dynamodb_item(item)
-                    lots.append(lot)
-                except Exception as e:
-                    logger.warning(f"Failed to parse lot item: {e}")
+            def _parse_items(items: list[Any]) -> None:
+                for item in items:
+                    try:
+                        lots.append(StrategyLot.from_dynamodb_item(item))
+                    except Exception as e:
+                        logger.warning(f"Failed to parse lot item: {e}")
+
+            _parse_items(response.get("Items", []))
+
+            while "LastEvaluatedKey" in response:
+                if limit is not None and len(lots) >= limit:
+                    break
+                response = self._table.query(
+                    **kwargs,
+                    ExclusiveStartKey=response["LastEvaluatedKey"],
+                )
+                _parse_items(response.get("Items", []))
+
+            if limit is not None:
+                lots = lots[:limit]
 
             return lots
         except DynamoDBException as e:

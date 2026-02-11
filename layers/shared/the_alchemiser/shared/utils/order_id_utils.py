@@ -43,7 +43,7 @@ def generate_client_order_id(
         Unique client order ID string
 
     Raises:
-        ValueError: If the generated ID exceeds Alpaca's 48-character limit.
+        ValueError: If signal_version contains hyphens.
 
     Examples:
         >>> # Basic usage with strategy_id
@@ -65,6 +65,7 @@ def generate_client_order_id(
         - The UUID suffix guarantees uniqueness even for concurrent orders
         - Signal version enables correlation with signal generation events
         - Alpaca limits client_order_id to 48 characters
+        - Long strategy_id/prefix values are auto-truncated to fit
         - Slashes in symbols (e.g., BTC/USD) are replaced with underscores
 
     """
@@ -84,10 +85,8 @@ def generate_client_order_id(
     # Generate short UUID suffix (first 8 characters)
     uuid_suffix = str(uuid.uuid4())[:8]
 
-    # Construct client order ID
-    client_order_id = f"{prefix_part}-{normalized_symbol}-{timestamp}-{uuid_suffix}"
-
-    # Add signal version if provided
+    # Calculate version suffix if provided
+    version_suffix = ""
     if signal_version is not None:
         # Validate signal version doesn't contain hyphens (would break parsing)
         if "-" in signal_version:
@@ -96,17 +95,20 @@ def generate_client_order_id(
             )
         # Normalize version to have 'v' prefix if not present
         version_str = signal_version if signal_version.startswith("v") else f"v{signal_version}"
-        client_order_id = f"{client_order_id}-{version_str}"
+        version_suffix = f"-{version_str}"
 
-    # Validate length against Alpaca's limit
-    if len(client_order_id) > MAX_CLIENT_ORDER_ID_LENGTH:
-        raise ValueError(
-            f"Generated client_order_id exceeds Alpaca's {MAX_CLIENT_ORDER_ID_LENGTH}-character limit: "
-            f"{len(client_order_id)} characters. Consider using shorter strategy_id/prefix, symbol, "
-            "or signal_version."
-        )
+    # Calculate fixed overhead: separators + symbol + timestamp + uuid + version
+    fixed_length = (
+        1 + len(normalized_symbol) + 1 + len(timestamp) + 1 + len(uuid_suffix) + len(version_suffix)
+    )
+    max_prefix_length = MAX_CLIENT_ORDER_ID_LENGTH - fixed_length
 
-    return client_order_id
+    # Auto-truncate prefix if it would exceed Alpaca's limit
+    if len(prefix_part) > max_prefix_length:
+        prefix_part = prefix_part[:max_prefix_length]
+
+    # Construct client order ID
+    return f"{prefix_part}-{normalized_symbol}-{timestamp}-{uuid_suffix}{version_suffix}"
 
 
 def parse_client_order_id(client_order_id: str) -> dict[str, str | None] | None:

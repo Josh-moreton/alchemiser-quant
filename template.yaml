@@ -209,10 +209,6 @@ Resources:
           AttributeType: S
         - AttributeName: GSI5SK
           AttributeType: S
-        - AttributeName: GSI6PK
-          AttributeType: S
-        - AttributeName: GSI6SK
-          AttributeType: S
       
       KeySchema:
         - AttributeName: PK
@@ -251,7 +247,7 @@ Resources:
           Projection:
             ProjectionType: ALL
         
-        # GSI4: Query snapshots by correlation_id
+        # GSI4: Query signals by lifecycle state
         - IndexName: GSI4-CorrelationSnapshotIndex
           KeySchema:
             - AttributeName: GSI4PK
@@ -271,16 +267,6 @@ Resources:
           Projection:
             ProjectionType: ALL
         
-        # GSI6: Query strategy lots by symbol (cross-strategy position analysis)
-        - IndexName: GSI6-SymbolLotsIndex
-          KeySchema:
-            - AttributeName: GSI6PK
-              KeyType: HASH
-            - AttributeName: GSI6SK
-              KeyType: RANGE
-          Projection:
-            ProjectionType: ALL
-      
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
       
@@ -714,6 +700,9 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: ExpiresAt
         Enabled: true
+
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
 
       SSESpecification:
         SSEEnabled: true
@@ -1277,10 +1266,8 @@ Resources:
                 Action:
                   - dynamodb:PutItem
                   - dynamodb:GetItem
-                  - dynamodb:Query
                 Resource:
                   - !GetAtt TradeLedgerTable.Arn
-                  - !Sub "${TradeLedgerTable.Arn}/index/*"
               # S3 permissions for per-stage market data bucket (read-only)
               - Effect: Allow
                 Action:
