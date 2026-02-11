@@ -417,8 +417,6 @@ logger.info(
 |---------|----------|
 | Strategy Orchestrator handler | `functions/strategy_orchestrator/lambda_handler.py` |
 | Strategy Worker handler | `functions/strategy_worker/lambda_handler.py` |
-| Signal Aggregator handler | `functions/strategy_aggregator/lambda_handler.py` |
-| Rebalance Planner Lambda handler | `functions/portfolio/lambda_handler.py` |
 | Execution Lambda handler | `functions/execution/lambda_handler.py` |
 | Notifications Lambda handler | `functions/notifications/lambda_handler.py` |
 | Event schemas | `layers/shared/the_alchemiser/shared/events/schemas.py` |
