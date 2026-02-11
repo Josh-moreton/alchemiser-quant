@@ -768,49 +768,66 @@ def _discover_available_date_range(
 
 def _discover_single_group_symbols(gi: GroupInfo, engine: Any) -> set[str]:
     """Discover all unique symbols referenced by a single group."""
-    from engines.dsl.operators.portfolio import (
-        PortfolioFragment,
-        collect_weights_from_value,
-    )
-    from the_alchemiser.shared.schemas.trace import Trace
-
-    symbols: set[str] = set()
-
-    try:
-        trace = Trace(
-            trace_id=str(uuid.uuid4()),
-            correlation_id="symbol-discovery",
-            strategy_id="backfill",
-            started_at=datetime.now(UTC),
-        )
-
-        for expr in gi.body:
-            result = engine.evaluator._evaluate_node(expr, "discovery", trace)
-
-            if isinstance(result, list) and len(result) == 1:
-                result = result[0]
-
-            if isinstance(result, PortfolioFragment):
-                symbols.update(result.weights.keys())
-            elif isinstance(result, dict):
-                symbols.update(result.keys())
-            elif isinstance(result, str):
-                symbols.add(result)
-            else:
-                weights = collect_weights_from_value(result) if result else {}
-                symbols.update(weights.keys())
-
-    except Exception:
-        pass
-
-    return symbols
+    return _extract_symbols_from_ast(gi.body)
 
 
 def _discover_group_symbols(groups: list[GroupInfo], engine: Any) -> set[str]:
     """Discover all unique symbols referenced by a list of groups."""
     symbols: set[str] = set()
     for gi in groups:
-        symbols.update(_discover_single_group_symbols(gi, engine))
+        symbols.update(_extract_symbols_from_ast(gi.body))
+    return symbols
+
+
+def _extract_symbols_from_ast(nodes: list[Any]) -> set[str]:
+    """Extract ticker symbols from AST nodes by walking for ``(asset ...)`` forms.
+
+    This is a pure AST walk -- no engine evaluation or indicator computation
+    needed.  Finds all ``(asset "TICKER" ...)`` patterns and extracts the
+    ticker string.
+
+    Also finds bare string atoms that look like ticker symbols (1-5 uppercase
+    letters) used as arguments to indicators like ``(rsi "IEF" ...)``.
+
+    Args:
+        nodes: List of ASTNode objects to walk.
+
+    Returns:
+        Set of ticker symbol strings.
+
+    """
+    from the_alchemiser.shared.schemas.ast_node import ASTNode
+
+    symbols: set[str] = set()
+
+    def _walk(node: Any) -> None:
+        if not isinstance(node, ASTNode):
+            return
+
+        if node.is_list() and node.children:
+            first = node.children[0]
+            # Match (asset "TICKER" "description")
+            if (
+                first.is_symbol()
+                and first.get_symbol_name() == "asset"
+                and len(node.children) >= 2
+            ):
+                ticker_node = node.children[1]
+                ticker = ticker_node.get_atom_value()
+                if isinstance(ticker, str) and ticker.isupper():
+                    symbols.add(ticker)
+
+            # Recurse into all children
+            for child in node.children:
+                _walk(child)
+
+        elif node.is_list():
+            for child in node.children:
+                _walk(child)
+
+    for node in nodes:
+        _walk(node)
+
     return symbols
 
 
@@ -1263,26 +1280,12 @@ def backfill_strategy_groups(
             print(f"    {i:3d}. {gi.name[:48]:<48s}  "
                   f"{DIM}{gid}  (metric: {gi.parent_filter_metric}){RESET}")
 
-    # ---- Build initial engine for symbol discovery ----
-    print(f"\n{DIM}Initializing engine for symbol discovery ...{RESET}",
-          end="", flush=True)
-    discovery_adapter = _build_market_data_adapter()
-    discovery_engine = DslEngine(
-        strategy_config_path=STRATEGIES_DIR,
-        market_data_adapter=discovery_adapter,
-        debug_mode=False,
-    )
-    clear_evaluation_caches()
-    correlation_id = f"backfill-{strategy_name}-{datetime.now(UTC).strftime('%H%M%S')}"
-    discovery_engine.evaluate_strategy(clj_file.name, correlation_id)
-    print(f" done.{RESET}")
-
-    # ---- Discover ALL symbols across ALL groups ----
-    print(f"\n{DIM}Discovering symbols across all groups ...{RESET}")
+    # ---- Discover ALL symbols across ALL groups (pure AST walk, no engine) ----
+    print(f"\n{DIM}Discovering symbols across all groups (AST scan) ...{RESET}")
     all_symbols: set[str] = set()
     symbols_by_group: dict[str, set[str]] = {}
     for gi in unique_groups_sorted:
-        group_syms = _discover_single_group_symbols(gi, discovery_engine)
+        group_syms = _extract_symbols_from_ast(gi.body)
         symbols_by_group[gi.name] = group_syms
         all_symbols.update(group_syms)
         if group_syms:
@@ -1292,9 +1295,7 @@ def backfill_strategy_groups(
     # ---- Pre-load ALL market data into memory ----
     preloaded_data = _preload_all_market_data(all_symbols)
 
-    # Free the discovery engine (we'll build new ones with in-memory adapter)
-    del discovery_engine
-    del discovery_adapter
+    correlation_id = f"backfill-{strategy_name}-{datetime.now(UTC).strftime('%H%M%S')}"
 
     # ---- Determine trading days ----
     end_date = datetime.now(UTC).date()
