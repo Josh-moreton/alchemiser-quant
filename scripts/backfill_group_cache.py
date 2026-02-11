@@ -362,26 +362,39 @@ def _build_historical_adapter(cutoff: date) -> Any:
 
 
 # ---------------------------------------------------------------------------
-# Evaluate a group body for a single date
+# Evaluate a group body for a single date (signal only)
 # ---------------------------------------------------------------------------
-def _evaluate_group_for_date(
+def _evaluate_group_signal(
     ast_body: list[Any],
     eval_date: date,
     engine: Any,
     correlation_id: str,
-) -> tuple[dict[str, Decimal], Decimal | None]:
-    """Evaluate a group body at a point-in-time date.
+) -> dict[str, Decimal]:
+    """Evaluate a group body at a point-in-time date and return portfolio weights.
 
-    Returns (weights_dict, daily_return_or_None).
+    Sets the engine's as_of_date to eval_date, evaluates the AST body,
+    and extracts the resulting symbol weights (the "signal").
+
+    This function does NOT compute returns -- it only determines what the
+    group would hold on eval_date.  Use ``_calculate_position_return`` to
+    compute the return of a held position.
+
+    Args:
+        ast_body: AST expressions forming the group body.
+        eval_date: The date to evaluate at.
+        engine: DSL engine instance.
+        correlation_id: Correlation ID for tracing.
+
+    Returns:
+        Dictionary of {symbol: weight} for the group's signal on eval_date.
+        Empty dict if evaluation produces no weights.
+
     """
-    import uuid
-
     from engines.dsl.operators.portfolio import (
         PortfolioFragment,
         collect_weights_from_value,
     )
     from the_alchemiser.shared.schemas.trace import Trace
-    from the_alchemiser.shared.value_objects.symbol import Symbol
 
     # Set as-of date so indicators see only data up to eval_date
     engine.indicator_service.as_of_date = eval_date
@@ -404,32 +417,58 @@ def _evaluate_group_for_date(
 
     # Extract weights
     if isinstance(last_result, PortfolioFragment):
-        day_weights = dict(last_result.weights)
+        return dict(last_result.weights)
     elif isinstance(last_result, dict):
-        day_weights = {k: Decimal(str(v)) for k, v in last_result.items()}
+        return {k: Decimal(str(v)) for k, v in last_result.items()}
     elif isinstance(last_result, str):
-        day_weights = {last_result: Decimal("1")}
+        return {last_result: Decimal("1")}
     else:
-        day_weights = collect_weights_from_value(last_result) if last_result else {}
+        return collect_weights_from_value(last_result) if last_result else {}
 
-    if not day_weights:
-        return {}, None
 
-    # Compute portfolio daily return
+# ---------------------------------------------------------------------------
+# Calculate the return of holding a position on a given date
+# ---------------------------------------------------------------------------
+def _calculate_position_return(
+    weights: dict[str, Decimal],
+    return_date: date,
+    engine: Any,
+) -> Decimal | None:
+    """Calculate the weighted daily return of a held position on a given date.
+
+    For each symbol in the position, computes the close-to-close return
+    on return_date (i.e., close on the preceding trading day to close on
+    return_date).  The portfolio return is the weight-normalised sum.
+
+    This answers: "if I was holding these weights going into return_date,
+    what return did I earn on return_date?"
+
+    Args:
+        weights: Symbol-to-weight mapping representing the held position.
+        return_date: The date to compute the return for.
+        engine: DSL engine instance (must have indicator_service with
+            market_data_service).
+
+    Returns:
+        Weighted daily return as Decimal, or None if insufficient data.
+
+    """
+    from the_alchemiser.shared.value_objects.symbol import Symbol
+
     mds = getattr(engine.indicator_service, "market_data_service", None)
     if not mds:
-        return day_weights, None
+        return None
 
     weighted_return = Decimal("0")
     total_weight = Decimal("0")
-    record_date_str = eval_date.isoformat()
+    return_date_str = return_date.isoformat()
 
-    for symbol_str, weight in day_weights.items():
+    for symbol_str, weight in weights.items():
         if weight <= Decimal("0"):
             continue
         try:
             today = datetime.now(UTC).date()
-            days_back = max((today - eval_date).days + 5, 30)
+            days_back = max((today - return_date).days + 5, 30)
             period = f"{days_back}D"
             bars = mds.get_bars(
                 symbol=Symbol(symbol_str),
@@ -439,15 +478,15 @@ def _evaluate_group_for_date(
             if len(bars) < 2:
                 continue
 
-            # Find the bar on or before record_date and its predecessor
+            # Find the bar on or before return_date and its predecessor
             date_to_idx: dict[str, int] = {}
             for i, bar in enumerate(bars):
                 date_to_idx[bar.timestamp.date().isoformat()] = i
 
-            target_idx = date_to_idx.get(record_date_str)
+            target_idx = date_to_idx.get(return_date_str)
             if target_idx is None:
                 for i in range(len(bars) - 1, -1, -1):
-                    if bars[i].timestamp.date().isoformat() <= record_date_str:
+                    if bars[i].timestamp.date().isoformat() <= return_date_str:
                         target_idx = i
                         break
 
@@ -461,15 +500,15 @@ def _evaluate_group_for_date(
                 weighted_return += weight * ret
                 total_weight += weight
         except Exception:
-            # Symbol has no data for this date - skip silently
-            # This is expected when backfilling with symbols that have
-            # different data availability (e.g., FNGU started later than SPY)
+            # Symbol has no data for this date -- skip silently.
+            # Expected when backfilling with symbols that have different
+            # data availability (e.g. FNGU started later than SPY).
             pass
 
     if total_weight <= Decimal("0"):
-        return day_weights, None
+        return None
 
-    return day_weights, weighted_return / total_weight
+    return weighted_return / total_weight
 
 
 # ---------------------------------------------------------------------------
@@ -891,38 +930,87 @@ def backfill_strategy_groups(
         failed = 0
         group_start = time.time()
 
+        # ---- Position-tracking state ----
+        # The return for day D is the performance of the position held
+        # DURING day D, which was determined by the signal at close of
+        # day D-1.  We track the previous day's signal (prev_weights)
+        # so that on each new day we can measure that held position's
+        # return before evaluating the new signal.
+        prev_weights: dict[str, Decimal] | None = None
+
         for day_idx, eval_date in enumerate(trading_days):
             progress = f"  [{day_idx + 1}/{len(trading_days)}] {eval_date}"
             try:
-                weights, daily_ret = _evaluate_group_for_date(
+                # Step 1: Evaluate today's signal (what the group wants
+                # to hold from today's close onward).
+                today_weights = _evaluate_group_signal(
                     ast_body, eval_date, engine, correlation_id,
                 )
 
-                if not weights or daily_ret is None:
-                    print(f"{progress}  {DIM}-- no data{RESET}")
-                    skipped += 1
+                # Step 2: Calculate the return of the PREVIOUS position
+                # during today (close D-1 -> close D).
+                if prev_weights is None:
+                    # No prior signal yet -- first actionable day.
+                    if not today_weights:
+                        print(f"{progress}  {DIM}-- no signal{RESET}")
+                        skipped += 1
+                        continue
+                    symbols = ", ".join(sorted(today_weights.keys()))
+                    print(f"{progress}  {DIM}-- first signal [{symbols}], "
+                          f"no return yet{RESET}")
+                    prev_weights = today_weights
                     continue
 
-                selections_str = {sym: str(w) for sym, w in weights.items()}
+                daily_ret = _calculate_position_return(
+                    prev_weights, eval_date, engine,
+                )
+
+                if daily_ret is None:
+                    print(f"{progress}  {DIM}-- no price data for "
+                          f"return calc{RESET}")
+                    skipped += 1
+                    # Still update the signal if we got a new one
+                    if today_weights:
+                        prev_weights = today_weights
+                    continue
+
+                # Step 3: Write the return of the held position.
+                # ``selections`` records what was HELD during this day
+                # (the previous signal), which produced the return.
+                held_selections_str = {
+                    sym: str(w) for sym, w in prev_weights.items()
+                }
                 ok = _write_to_dynamodb(
                     group_id=group_id,
                     record_date=eval_date.isoformat(),
-                    selections=selections_str,
+                    selections=held_selections_str,
                     portfolio_daily_return=daily_ret,
                     dry_run=dry_run,
                 )
 
-                symbols = ", ".join(sorted(weights.keys()))
+                held_symbols = ", ".join(sorted(prev_weights.keys()))
                 ret_pct = float(daily_ret) * 100
                 status = f"{GREEN}OK{RESET}" if ok else f"{RED}FAIL{RESET}"
                 if dry_run:
                     status = f"{YELLOW}DRY{RESET}"
 
-                print(f"{progress}  ret={ret_pct:+.4f}%  [{symbols}]  {status}")
+                # Show signal transitions when holdings change
+                signal_change = ""
+                if (
+                    today_weights
+                    and set(today_weights.keys()) != set(prev_weights.keys())
+                ):
+                    new_syms = ", ".join(sorted(today_weights.keys()))
+                    signal_change = f"  -> [{new_syms}]"
+
+                print(
+                    f"{progress}  ret={ret_pct:+.4f}%  "
+                    f"held=[{held_symbols}]{signal_change}  {status}"
+                )
 
                 group_results.append({
                     "date": eval_date.isoformat(),
-                    "selections": selections_str,
+                    "selections": held_selections_str,
                     "daily_return": str(daily_ret),
                     "written": ok,
                 })
@@ -931,6 +1019,12 @@ def backfill_strategy_groups(
                     wrote += 1
                 else:
                     failed += 1
+
+                # Step 4: Update signal for next iteration.
+                # If today's evaluation produced no signal, keep holding
+                # the previous position (don't reset to empty).
+                if today_weights:
+                    prev_weights = today_weights
 
             except Exception as exc:
                 print(f"{progress}  {RED}ERROR: {exc}{RESET}")

@@ -109,13 +109,14 @@ _AST_BODY_STORE: dict[str, list[ASTNode]] = {}
 # when ``weight_equal`` / ``filter`` generate new fragment_ids (uuid4).
 _AST_BODY_BY_GROUP_ID: dict[str, list[ASTNode]] = {}
 
-# Memoization cache for in-process group daily returns.
-# Key: (group_id, date_iso_str) -> Decimal daily return (or None for
-# dates that failed / returned no data).  Prevents exponential recursion
-# in deeply nested strategies where inner groups would otherwise trigger
-# their own full backfill loops for every outer evaluation date.
+# Memoization cache for in-process group signal evaluations.
+# Key: (group_id, date_iso_str) -> dict of weights (signal) or None.
+# Signal evaluation is deterministic (same group + same date = same
+# signal), so this is safe to cache across calls.  Prevents exponential
+# recursion in deeply nested strategies where inner groups would otherwise
+# trigger their own full backfill loops for every outer evaluation date.
 # Cleared between strategy runs via ``clear_evaluation_caches()``.
-_IN_PROCESS_RETURN_MEMO: dict[tuple[str, str], Decimal | None] = {}
+_IN_PROCESS_SIGNAL_MEMO: dict[tuple[str, str], dict[str, Decimal] | None] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -132,7 +133,7 @@ def clear_evaluation_caches() -> None:
     """
     _AST_BODY_STORE.clear()
     _AST_BODY_BY_GROUP_ID.clear()
-    _IN_PROCESS_RETURN_MEMO.clear()
+    _IN_PROCESS_SIGNAL_MEMO.clear()
     _BACKFILL_IN_PROGRESS.clear()
 
 
@@ -782,11 +783,14 @@ def _backfill_trading_days(
 ) -> list[tuple[str, Decimal]]:
     """Evaluate a group for each trading day and write results to DynamoDB.
 
+    Tracks position state across days: the return for day D is the
+    performance of the position determined by the signal at close of
+    day D-1 (the previous trading day).  On the first day, only the
+    signal is recorded -- no return is produced.
+
     Returns list of (date_iso, daily_return) tuples for successfully
     persisted entries only.
     """
-    from engines.dsl.operators.portfolio import collect_weights_from_value
-
     backfilled_returns: list[tuple[str, Decimal]] = []
 
     logger.info(
@@ -799,31 +803,28 @@ def _backfill_trading_days(
         },
     )
 
-    indicator_svc = context.indicator_service
+    prev_weights: dict[str, Decimal] | None = None
+
     for eval_date in trading_days:
         try:
-            indicator_svc.as_of_date = eval_date
+            # Step 1: Evaluate today's signal
+            today_weights = _evaluate_group_signal_for_date(
+                ast_body,
+                eval_date,
+                context,
+            )
 
-            last_result: DSLValue = None
-            for expr in ast_body:
-                last_result = context.evaluate_node(
-                    expr,
-                    context.correlation_id,
-                    context.trace,
-                )
+            if not today_weights and prev_weights is None:
+                continue
 
-            last_result = unwrap_single_element_list(last_result)
-
-            if isinstance(last_result, PortfolioFragment):
-                day_weights = dict(last_result.weights)
-            else:
-                day_weights = collect_weights_from_value(last_result) if last_result else {}
-
-            if not day_weights:
+            # Step 2: If we have a previous signal, compute its return today
+            if prev_weights is None:
+                # First actionable day -- record signal, no return yet
+                prev_weights = today_weights
                 continue
 
             daily_ret = _compute_daily_return_for_portfolio(
-                selections=day_weights,
+                selections=prev_weights,
                 record_date=eval_date,
                 context=context,
             )
@@ -834,36 +835,42 @@ def _backfill_trading_days(
                     "group_id": group_id,
                     "group_name": group_name,
                     "eval_date": eval_date.isoformat(),
-                    "selections": {k: str(v) for k, v in day_weights.items()},
+                    "held_selections": {k: str(v) for k, v in prev_weights.items()},
+                    "new_signal": (
+                        {k: str(v) for k, v in today_weights.items()} if today_weights else {}
+                    ),
                     "daily_return": str(daily_ret) if daily_ret is not None else "None",
                     "correlation_id": context.correlation_id,
                 },
             )
 
-            if daily_ret is None:
-                continue
-
-            selections_str = {sym: str(w) for sym, w in day_weights.items()}
-            write_ok = write_historical_return(
-                group_id=group_id,
-                record_date=eval_date.isoformat(),
-                selections=selections_str,
-                portfolio_daily_return=daily_ret,
-            )
-            if not write_ok:
-                logger.warning(
-                    "Backfill: failed to persist cache entry to DynamoDB "
-                    "-- data computed but NOT saved",
-                    extra={
-                        "group_id": group_id,
-                        "group_name": group_name,
-                        "eval_date": eval_date.isoformat(),
-                        "daily_return": str(daily_ret),
-                        "correlation_id": context.correlation_id,
-                    },
+            if daily_ret is not None:
+                # Write the return of the held position
+                held_selections_str = {sym: str(w) for sym, w in prev_weights.items()}
+                write_ok = write_historical_return(
+                    group_id=group_id,
+                    record_date=eval_date.isoformat(),
+                    selections=held_selections_str,
+                    portfolio_daily_return=daily_ret,
                 )
-            else:
-                backfilled_returns.append((eval_date.isoformat(), daily_ret))
+                if not write_ok:
+                    logger.warning(
+                        "Backfill: failed to persist cache entry to DynamoDB "
+                        "-- data computed but NOT saved",
+                        extra={
+                            "group_id": group_id,
+                            "group_name": group_name,
+                            "eval_date": eval_date.isoformat(),
+                            "daily_return": str(daily_ret),
+                            "correlation_id": context.correlation_id,
+                        },
+                    )
+                else:
+                    backfilled_returns.append((eval_date.isoformat(), daily_ret))
+
+            # Update signal for next iteration
+            if today_weights:
+                prev_weights = today_weights
 
         except Exception as exc:
             logger.warning(
@@ -921,16 +928,25 @@ def _validate_backfill(
 # ---------------------------------------------------------------------------
 
 
-def _evaluate_group_for_date(
+def _evaluate_group_signal_for_date(
     ast_body: list[ASTNode],
     eval_date: date,
     context: DslContext,
-) -> Decimal | None:
+) -> dict[str, Decimal]:
     """Evaluate a group AST body for a single historical date.
 
     Sets ``as_of_date`` on the indicator service, re-evaluates the
-    body, extracts weights, and computes the portfolio daily return.
+    body, and extracts the resulting portfolio weights (signal).
+
+    Does NOT compute returns -- use ``_compute_daily_return_for_portfolio``
+    separately to compute the return of a held position.
+
     The caller must save/restore ``as_of_date`` around this call.
+
+    Returns:
+        Dictionary of {symbol: weight} for the group's signal on eval_date.
+        Empty dict if evaluation produces no weights.
+
     """
     from engines.dsl.operators.portfolio import collect_weights_from_value
 
@@ -946,18 +962,8 @@ def _evaluate_group_for_date(
     last_result = unwrap_single_element_list(last_result)
 
     if isinstance(last_result, PortfolioFragment):
-        day_weights = dict(last_result.weights)
-    else:
-        day_weights = collect_weights_from_value(last_result) if last_result else {}
-
-    if not day_weights:
-        return None
-
-    return _compute_daily_return_for_portfolio(
-        selections=day_weights,
-        record_date=eval_date,
-        context=context,
-    )
+        return dict(last_result.weights)
+    return collect_weights_from_value(last_result) if last_result else {}
 
 
 def _collect_in_process_returns(
@@ -968,28 +974,54 @@ def _collect_in_process_returns(
 ) -> list[Decimal]:
     """Collect daily returns by re-evaluating a group body for each trading day.
 
-    Uses ``(group_id, date)`` memoization to ensure each group-date pair
-    is evaluated at most once across the entire strategy run.  This prevents
-    exponential recursion in deeply nested group hierarchies (e.g. FTL
-    Starburst with 5+ nesting levels) where inner groups would otherwise
-    trigger their own full backfill loops for every outer evaluation date.
+    Tracks position state across days: the return for day D is the
+    performance of the position determined by the signal at close of
+    day D-1.  Uses ``(group_id, date)`` memoization for signal evaluations
+    to ensure each group-date pair is evaluated at most once across the
+    entire strategy run.  This prevents exponential recursion in deeply
+    nested group hierarchies (e.g. FTL Starburst with 5+ nesting levels)
+    where inner groups would otherwise trigger their own full backfill
+    loops for every outer evaluation date.
     """
     group_id = derive_group_id(group_name)
     returns: list[Decimal] = []
+    prev_weights: dict[str, Decimal] | None = None
+
     for eval_date in trading_days:
         memo_key = (group_id, eval_date.isoformat())
-        if memo_key in _IN_PROCESS_RETURN_MEMO:
-            cached = _IN_PROCESS_RETURN_MEMO[memo_key]
-            if cached is not None:
-                returns.append(cached)
-            continue
         try:
-            daily_ret = _evaluate_group_for_date(ast_body, eval_date, context)
-            _IN_PROCESS_RETURN_MEMO[memo_key] = daily_ret
+            # Evaluate today's signal (memoized)
+            if memo_key in _IN_PROCESS_SIGNAL_MEMO:
+                today_weights = _IN_PROCESS_SIGNAL_MEMO[memo_key] or {}
+            else:
+                today_weights = _evaluate_group_signal_for_date(
+                    ast_body,
+                    eval_date,
+                    context,
+                )
+                _IN_PROCESS_SIGNAL_MEMO[memo_key] = today_weights if today_weights else None
+
+            if prev_weights is None:
+                # First actionable day -- no return yet
+                if today_weights:
+                    prev_weights = today_weights
+                continue
+
+            # Calculate return of previous position during today
+            daily_ret = _compute_daily_return_for_portfolio(
+                selections=prev_weights,
+                record_date=eval_date,
+                context=context,
+            )
             if daily_ret is not None:
                 returns.append(daily_ret)
+
+            # Update signal for next iteration
+            if today_weights:
+                prev_weights = today_weights
+
         except Exception:
-            _IN_PROCESS_RETURN_MEMO[memo_key] = None
+            _IN_PROCESS_SIGNAL_MEMO[memo_key] = None
             logger.warning(
                 "In-process scoring: failed to evaluate %s for %s",
                 group_name,
