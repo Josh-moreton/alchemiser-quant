@@ -294,45 +294,9 @@ Resources:
         - Key: Service
           Value: trade-ledger
 
-  # ========== AGGREGATION SESSIONS TABLE (MULTI-NODE SCALING) ==========
-  # DynamoDB Table for tracking multi-node strategy aggregation sessions
-  AggregationSessionsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !If 
-        - UseStackNameForResources
-        - !Sub "${StackName}-aggregation-sessions"
-        - !Sub "alchemiser-${Stage}-aggregation-sessions"
-      BillingMode: PAY_PER_REQUEST
-      
-      AttributeDefinitions:
-        - AttributeName: PK
-          AttributeType: S
-        - AttributeName: SK
-          AttributeType: S
-      
-      KeySchema:
-        - AttributeName: PK
-          KeyType: HASH
-        - AttributeName: SK
-          KeyType: RANGE
-      
-      TimeToLiveSpecification:
-        AttributeName: TTL
-        Enabled: true
-      
-      SSESpecification:
-        SSEEnabled: true
-      
-      Tags:
-        - Key: Environment
-          Value: !Ref Stage
-        - Key: Service
-          Value: aggregation-sessions
-
   # ========== EXECUTION RUNS TABLE (PER-TRADE SCALING) ==========
   # DynamoDB Table for tracking per-trade execution run state
-  # Follows same pattern as AggregationSessionsTable for Strategy multi-node
+  # Tracks per-trade execution run state for two-phase parallel execution
   ExecutionRunsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -1114,29 +1078,6 @@ Resources:
           Value: !Ref ExecutionRunsTable
       TreatMissingData: notBreaching
 
-  # CloudWatch Alarm for stuck aggregation sessions (PENDING > 30 mins)
-  # Detects scenarios where strategy workers fail silently (e.g., async invoke dropped)
-  # and the aggregation session never completes
-  StuckAggregationSessionsAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-stuck-aggregation-sessions"
-        - !Sub "alchemiser-${Stage}-stuck-aggregation-sessions"
-      AlarmDescription: "Alert when aggregation sessions stuck in PENDING state >30 mins (workers may have failed)"
-      MetricName: StuckAggregationSessions
-      Namespace: Alchemiser/Aggregation
-      Statistic: Maximum
-      Period: 300  # 5 minutes
-      EvaluationPeriods: 1
-      Threshold: 1
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Dimensions:
-        - Name: TableName
-          Value: !Ref AggregationSessionsTable
-      TreatMissingData: notBreaching
-
   # ========== LAMBDA ERROR ALARMS ==========
   # These alarms catch Lambda-level failures that bypass application error handling:
   # - Timeouts (Lambda runtime terminates before try/except can catch)
@@ -1186,48 +1127,6 @@ Resources:
           Value: !Ref StrategyFunction
       TreatMissingData: notBreaching
 
-  # Strategy Aggregator errors - catches stalled aggregation scenarios
-  StrategyAggregatorErrorsAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-aggregator-errors"
-        - !Sub "alchemiser-${Stage}-aggregator-errors"
-      AlarmDescription: "Alert when Strategy Aggregator Lambda has errors"
-      MetricName: Errors
-      Namespace: AWS/Lambda
-      Statistic: Sum
-      Period: 60
-      EvaluationPeriods: 1
-      Threshold: 1
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Dimensions:
-        - Name: FunctionName
-          Value: !Ref StrategyAggregatorFunction
-      TreatMissingData: notBreaching
-
-  # Rebalance Planner Lambda errors - catches failures in rebalance planning
-  RebalancePlannerErrorsAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-rebalance-planner-errors"
-        - !Sub "alchemiser-${Stage}-rebalance-planner-errors"
-      AlarmDescription: "Alert when Rebalance Planner Lambda has errors"
-      MetricName: Errors
-      Namespace: AWS/Lambda
-      Statistic: Sum
-      Period: 60
-      EvaluationPeriods: 1
-      Threshold: 1
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Dimensions:
-        - Name: FunctionName
-          Value: !Ref RebalancePlannerFunction
-      TreatMissingData: notBreaching
-
   # Notifications Lambda errors - CRITICAL: if this fails, no one knows
   # This alarm publishes to default EventBridge bus, creating a feedback loop risk
   # However, since we filter by ALARM state only, recovery won't re-trigger
@@ -1254,32 +1153,6 @@ Resources:
   # Note: ExecutionQueuePolicy removed - EventBridge no longer routes to SQS.
   # Portfolio handler sends TradeMessage objects directly to SQS via SDK.
 
-  # EventBridge Rules for event routing
-  SignalGeneratedRule:
-    Type: AWS::Events::Rule
-    Properties:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-signal-generated"
-        - !Sub "alchemiser-${Stage}-signal-generated"
-      EventBusName: !Ref AlchemiserEventBus
-      EventPattern:
-        source:
-          - alchemiser.strategy
-        detail-type:
-          - SignalGenerated
-      Targets:
-        - Id: RebalancePlannerTarget
-          Arn: !GetAtt RebalancePlannerFunction.Arn
-
-  SignalGeneratedPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref RebalancePlannerFunction
-      Action: lambda:InvokeFunction
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt SignalGeneratedRule.Arn
-
   # ========== EVENTBRIDGE PERMISSIONS FOR LAMBDAS ==========
   # SAM's Events: property creates the EventBridge rule but NOT the Lambda permission.
   # These permissions grant EventBridge service permission to invoke the Lambdas.
@@ -1300,15 +1173,6 @@ Resources:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref NotificationsFunction
-      Action: lambda:InvokeFunction
-      Principal: events.amazonaws.com
-      SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserEventBus.Name}/*"
-
-  # Permission for StrategyAggregator Lambda to be invoked by EventBridge on PartialSignalGenerated events
-  StrategyAggregatorEventBridgePermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref StrategyAggregatorFunction
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserEventBus.Name}/*"
@@ -1362,6 +1226,11 @@ Resources:
           # This allows indicators (e.g., 200-day SMA) to use the most recent price
           # Group history cache for filter scoring (DynamoDB-backed historical returns)
           GROUP_HISTORY_TABLE: !Ref GroupHistoricalSelectionsTable
+          # Per-strategy rebalance: trade execution queue and run tracking
+          EXECUTION_FIFO_QUEUE_URL: !Ref ExecutionFifoQueue
+          EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
+          # Rebalance plan persistence for auditability
+          REBALANCE_PLAN__TABLE_NAME: !Ref RebalancePlanTable
 
     Metadata:
       BuildMethod: python3.12
@@ -1433,10 +1302,35 @@ Resources:
                   - dynamodb:PutItem
                 Resource:
                   - !GetAtt GroupHistoricalSelectionsTable.Arn
+              # Per-strategy rebalance: SQS queue access for trade enqueue
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:GetQueueAttributes
+                Resource:
+                  - !GetAtt ExecutionFifoQueue.Arn
+              # Per-strategy rebalance: execution run tracking
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt ExecutionRunsTable.Arn
+              # Rebalance plan persistence for auditability
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt RebalancePlanTable.Arn
+                  - !Sub "${RebalancePlanTable.Arn}/index/*"
 
-  # ========== MULTI-NODE STRATEGY SCALING (Orchestrator + Aggregator) ==========
-  # These Lambdas enable horizontal scaling of strategy execution by running
-  # each DSL file in a separate Lambda invocation and aggregating the results.
+  # ========== PER-STRATEGY ORCHESTRATION ==========
+  # Orchestrator dispatches each strategy to its own Lambda invocation.
+  # Each worker independently evaluates DSL, calculates rebalance, and enqueues trades.
 
   # Strategy Orchestrator Lambda - Entry point that dispatches parallel strategy execution
   StrategyOrchestratorFunction:
@@ -1460,9 +1354,7 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          AGGREGATION_TABLE_NAME: !Ref AggregationSessionsTable
           STRATEGY_FUNCTION_NAME: !Ref StrategyFunction
-          AGGREGATION_TIMEOUT_SECONDS: "600"
     Metadata:
       BuildMethod: python3.12
 
@@ -1480,14 +1372,6 @@ Resources:
                   - events:PutEvents
                 Resource:
                   - !GetAtt AlchemiserEventBus.Arn
-              - Effect: Allow
-                Action:
-                  - dynamodb:PutItem
-                  - dynamodb:GetItem
-                  - dynamodb:UpdateItem
-                  - dynamodb:Query
-                Resource:
-                  - !GetAtt AggregationSessionsTable.Arn
               # Permission to invoke Strategy Lambda for each file
               - Effect: Allow
                 Action:
@@ -1495,156 +1379,6 @@ Resources:
                   - lambda:InvokeAsync
                 Resource:
                   - !GetAtt StrategyFunction.Arn
-
-  # Signal Aggregator Lambda - Aggregates partial strategy signals into consolidated portfolio
-  StrategyAggregatorFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-signal-aggregator"
-        - !Sub "alchemiser-${Stage}-signal-aggregator"
-      Runtime: python3.12
-      Architectures:
-        - x86_64
-      CodeUri: functions/strategy_aggregator/
-      Handler: lambda_handler.lambda_handler
-      Role: !GetAtt StrategyAggregatorExecutionRole.Arn
-      Layers:
-        - !Ref SharedCodeLayer
-        - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog)
-      Timeout: 60  # Aggregation should be fast
-      MemorySize: 512
-      Environment:
-        Variables:
-          EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          AGGREGATION_TABLE_NAME: !Ref AggregationSessionsTable
-          ALLOCATION_TOLERANCE: "0.01"
-      Events:
-        PartialSignalEvent:
-          Type: EventBridgeRule
-          Properties:
-            EventBusName: !Ref AlchemiserEventBus
-            Pattern:
-              source:
-                - "alchemiser.strategy"
-              detail-type:
-                - "PartialSignalGenerated"
-    Metadata:
-      BuildMethod: python3.12
-
-  StrategyAggregatorExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument: *lambda-assume-role
-      ManagedPolicyArns: *lambda-basic-execution
-      Policies:
-        - PolicyName: StrategyAggregatorPolicy
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action:
-                  - events:PutEvents
-                Resource:
-                  - !GetAtt AlchemiserEventBus.Arn
-              - Effect: Allow
-                Action:
-                  - dynamodb:PutItem
-                  - dynamodb:GetItem
-                  - dynamodb:UpdateItem
-                  - dynamodb:Query
-                  - dynamodb:Scan
-                Resource:
-                  - !GetAtt AggregationSessionsTable.Arn
-              # CloudWatch permissions for stuck session metrics
-              - Effect: Allow
-                Action:
-                  - cloudwatch:PutMetricData
-                Resource: "*"
-
-  # ========== END MULTI-NODE STRATEGY SCALING ==========
-
-  # Rebalance Planner Lambda - Converts signals to rebalance plans
-  RebalancePlannerFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-rebalance-planner"
-        - !Sub "alchemiser-${Stage}-rebalance-planner"
-      Runtime: python3.12
-      Architectures:
-        - x86_64
-      CodeUri: functions/portfolio/
-      Handler: lambda_handler.lambda_handler
-      Role: !GetAtt RebalancePlannerExecutionRole.Arn
-      Layers:
-        - !Ref SharedCodeLayer
-        - !Ref PortfolioLayer
-      Timeout: 900  # Max timeout for comprehensive processing
-      MemorySize: 1024
-      Environment:
-        Variables:
-          EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
-          ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
-          ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
-          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
-          # Rebalance plan persistence for auditability
-          REBALANCE_PLAN__TABLE_NAME: !Ref RebalancePlanTable
-          # Per-trade execution configuration
-          EXECUTION_FIFO_QUEUE_URL: !Ref ExecutionFifoQueue
-          EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
-    Metadata:
-      BuildMethod: python3.12
-
-  RebalancePlannerExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument: *lambda-assume-role
-      ManagedPolicyArns: *lambda-basic-execution
-      Policies:
-        - PolicyName: RebalancePlannerPolicy
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action:
-                  - events:PutEvents
-                Resource:
-                  - !GetAtt AlchemiserEventBus.Arn
-              - Effect: Allow
-                Action:
-                  - dynamodb:PutItem
-                  - dynamodb:GetItem
-                  - dynamodb:Query
-                Resource:
-                  - !GetAtt TradeLedgerTable.Arn
-                  - !Sub "${TradeLedgerTable.Arn}/index/*"
-              # Per-trade parallel execution: SQS Standard queue access (named *Fifo for AWS compatibility)
-              - Effect: Allow
-                Action:
-                  - sqs:SendMessage
-                  - sqs:GetQueueAttributes
-                Resource:
-                  - !GetAtt ExecutionFifoQueue.Arn
-              # Per-trade execution: Execution runs table access
-              - Effect: Allow
-                Action:
-                  - dynamodb:PutItem
-                  - dynamodb:GetItem
-                  - dynamodb:UpdateItem
-                  - dynamodb:Query
-                Resource:
-                  - !GetAtt ExecutionRunsTable.Arn
-              # Rebalance plan persistence for auditability
-              - Effect: Allow
-                Action:
-                  - dynamodb:PutItem
-                  - dynamodb:GetItem
-                  - dynamodb:Query
-                Resource:
-                  - !GetAtt RebalancePlanTable.Arn
-                  - !Sub "${RebalancePlanTable.Arn}/index/*"
 
   # Execution Lambda - Trade execution microservice (triggered via SQS)
   ExecutionFunction:
@@ -2031,7 +1765,7 @@ Resources:
                   - !GetAtt StrategyPerformanceTable.Arn
 
   # ========== HEDGE EVALUATOR LAMBDA (OPTIONS HEDGING) ==========
-  # Triggered by RebalancePlanned to evaluate hedge requirements
+  # Triggered by AllTradesCompleted to evaluate hedge requirements
   # Calculates sector exposure, sizes hedges, publishes HedgeEvaluationCompleted
   HedgeEvaluatorFunction:
     Type: AWS::Serverless::Function
@@ -2683,14 +2417,6 @@ Outputs:
         - !Sub "${StackName}-TradeLedgerTable"
         - !Sub "alchemiser-${Stage}-TradeLedgerTable"
 
-  AggregationSessionsTableName:
-    Description: "DynamoDB table for multi-node strategy aggregation sessions"
-    Value: !Ref AggregationSessionsTable
-    Export:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-AggregationSessionsTable"
-        - !Sub "alchemiser-${Stage}-AggregationSessionsTable"
 
   ExecutionRunsTableName:
     Description: "DynamoDB table for per-trade execution run tracking"

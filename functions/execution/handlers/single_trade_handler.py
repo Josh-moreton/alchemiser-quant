@@ -1355,7 +1355,6 @@ class SingleTradeHandler:
 
         try:
             # Extract strategy attribution from TradeMessage metadata
-            # This carries the strategy_attribution dict from the original RebalancePlan
             strategy_attribution = None
             if trade_message.metadata:
                 strategy_attribution = trade_message.metadata.get("strategy_attribution")
@@ -1370,6 +1369,7 @@ class SingleTradeHandler:
                 quote_at_fill=None,
                 strategy_attribution=strategy_attribution,
                 execution_quality=execution_quality,
+                strategy_id=trade_message.strategy_id,
             )
 
             self.logger.info(

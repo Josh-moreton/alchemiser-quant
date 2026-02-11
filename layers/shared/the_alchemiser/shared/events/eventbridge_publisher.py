@@ -32,9 +32,6 @@ EVENT_SOURCE_PREFIX = "alchemiser"
 # Mapping from internal event types to EventBridge detail-types
 # For WorkflowFailed, source is determined dynamically from the event's source_module
 EVENT_TYPE_TO_DETAIL_TYPE: dict[str, tuple[str, str]] = {
-    "SignalGenerated": ("strategy", "SignalGenerated"),
-    "PartialSignalGenerated": ("strategy", "PartialSignalGenerated"),
-    "RebalancePlanned": ("portfolio", "RebalancePlanned"),
     "TradeExecuted": ("execution", "TradeExecuted"),
     "AllTradesCompleted": ("trade_aggregator", "AllTradesCompleted"),  # From TradeAggregator
     "WorkflowCompleted": ("execution", "WorkflowCompleted"),  # Terminal success event

@@ -11,7 +11,7 @@ reads and interprets the run state to detect completion and aggregate results.
 This separation keeps write contention low and maintains clean separation of concerns.
 
 Note: This service is in shared/ because it's used by multiple business modules:
-- portfolio_v2: Creates runs when decomposing RebalancePlans
+- strategy_v2: Creates runs when enqueuing per-strategy rebalance trades
 - execution_v2: Marks trades as started/completed
 - notifications_v2: Checks completion and aggregates results
 """

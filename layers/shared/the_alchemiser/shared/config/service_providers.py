@@ -5,8 +5,7 @@ Service layer providers for dependency injection.
 This module defines the service layer container for the dependency injection system.
 After v2 migration, most service providers have been moved to their respective modules:
 - execution_v2: Order placement and execution services
-- portfolio_v2: Position and portfolio management services
-- strategy_v2: Market data and signal generation services
+- strategy_v2: Market data, signal generation, and per-strategy rebalance services
 
 The EventBus remains here as shared infrastructure that coordinates events across modules.
 
@@ -32,7 +31,7 @@ from the_alchemiser.shared.events.bus import EventBus
 # - AccountService → the_alchemiser.shared.brokers.AlpacaManager
 # - TradingServiceManager → the_alchemiser.execution_v2.core.ExecutionManager
 # - OrderService → the_alchemiser.execution_v2.core (see ExecutionManager)
-# - PositionService → the_alchemiser.portfolio_v2 (see StateReader)
+# - PositionService → the_alchemiser.shared.services.strategy_position_service
 # - MarketDataService → the_alchemiser.strategy_v2.adapters (see MarketDataAdapter)
 # - KLMEngine → the_alchemiser.strategy_v2.engines (see strategy registry)
 # See README.md "Module Boundaries" section for architecture details.
