@@ -9,6 +9,16 @@ window, computes weighted portfolio daily returns, writes them to the
 ``GroupHistoricalSelectionsTable`` in DynamoDB, and prints a summary
 report of what was uploaded.
 
+Performance optimisations:
+    - All market data is pre-loaded into memory before evaluation begins,
+      eliminating per-bar S3 metadata validation round-trips.
+    - DynamoDB writes are batched (25 items per request) instead of
+      individual put_item calls.
+    - Groups at the same nesting depth are processed in parallel using
+      fork-based multiprocessing (``--parallel N``).
+    - Depth-level passes process deepest groups first so that outer
+      groups can rely on completed inner-group caches.
+
 Usage:
     poetry run python scripts/backfill_group_cache.py \\
         layers/shared/the_alchemiser/shared/strategies/ftl_starburst.clj
@@ -28,20 +38,33 @@ Usage:
     # Target specific group(s):
     poetry run python scripts/backfill_group_cache.py \\
         ftl_starburst.clj --group "WYLD Mean Reversion*"
+
+    # Parallel processing (4 workers):
+    poetry run python scripts/backfill_group_cache.py \\
+        ftl_starburst.clj --parallel 4
+
+    # Process only a specific depth level:
+    poetry run python scripts/backfill_group_cache.py \\
+        ftl_starburst.clj --level 2
 """
 
 from __future__ import annotations
 
 import argparse
+import multiprocessing as mp
 import os
 import sys
 import time
 import uuid
+from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
+
+import pandas as pd
 
 # ---------------------------------------------------------------------------
 # Environment
@@ -95,6 +118,12 @@ RESET = "\033[0m"
 
 # We import _derive_group_id from the actual portfolio module (after
 # path setup) to guarantee identical cache keys. See backfill_strategy_groups().
+
+
+# ---------------------------------------------------------------------------
+# Module-level shared state for parallel workers (set before fork)
+# ---------------------------------------------------------------------------
+_WORKER_STATE: dict[str, Any] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -245,7 +274,129 @@ def _extract_metric_name(condition_node: Any) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Market data adapter for historical backfill
+# In-memory market data adapter (zero I/O after pre-load)
+# ---------------------------------------------------------------------------
+class _InMemoryAdapter:
+    """Market data adapter serving from pre-loaded in-memory DataFrames.
+
+    All data is loaded upfront into a dict of DataFrames. Bar lookups
+    are converted once per symbol and cached as BarModel lists.  This
+    eliminates ALL S3 metadata validation and network I/O during the
+    evaluation phase.
+    """
+
+    def __init__(self, dataframes: dict[str, pd.DataFrame]) -> None:
+        self._data = dataframes
+        self._bar_cache: dict[str, list[Any]] = {}
+
+    def get_bars(
+        self,
+        symbol: Any,
+        period: str,  # noqa: ARG002 - always return all bars
+        timeframe: str,  # noqa: ARG002
+    ) -> list[Any]:
+        """Return all bars for a symbol from the in-memory cache.
+
+        Period filtering is ignored -- the indicator service's as_of_date
+        handles point-in-time truncation.  Returning all bars ensures
+        indicators have the full history they need.
+        """
+        from the_alchemiser.shared.types.market_data import BarModel
+
+        sym = str(symbol)
+        if sym in self._bar_cache:
+            return self._bar_cache[sym]
+
+        df = self._data.get(sym)
+        if df is None or df.empty:
+            self._bar_cache[sym] = []
+            return []
+
+        # Convert DataFrame to BarModel list once and cache
+        df = df.copy()
+        if "timestamp" not in df.columns:
+            self._bar_cache[sym] = []
+            return []
+
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+        df = df.sort_values("timestamp")
+
+        bars: list[BarModel] = []
+        for row in df.itertuples(index=False):
+            ts = row.timestamp
+            if isinstance(ts, pd.Timestamp):
+                ts = ts.to_pydatetime()
+            bars.append(
+                BarModel(
+                    symbol=sym,
+                    timestamp=ts,
+                    open=Decimal(str(row.open)),
+                    high=Decimal(str(row.high)),
+                    low=Decimal(str(row.low)),
+                    close=Decimal(str(row.close)),
+                    volume=int(row.volume),
+                )
+            )
+
+        self._bar_cache[sym] = bars
+        return bars
+
+    def get_latest_bar(self, symbol: Any) -> Any:
+        """Return the most recent bar."""
+        bars = self.get_bars(symbol, "MAX", "1Day")
+        return bars[-1] if bars else None
+
+    def get_quote(self, symbol: Any) -> Any:
+        """Not needed for backfill."""
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Pre-load all market data into memory
+# ---------------------------------------------------------------------------
+def _preload_all_market_data(symbols: set[str]) -> dict[str, pd.DataFrame]:
+    """Download all symbol data from S3 and load into memory.
+
+    Each symbol's parquet file is fetched once from S3 (with local cache).
+    After this call, no further S3 I/O is needed during evaluation.
+
+    Args:
+        symbols: Set of ticker symbol strings.
+
+    Returns:
+        Dict mapping symbol -> DataFrame with OHLCV data.
+
+    """
+    from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
+
+    store = MarketDataStore()
+    data: dict[str, pd.DataFrame] = {}
+    failed: list[str] = []
+    start = time.time()
+
+    print(f"\n  {DIM}Pre-loading {len(symbols)} symbols from S3 ...{RESET}")
+
+    for sym in sorted(symbols):
+        try:
+            df = store.read_symbol_data(sym, use_cache=True)
+            if df is not None and not df.empty:
+                data[sym] = df
+            else:
+                failed.append(sym)
+        except Exception:
+            failed.append(sym)
+
+    elapsed = time.time() - start
+    print(f"  {GREEN}Loaded {len(data)}/{len(symbols)} symbols "
+          f"into memory ({elapsed:.1f}s){RESET}")
+    if failed:
+        print(f"  {YELLOW}Failed to load: {', '.join(failed)}{RESET}")
+
+    return data
+
+
+# ---------------------------------------------------------------------------
+# Market data adapter for historical backfill (LEGACY - kept for reference)
 # ---------------------------------------------------------------------------
 def _build_market_data_adapter() -> Any:
     """Build a market data adapter that returns ALL historical data.
@@ -541,43 +692,37 @@ def _discover_available_date_range(
     symbols: set[str],
     *,
     verbose: bool = True,
+    preloaded_data: dict[str, pd.DataFrame] | None = None,
 ) -> tuple[date | None, date | None, dict[str, tuple[date, date]]]:
     """Discover the date range with available market data for the given symbols.
 
     Returns the date range where ALL symbols have data (most restrictive).
-    The earliest date is the LATEST of all symbol earliest dates.
-    The latest date is the EARLIEST of all symbol latest dates.
-
-    This ensures we only evaluate dates where ALL symbols have complete data.
 
     Args:
         symbols: Set of symbol strings to check.
         verbose: If True, print symbol ranges.
+        preloaded_data: Optional pre-loaded DataFrames (avoids S3 reads).
 
     Returns:
         (start_date, end_date, symbol_ranges) tuple.
-        start_date is the LATEST earliest date (most restrictive).
-        end_date is the EARLIEST latest date.
-        symbol_ranges maps symbol -> (earliest, latest).
 
     """
-    import pandas as pd
-
-    from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
-
-    store = MarketDataStore()
-    # For "all symbols have data", we want the LATEST earliest and EARLIEST latest
-    latest_earliest: date | None = None  # Most restrictive start
-    earliest_latest: date | None = None  # Most restrictive end
+    latest_earliest: date | None = None
+    earliest_latest: date | None = None
     symbol_ranges: dict[str, tuple[date, date]] = {}
 
     for symbol in symbols:
         try:
-            df = store.read_symbol_data(symbol)
+            if preloaded_data and symbol in preloaded_data:
+                df = preloaded_data[symbol]
+            else:
+                from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
+                store = MarketDataStore()
+                df = store.read_symbol_data(symbol)
+
             if df is None or df.empty:
                 continue
 
-            # Handle timestamp column
             if "timestamp" in df.columns:
                 ts_col = pd.to_datetime(df["timestamp"])
             elif df.index.name == "timestamp" or isinstance(df.index, pd.DatetimeIndex):
@@ -589,10 +734,8 @@ def _discover_available_date_range(
             sym_latest = ts_col.max().date()
             symbol_ranges[symbol] = (sym_earliest, sym_latest)
 
-            # Most restrictive: latest of all earliest dates
             if latest_earliest is None or sym_earliest > latest_earliest:
                 latest_earliest = sym_earliest
-            # Most restrictive: earliest of all latest dates
             if earliest_latest is None or sym_latest < earliest_latest:
                 earliest_latest = sym_latest
 
@@ -604,7 +747,6 @@ def _discover_available_date_range(
         print(f"\n  {DIM}Symbol data ranges:{RESET}")
         for sym, (s_early, s_late) in sorted(symbol_ranges.items()):
             days_available = len(_get_trading_days_from_range(s_early, s_late))
-            # Highlight the limiting symbol(s)
             is_limiting = (s_early == latest_earliest) or (s_late == earliest_latest)
             marker = f" {YELLOW}<-- limiting{RESET}" if is_limiting else ""
             print(f"    {sym:<10s}  {s_early} to {s_late}  ({days_available} trading days){marker}")
@@ -613,10 +755,7 @@ def _discover_available_date_range(
 
 
 def _discover_single_group_symbols(gi: GroupInfo, engine: Any) -> set[str]:
-    """Discover all unique symbols referenced by a single group.
-
-    Evaluates the group's AST body to extract all possible symbols.
-    """
+    """Discover all unique symbols referenced by a single group."""
     from engines.dsl.operators.portfolio import (
         PortfolioFragment,
         collect_weights_from_value,
@@ -626,7 +765,6 @@ def _discover_single_group_symbols(gi: GroupInfo, engine: Any) -> set[str]:
     symbols: set[str] = set()
 
     try:
-        # Create a fresh Trace for this evaluation
         trace = Trace(
             trace_id=str(uuid.uuid4()),
             correlation_id="symbol-discovery",
@@ -637,11 +775,9 @@ def _discover_single_group_symbols(gi: GroupInfo, engine: Any) -> set[str]:
         for expr in gi.body:
             result = engine.evaluator._evaluate_node(expr, "discovery", trace)
 
-            # Unwrap single-element list
             if isinstance(result, list) and len(result) == 1:
                 result = result[0]
 
-            # Extract symbols from weights
             if isinstance(result, PortfolioFragment):
                 symbols.update(result.weights.keys())
             elif isinstance(result, dict):
@@ -653,17 +789,13 @@ def _discover_single_group_symbols(gi: GroupInfo, engine: Any) -> set[str]:
                 symbols.update(weights.keys())
 
     except Exception:
-        # Group may fail during symbol discovery - that's OK
         pass
 
     return symbols
 
 
 def _discover_group_symbols(groups: list[GroupInfo], engine: Any) -> set[str]:
-    """Discover all unique symbols referenced by a list of groups.
-
-    Evaluates each group's AST body to extract all possible symbols.
-    """
+    """Discover all unique symbols referenced by a list of groups."""
     symbols: set[str] = set()
     for gi in groups:
         symbols.update(_discover_single_group_symbols(gi, engine))
@@ -671,27 +803,242 @@ def _discover_group_symbols(groups: list[GroupInfo], engine: Any) -> set[str]:
 
 
 # ---------------------------------------------------------------------------
-# DynamoDB writer
+# Batch DynamoDB writer
 # ---------------------------------------------------------------------------
-def _write_to_dynamodb(
-    group_id: str,
-    record_date: str,
-    selections: dict[str, str],
-    portfolio_daily_return: Decimal,
+def _batch_write_dynamodb(
+    items: list[dict[str, Any]],
     *,
     dry_run: bool = False,
-) -> bool:
-    """Write a single cache entry to DynamoDB. Returns True on success."""
-    if dry_run:
-        return True
+) -> tuple[int, int]:
+    """Batch-write cache entries to DynamoDB. Returns (written, failed).
 
-    from engines.dsl.operators.group_cache_lookup import write_historical_return
+    Uses the DynamoDB batch_writer context manager which automatically
+    handles batching (max 25 items per BatchWriteItem request) and
+    unprocessed item retries.
 
-    return write_historical_return(
-        group_id=group_id,
-        record_date=record_date,
-        selections=selections,
-        portfolio_daily_return=portfolio_daily_return,
+    Args:
+        items: List of dicts with keys: group_id, record_date, selections,
+            portfolio_daily_return.
+        dry_run: If True, skip writing.
+
+    Returns:
+        Tuple of (items_written, items_failed).
+
+    """
+    if dry_run or not items:
+        return (len(items) if dry_run else 0), 0
+
+    from engines.dsl.operators.group_cache_lookup import get_dynamodb_table
+
+    table = get_dynamodb_table()
+    if table is None:
+        return 0, len(items)
+
+    ttl_epoch = int((datetime.now(UTC) + timedelta(days=30)).timestamp())
+    written = 0
+    failed = 0
+
+    try:
+        with table.batch_writer() as batch:  # type: ignore[attr-defined]
+            for item in items:
+                try:
+                    batch.put_item(
+                        Item={
+                            "group_id": item["group_id"],
+                            "record_date": item["record_date"],
+                            "selections": item["selections"],
+                            "selection_count": len(item["selections"]),
+                            "portfolio_daily_return": str(
+                                item["portfolio_daily_return"]
+                            ),
+                            "evaluated_at": datetime.now(UTC).isoformat(),
+                            "source": "on_demand_backfill",
+                            "ttl": ttl_epoch,
+                        }
+                    )
+                    written += 1
+                except Exception:
+                    failed += 1
+    except Exception:
+        # Entire batch operation failed
+        return written, len(items) - written
+
+    return written, failed
+
+
+# ---------------------------------------------------------------------------
+# Single-group backfill (used by both sequential and parallel paths)
+# ---------------------------------------------------------------------------
+def _backfill_single_group(
+    gi: GroupInfo,
+    group_id: str,
+    trading_days: list[date],
+    engine: Any,
+    correlation_id: str,
+    *,
+    quiet: bool = False,
+) -> dict[str, Any]:
+    """Run the position-tracking backfill loop for one group.
+
+    Returns a result dict containing the list of DynamoDB items to write
+    and summary statistics.  Does NOT write to DynamoDB -- the caller
+    handles batching.
+
+    Args:
+        gi: GroupInfo with AST body.
+        group_id: Deterministic cache key.
+        trading_days: Ordered list of dates to evaluate.
+        engine: DslEngine instance.
+        correlation_id: Tracing identifier.
+        quiet: If True, suppress per-day output (for parallel workers).
+
+    Returns:
+        Dict with keys: group_name, group_id, items, days_evaluated,
+        days_written, days_skipped, days_failed, elapsed_seconds.
+
+    """
+    ast_body = gi.body
+    group_name = gi.name
+    dynamo_items: list[dict[str, Any]] = []
+    skipped = 0
+    failed = 0
+    group_start = time.time()
+
+    prev_weights: dict[str, Decimal] | None = None
+
+    for day_idx, eval_date in enumerate(trading_days):
+        progress = f"  [{day_idx + 1}/{len(trading_days)}] {eval_date}"
+        try:
+            today_weights = _evaluate_group_signal(
+                ast_body, eval_date, engine, correlation_id,
+            )
+
+            if prev_weights is None:
+                if not today_weights:
+                    if not quiet:
+                        print(f"{progress}  {DIM}-- no signal{RESET}")
+                    skipped += 1
+                    continue
+                if not quiet:
+                    symbols = ", ".join(sorted(today_weights.keys()))
+                    print(f"{progress}  {DIM}-- first signal [{symbols}], "
+                          f"no return yet{RESET}")
+                prev_weights = today_weights
+                continue
+
+            daily_ret = _calculate_position_return(
+                prev_weights, eval_date, engine,
+            )
+
+            if daily_ret is None:
+                if not quiet:
+                    print(f"{progress}  {DIM}-- no price data{RESET}")
+                skipped += 1
+                if today_weights:
+                    prev_weights = today_weights
+                continue
+
+            held_selections_str = {
+                sym: str(w) for sym, w in prev_weights.items()
+            }
+            dynamo_items.append({
+                "group_id": group_id,
+                "record_date": eval_date.isoformat(),
+                "selections": held_selections_str,
+                "portfolio_daily_return": daily_ret,
+            })
+
+            if not quiet:
+                held_symbols = ", ".join(sorted(prev_weights.keys()))
+                ret_pct = float(daily_ret) * 100
+                signal_change = ""
+                if (
+                    today_weights
+                    and set(today_weights.keys()) != set(prev_weights.keys())
+                ):
+                    new_syms = ", ".join(sorted(today_weights.keys()))
+                    signal_change = f"  -> [{new_syms}]"
+                print(
+                    f"{progress}  ret={ret_pct:+.4f}%  "
+                    f"held=[{held_symbols}]{signal_change}"
+                )
+
+            if today_weights:
+                prev_weights = today_weights
+
+        except Exception as exc:
+            if not quiet:
+                print(f"{progress}  {RED}ERROR: {exc}{RESET}")
+            failed += 1
+
+    elapsed = time.time() - group_start
+    return {
+        "group_name": group_name,
+        "group_id": group_id,
+        "items": dynamo_items,
+        "days_evaluated": len(trading_days),
+        "days_written": len(dynamo_items),
+        "days_skipped": skipped,
+        "days_failed": failed,
+        "elapsed_seconds": round(elapsed, 1),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Parallel worker (runs in forked subprocess)
+# ---------------------------------------------------------------------------
+def _parallel_worker(group_name: str) -> dict[str, Any]:
+    """Worker function for ProcessPoolExecutor (fork mode).
+
+    Reads shared state from module-level ``_WORKER_STATE`` (inherited
+    via fork).  Builds its own DslEngine to avoid shared mutable state.
+
+    Args:
+        group_name: Name of the group to backfill.
+
+    Returns:
+        Result dict from ``_backfill_single_group``.
+
+    """
+    import logging as _logging
+    import structlog as _structlog
+
+    # Suppress logging in worker
+    _structlog.configure(
+        wrapper_class=_structlog.make_filtering_bound_logger(_logging.ERROR)
+    )
+    for name in [
+        "strategy_v2", "the_alchemiser", "engines",
+        "indicators", "botocore", "urllib3",
+    ]:
+        _logging.getLogger(name).setLevel(_logging.ERROR)
+
+    state = _WORKER_STATE
+    gi: GroupInfo = state["groups_by_name"][group_name]
+    trading_days: list[date] = state["trading_days_by_group"][group_name]
+    preloaded_data: dict[str, pd.DataFrame] = state["preloaded_data"]
+    strategies_dir: Path = state["strategies_dir"]
+    clj_filename: str = state["clj_filename"]
+    correlation_id: str = state["correlation_id"]
+
+    from engines.dsl.engine import DslEngine
+    from engines.dsl.operators.group_scoring import clear_evaluation_caches
+    from engines.dsl.operators.portfolio import _derive_group_id
+
+    # Each worker gets its own engine with in-memory adapter
+    adapter = _InMemoryAdapter(preloaded_data)
+    engine = DslEngine(
+        strategy_config_path=strategies_dir,
+        market_data_adapter=adapter,
+        debug_mode=False,
+    )
+
+    clear_evaluation_caches()
+    engine.evaluate_strategy(clj_filename, correlation_id)
+
+    group_id = _derive_group_id(group_name)
+    return _backfill_single_group(
+        gi, group_id, trading_days, engine, correlation_id, quiet=True,
     )
 
 
@@ -706,17 +1053,24 @@ def backfill_strategy_groups(
     warmup_days: int = INDICATOR_WARMUP_DAYS,
     dry_run: bool = False,
     group_patterns: list[str] | None = None,
+    parallel_workers: int = 1,
+    target_level: int | None = None,
 ) -> dict[str, Any]:
     """Backfill DynamoDB group cache for all groups in a .clj strategy file.
+
+    Processes groups in depth-level passes (deepest first) so that inner
+    groups complete before outer groups that may depend on them.  Within
+    each depth level, groups can be processed in parallel.
 
     Args:
         clj_path: Path to .clj strategy file (absolute or relative).
         lookback_days: Calendar days to backfill. Ignored if backfill_all=True.
         backfill_all: If True, backfill all available historical data.
-        warmup_days: Trading days for indicator warm-up period (default: 252).
-            Indicators like max_drawdown, SMA, RSI need historical data.
+        warmup_days: Trading days for indicator warm-up period.
         dry_run: If True, compute but do not write to DynamoDB.
         group_patterns: Optional list of glob patterns to filter groups.
+        parallel_workers: Number of parallel workers (1 = sequential).
+        target_level: If set, only process groups at this depth level.
 
     Returns:
         Summary dict with per-group results.
@@ -744,10 +1098,8 @@ def backfill_strategy_groups(
     # Resolve the .clj file path
     clj_file = Path(clj_path)
     if not clj_file.exists():
-        # Try relative to strategies dir
         clj_file = STRATEGIES_DIR / clj_path
     if not clj_file.exists():
-        # Try just the filename
         clj_file = STRATEGIES_DIR / Path(clj_path).name
     if not clj_file.exists():
         print(f"{RED}ERROR: Cannot find strategy file: {clj_path}{RESET}")
@@ -764,6 +1116,9 @@ def backfill_strategy_groups(
     else:
         print(f"  Lookback: {lookback_days} calendar days")
     print(f"  Dry run:  {dry_run}")
+    print(f"  Workers:  {parallel_workers}")
+    if target_level is not None:
+        print(f"  Level:    {target_level} only")
     print(f"  Table:    {os.environ.get('GROUP_HISTORY_TABLE', '(not set)')}")
 
     # ---- Parse the strategy file ----
@@ -772,7 +1127,7 @@ def backfill_strategy_groups(
     ast = parser.parse_file(str(clj_file))
     print(f" done.{RESET}")
 
-    # ---- Discover filter-targeted groups (only these need cache) ----
+    # ---- Discover filter-targeted groups ----
     all_filter_groups = _find_filter_targeted_groups(ast)
 
     # Deduplicate by name, keeping the deepest occurrence
@@ -782,8 +1137,6 @@ def backfill_strategy_groups(
         if existing is None or gi.depth > existing.depth:
             best_by_name[gi.name] = gi
 
-    # Sort deepest-first (bottom-up) so inner groups are backfilled before
-    # outer groups that depend on them
     unique_groups_sorted: list[GroupInfo] = sorted(
         best_by_name.values(),
         key=lambda g: (-g.depth, g.name),
@@ -796,258 +1149,253 @@ def backfill_strategy_groups(
             if any(fnmatch(gi.name, pat) for pat in group_patterns)
         ]
 
-    print(f"\n  Found {len(all_filter_groups)} filter-targeted group nodes, "
-          f"{len(unique_groups_sorted)} unique groups to backfill (bottom-up)")
+    # ---- Group by depth level ----
+    depth_groups: dict[int, list[GroupInfo]] = defaultdict(list)
+    for gi in unique_groups_sorted:
+        depth_groups[gi.depth].append(gi)
 
-    if not unique_groups_sorted:
+    # Filter to target level if specified
+    if target_level is not None:
+        if target_level not in depth_groups:
+            available = sorted(depth_groups.keys(), reverse=True)
+            print(f"\n{YELLOW}No groups at depth {target_level}. "
+                  f"Available depths: {available}{RESET}")
+            return {"groups": {}, "total_writes": 0}
+        depth_groups = {target_level: depth_groups[target_level]}
+
+    # Show discovery summary
+    total_groups = sum(len(gs) for gs in depth_groups.values())
+    print(f"\n  Found {len(all_filter_groups)} filter-targeted group nodes, "
+          f"{total_groups} unique groups across {len(depth_groups)} depth levels")
+
+    if total_groups == 0:
         print(f"\n{YELLOW}No filter-targeted groups found to backfill.{RESET}")
         return {"groups": {}, "total_writes": 0}
 
-    for i, gi in enumerate(unique_groups_sorted, 1):
-        gid = _derive_group_id(gi.name)
-        print(f"    {i:3d}. [depth={gi.depth}] {gi.name[:48]:<48s}  "
-              f"{DIM}{gid}  (metric: {gi.parent_filter_metric}){RESET}")
+    for depth in sorted(depth_groups.keys(), reverse=True):
+        groups = depth_groups[depth]
+        print(f"\n  {BOLD}Depth {depth} ({len(groups)} groups):{RESET}")
+        for i, gi in enumerate(groups, 1):
+            gid = _derive_group_id(gi.name)
+            print(f"    {i:3d}. {gi.name[:48]:<48s}  "
+                  f"{DIM}{gid}  (metric: {gi.parent_filter_metric}){RESET}")
 
-    # ---- Build engine ----
-    print(f"\n{DIM}Initializing market data ...{RESET}", end="", flush=True)
-    adapter = _build_market_data_adapter()
-    engine = DslEngine(
+    # ---- Build initial engine for symbol discovery ----
+    print(f"\n{DIM}Initializing engine for symbol discovery ...{RESET}",
+          end="", flush=True)
+    discovery_adapter = _build_market_data_adapter()
+    discovery_engine = DslEngine(
         strategy_config_path=STRATEGIES_DIR,
-        market_data_adapter=adapter,
+        market_data_adapter=discovery_adapter,
         debug_mode=False,
     )
-    print(f" done.{RESET}")
-
-    # ---- First, run a full evaluation so AST bodies get registered ----
-    print(f"{DIM}Running initial strategy evaluation to register AST bodies ...{RESET}",
-          end="", flush=True)
     clear_evaluation_caches()
     correlation_id = f"backfill-{strategy_name}-{datetime.now(UTC).strftime('%H%M%S')}"
-    engine.evaluate_strategy(clj_file.name, correlation_id)
+    discovery_engine.evaluate_strategy(clj_file.name, correlation_id)
     print(f" done.{RESET}")
+
+    # ---- Discover ALL symbols across ALL groups ----
+    print(f"\n{DIM}Discovering symbols across all groups ...{RESET}")
+    all_symbols: set[str] = set()
+    for gi in unique_groups_sorted:
+        group_syms = _discover_single_group_symbols(gi, discovery_engine)
+        all_symbols.update(group_syms)
+        if group_syms:
+            print(f"  {DIM}{gi.name[:40]}: {', '.join(sorted(group_syms))}{RESET}")
+    print(f"  Total unique symbols: {len(all_symbols)}")
+
+    # ---- Pre-load ALL market data into memory ----
+    preloaded_data = _preload_all_market_data(all_symbols)
+
+    # Free the discovery engine (we'll build new ones with in-memory adapter)
+    del discovery_engine
+    del discovery_adapter
 
     # ---- Determine trading days ----
     end_date = datetime.now(UTC).date()
 
-    # For non-all mode, calculate trading days once upfront
-    global_trading_days: list[date] | None = None
-    if not backfill_all:
-        effective_lookback = lookback_days or 45
-        global_trading_days = _get_trading_days(end_date, effective_lookback)
-        print(f"\n  Trading days in window: {len(global_trading_days)} "
-              f"({global_trading_days[0]} to {global_trading_days[-1]})")
-
-    # ---- Backfill each group ----
+    # ---- Process each depth level (deepest first) ----
     results: dict[str, dict[str, Any]] = {}
     total_writes = 0
     total_failures = 0
     overall_start = time.time()
 
-    for group_idx, gi in enumerate(unique_groups_sorted, 1):
-        group_name = gi.name
-        ast_body = gi.body
-        group_id = _derive_group_id(group_name)
-        print(f"\n{BOLD}[{group_idx}/{len(unique_groups_sorted)}] "
-              f"{group_name} (depth={gi.depth}){RESET}")
-        print(f"  group_id: {DIM}{group_id}{RESET}")
-        print(f"  metric:   {DIM}{gi.parent_filter_metric}{RESET}")
+    for depth in sorted(depth_groups.keys(), reverse=True):
+        level_groups = depth_groups[depth]
 
-        # Determine trading days for this group
-        if backfill_all:
-            # Discover symbols for THIS group specifically
-            print(f"  {DIM}Discovering symbols for this group ...{RESET}")
-            group_symbols = _discover_single_group_symbols(gi, engine)
-            if not group_symbols:
-                print(f"  {YELLOW}WARNING: No symbols discovered for group, skipping{RESET}")
-                results[group_name] = {
-                    "group_id": group_id,
-                    "days_evaluated": 0,
-                    "days_written": 0,
-                    "days_skipped": 0,
-                    "days_failed": 0,
-                    "elapsed_seconds": 0,
-                    "records": [],
+        print(f"\n{BOLD}{'=' * 72}{RESET}")
+        print(f"{BOLD}  DEPTH LEVEL {depth} -- "
+              f"{len(level_groups)} group(s){RESET}")
+        print(f"{BOLD}{'=' * 72}{RESET}")
+
+        # Pre-compute trading days for each group at this level
+        trading_days_by_group: dict[str, list[date]] = {}
+        for gi in level_groups:
+            group_id = _derive_group_id(gi.name)
+
+            if backfill_all:
+                group_symbols = _discover_single_group_symbols(
+                    gi,
+                    # Quick engine just for symbol discovery
+                    DslEngine(
+                        strategy_config_path=STRATEGIES_DIR,
+                        market_data_adapter=_InMemoryAdapter(preloaded_data),
+                        debug_mode=False,
+                    ),
+                )
+                if not group_symbols:
+                    print(f"  {YELLOW}WARNING: No symbols for {gi.name}, skipping{RESET}")
+                    results[gi.name] = {
+                        "group_id": group_id,
+                        "days_evaluated": 0, "days_written": 0,
+                        "days_skipped": 0, "days_failed": 0,
+                        "elapsed_seconds": 0, "records": [],
+                    }
+                    continue
+
+                start_date, data_end_date, _ = _discover_available_date_range(
+                    group_symbols, verbose=False, preloaded_data=preloaded_data,
+                )
+                if start_date is None or data_end_date is None:
+                    print(f"  {YELLOW}WARNING: No data for {gi.name}, skipping{RESET}")
+                    results[gi.name] = {
+                        "group_id": group_id,
+                        "days_evaluated": 0, "days_written": 0,
+                        "days_skipped": 0, "days_failed": 0,
+                        "elapsed_seconds": 0, "records": [],
+                    }
+                    continue
+
+                warmup_calendar_days = int(warmup_days * 7 / 5) + 5
+                eval_start = start_date + timedelta(days=warmup_calendar_days)
+                if eval_start >= end_date:
+                    print(f"  {YELLOW}WARNING: Not enough warm-up data for "
+                          f"{gi.name}, skipping{RESET}")
+                    results[gi.name] = {
+                        "group_id": group_id,
+                        "days_evaluated": 0, "days_written": 0,
+                        "days_skipped": 0, "days_failed": 0,
+                        "elapsed_seconds": 0, "records": [],
+                    }
+                    continue
+
+                trading_days_by_group[gi.name] = _get_trading_days_from_range(
+                    eval_start, end_date,
+                )
+                print(f"  {gi.name[:45]}: {len(trading_days_by_group[gi.name])} "
+                      f"trading days ({eval_start} to {end_date})")
+            else:
+                effective_lookback = lookback_days or 45
+                trading_days_by_group[gi.name] = _get_trading_days(
+                    end_date, effective_lookback,
+                )
+
+        # Filter to groups that have trading days
+        processable = [
+            gi for gi in level_groups if gi.name in trading_days_by_group
+        ]
+        if not processable:
+            print(f"  {YELLOW}No processable groups at depth {depth}{RESET}")
+            continue
+
+        # ---- Process groups at this level ----
+        level_items: list[dict[str, Any]] = []
+        level_start = time.time()
+
+        if parallel_workers > 1 and len(processable) > 1:
+            # ---- PARALLEL MODE ----
+            print(f"\n  {CYAN}Processing {len(processable)} groups in parallel "
+                  f"({parallel_workers} workers) ...{RESET}")
+
+            # Set up shared state for workers (inherited via fork)
+            global _WORKER_STATE
+            _WORKER_STATE = {
+                "groups_by_name": {gi.name: gi for gi in processable},
+                "trading_days_by_group": trading_days_by_group,
+                "preloaded_data": preloaded_data,
+                "strategies_dir": STRATEGIES_DIR,
+                "clj_filename": clj_file.name,
+                "correlation_id": correlation_id,
+            }
+
+            ctx = mp.get_context("fork")
+            with ProcessPoolExecutor(
+                max_workers=min(parallel_workers, len(processable)),
+                mp_context=ctx,
+            ) as executor:
+                future_to_name = {
+                    executor.submit(_parallel_worker, gi.name): gi.name
+                    for gi in processable
                 }
-                continue
-
-            print(f"  Symbols: {', '.join(sorted(group_symbols))}")
-
-            # Discover date range for THIS group (most restrictive)
-            start_date, data_end_date, symbol_ranges = _discover_available_date_range(
-                group_symbols, verbose=True
-            )
-
-            if start_date is None or data_end_date is None:
-                print(f"  {YELLOW}WARNING: No market data found for group symbols, skipping{RESET}")
-                results[group_name] = {
-                    "group_id": group_id,
-                    "days_evaluated": 0,
-                    "days_written": 0,
-                    "days_skipped": 0,
-                    "days_failed": 0,
-                    "elapsed_seconds": 0,
-                    "records": [],
-                }
-                continue
-
-            # Add indicator warm-up period to ensure indicators have enough
-            # historical data to calculate properly. We need warmup_days
-            # trading days of data before we can start evaluation.
-            # Convert trading days to approximate calendar days (5 trading days per 7 calendar days)
-            warmup_calendar_days = int(warmup_days * 7 / 5) + 5  # Add buffer
-            eval_start = start_date + timedelta(days=warmup_calendar_days)
-
-            # Ensure we don't start after today
-            if eval_start >= end_date:
-                print(f"  {YELLOW}WARNING: Not enough data for indicator warm-up "
-                      f"(need {warmup_days} trading days), skipping{RESET}")
-                print(f"  {DIM}Data starts: {start_date}, warm-up ends: {eval_start}, "
-                      f"today: {end_date}{RESET}")
-                results[group_name] = {
-                    "group_id": group_id,
-                    "days_evaluated": 0,
-                    "days_written": 0,
-                    "days_skipped": 0,
-                    "days_failed": 0,
-                    "elapsed_seconds": 0,
-                    "records": [],
-                }
-                continue
-
-            trading_days = _get_trading_days_from_range(eval_start, end_date)
-            print(f"  {CYAN}Data available from: {start_date}{RESET}")
-            print(f"  {CYAN}Indicator warm-up: {warmup_days} trading days{RESET}")
-            print(f"  {CYAN}Eval date range: {eval_start} to {end_date} "
-                  f"({len(trading_days)} trading days){RESET}")
+                for future in as_completed(future_to_name):
+                    gname = future_to_name[future]
+                    try:
+                        result = future.result()
+                        level_items.extend(result["items"])
+                        results[gname] = result
+                        print(f"  {GREEN}Completed: {gname[:45]} "
+                              f"({result['days_written']} days, "
+                              f"{result['elapsed_seconds']:.1f}s){RESET}")
+                    except Exception as exc:
+                        print(f"  {RED}FAILED: {gname[:45]} -- {exc}{RESET}")
+                        results[gname] = {
+                            "group_id": _derive_group_id(gname),
+                            "days_evaluated": 0, "days_written": 0,
+                            "days_skipped": 0, "days_failed": 1,
+                            "elapsed_seconds": 0, "records": [],
+                        }
+                        total_failures += 1
         else:
-            # Use global trading days for non-all mode
-            assert global_trading_days is not None
-            trading_days = global_trading_days
+            # ---- SEQUENTIAL MODE ----
+            # Build one engine for the entire level (reused across groups)
+            adapter = _InMemoryAdapter(preloaded_data)
+            engine = DslEngine(
+                strategy_config_path=STRATEGIES_DIR,
+                market_data_adapter=adapter,
+                debug_mode=False,
+            )
+            clear_evaluation_caches()
+            engine.evaluate_strategy(clj_file.name, correlation_id)
 
-        group_results: list[dict[str, Any]] = []
-        wrote = 0
-        skipped = 0
-        failed = 0
-        group_start = time.time()
+            for gi in processable:
+                group_id = _derive_group_id(gi.name)
+                trading_days = trading_days_by_group[gi.name]
 
-        # ---- Position-tracking state ----
-        # The return for day D is the performance of the position held
-        # DURING day D, which was determined by the signal at close of
-        # day D-1.  We track the previous day's signal (prev_weights)
-        # so that on each new day we can measure that held position's
-        # return before evaluating the new signal.
-        prev_weights: dict[str, Decimal] | None = None
+                print(f"\n  {BOLD}{gi.name} (depth={gi.depth}){RESET}")
+                print(f"    group_id: {DIM}{group_id}{RESET}")
+                print(f"    days:     {len(trading_days)}")
 
-        for day_idx, eval_date in enumerate(trading_days):
-            progress = f"  [{day_idx + 1}/{len(trading_days)}] {eval_date}"
-            try:
-                # Step 1: Evaluate today's signal (what the group wants
-                # to hold from today's close onward).
-                today_weights = _evaluate_group_signal(
-                    ast_body, eval_date, engine, correlation_id,
+                result = _backfill_single_group(
+                    gi, group_id, trading_days, engine, correlation_id,
                 )
+                level_items.extend(result["items"])
+                results[gi.name] = result
 
-                # Step 2: Calculate the return of the PREVIOUS position
-                # during today (close D-1 -> close D).
-                if prev_weights is None:
-                    # No prior signal yet -- first actionable day.
-                    if not today_weights:
-                        print(f"{progress}  {DIM}-- no signal{RESET}")
-                        skipped += 1
-                        continue
-                    symbols = ", ".join(sorted(today_weights.keys()))
-                    print(f"{progress}  {DIM}-- first signal [{symbols}], "
-                          f"no return yet{RESET}")
-                    prev_weights = today_weights
-                    continue
+                print(f"    {DIM}Summary: {result['days_written']} computed, "
+                      f"{result['days_skipped']} skipped, "
+                      f"{result['days_failed']} failed "
+                      f"({result['elapsed_seconds']:.1f}s){RESET}")
 
-                daily_ret = _calculate_position_return(
-                    prev_weights, eval_date, engine,
-                )
+            # Restore as_of_date
+            engine.indicator_service.as_of_date = None
 
-                if daily_ret is None:
-                    print(f"{progress}  {DIM}-- no price data for "
-                          f"return calc{RESET}")
-                    skipped += 1
-                    # Still update the signal if we got a new one
-                    if today_weights:
-                        prev_weights = today_weights
-                    continue
+        level_elapsed = time.time() - level_start
 
-                # Step 3: Write the return of the held position.
-                # ``selections`` records what was HELD during this day
-                # (the previous signal), which produced the return.
-                held_selections_str = {
-                    sym: str(w) for sym, w in prev_weights.items()
-                }
-                ok = _write_to_dynamodb(
-                    group_id=group_id,
-                    record_date=eval_date.isoformat(),
-                    selections=held_selections_str,
-                    portfolio_daily_return=daily_ret,
-                    dry_run=dry_run,
-                )
-
-                held_symbols = ", ".join(sorted(prev_weights.keys()))
-                ret_pct = float(daily_ret) * 100
-                status = f"{GREEN}OK{RESET}" if ok else f"{RED}FAIL{RESET}"
-                if dry_run:
-                    status = f"{YELLOW}DRY{RESET}"
-
-                # Show signal transitions when holdings change
-                signal_change = ""
-                if (
-                    today_weights
-                    and set(today_weights.keys()) != set(prev_weights.keys())
-                ):
-                    new_syms = ", ".join(sorted(today_weights.keys()))
-                    signal_change = f"  -> [{new_syms}]"
-
-                print(
-                    f"{progress}  ret={ret_pct:+.4f}%  "
-                    f"held=[{held_symbols}]{signal_change}  {status}"
-                )
-
-                group_results.append({
-                    "date": eval_date.isoformat(),
-                    "selections": held_selections_str,
-                    "daily_return": str(daily_ret),
-                    "written": ok,
-                })
-
-                if ok:
-                    wrote += 1
-                else:
-                    failed += 1
-
-                # Step 4: Update signal for next iteration.
-                # If today's evaluation produced no signal, keep holding
-                # the previous position (don't reset to empty).
-                if today_weights:
-                    prev_weights = today_weights
-
-            except Exception as exc:
-                print(f"{progress}  {RED}ERROR: {exc}{RESET}")
-                failed += 1
-
-        elapsed = time.time() - group_start
-        results[group_name] = {
-            "group_id": group_id,
-            "days_evaluated": len(trading_days),
-            "days_written": wrote,
-            "days_skipped": skipped,
-            "days_failed": failed,
-            "elapsed_seconds": round(elapsed, 1),
-            "records": group_results,
-        }
-        total_writes += wrote
-        total_failures += failed
-
-        print(f"  {DIM}Summary: {wrote} written, {skipped} skipped, "
-              f"{failed} failed ({elapsed:.1f}s){RESET}")
-
-    # Restore as_of_date
-    engine.indicator_service.as_of_date = None
+        # ---- Batch write all items for this level ----
+        if level_items:
+            print(f"\n  {DIM}Batch writing {len(level_items)} items to "
+                  f"DynamoDB ...{RESET}", end="", flush=True)
+            written, failed = _batch_write_dynamodb(
+                level_items, dry_run=dry_run,
+            )
+            total_writes += written
+            total_failures += failed
+            status = f"{GREEN}OK{RESET}" if failed == 0 else f"{RED}{failed} failed{RESET}"
+            if dry_run:
+                status = f"{YELLOW}DRY RUN{RESET}"
+            print(f" {written} written, {status} ({level_elapsed:.1f}s)")
+        else:
+            print(f"\n  {DIM}No items to write for depth {depth}{RESET}")
 
     overall_elapsed = time.time() - overall_start
 
@@ -1057,17 +1405,23 @@ def backfill_strategy_groups(
     print(f"{BOLD}{'=' * 72}{RESET}")
     print(f"  Strategy:        {strategy_name}")
     print(f"  DynamoDB table:  {os.environ.get('GROUP_HISTORY_TABLE', '(not set)')}")
-    lookback_mode = "ALL available history (per-group)" if backfill_all else f"{lookback_days or 45} calendar days"
+    lookback_mode = (
+        "ALL available history (per-group)" if backfill_all
+        else f"{lookback_days or 45} calendar days"
+    )
     print(f"  Lookback:        {lookback_mode}")
     print(f"  Write mode:      {'DRY RUN' if dry_run else 'LIVE'}")
+    print(f"  Workers:         {parallel_workers}")
     print(f"  Duration:        {overall_elapsed:.1f}s")
-    print(f"  Groups:          {len(unique_groups_sorted)}")
+    print(f"  Groups:          {len(results)}")
     print(f"  Total writes:    {total_writes}")
     print(f"  Total failures:  {total_failures}")
 
     print(f"\n  {BOLD}Per-group breakdown:{RESET}")
-    print(f"  {'Group':<50s}  {'Days':>5s}  {'Written':>7s}  {'Skip':>4s}  {'Fail':>4s}  {'Time':>6s}")
-    print(f"  {'-' * 50}  {'-' * 5}  {'-' * 7}  {'-' * 4}  {'-' * 4}  {'-' * 6}")
+    print(f"  {'Group':<50s}  {'Days':>5s}  {'Written':>7s}  "
+          f"{'Skip':>4s}  {'Fail':>4s}  {'Time':>6s}")
+    print(f"  {'-' * 50}  {'-' * 5}  {'-' * 7}  "
+          f"{'-' * 4}  {'-' * 4}  {'-' * 6}")
     for gname, gdata in results.items():
         d = gdata["days_evaluated"]
         w = gdata["days_written"]
@@ -1075,22 +1429,27 @@ def backfill_strategy_groups(
         f = gdata["days_failed"]
         t = gdata["elapsed_seconds"]
         color = GREEN if f == 0 and w > 0 else (RED if f > 0 else YELLOW)
-        print(f"  {gname[:50]:<50s}  {d:>5d}  {color}{w:>7d}{RESET}  {s:>4d}  {f:>4d}  {t:>5.1f}s")
+        print(f"  {gname[:50]:<50s}  {d:>5d}  {color}{w:>7d}{RESET}  "
+              f"{s:>4d}  {f:>4d}  {t:>5.1f}s")
 
     if total_failures > 0:
         print(f"\n  {RED}WARNING: {total_failures} write(s) failed -- "
               f"check IAM permissions and table configuration{RESET}")
     elif total_writes == 0 and not dry_run:
-        print(f"\n  {YELLOW}WARNING: Zero records written -- all days produced no data{RESET}")
+        print(f"\n  {YELLOW}WARNING: Zero records written -- "
+              f"all days produced no data{RESET}")
     elif dry_run:
-        print(f"\n  {YELLOW}DRY RUN -- no records were written to DynamoDB{RESET}")
+        print(f"\n  {YELLOW}DRY RUN -- no records were written "
+              f"to DynamoDB{RESET}")
     else:
         print(f"\n  {GREEN}All records written successfully{RESET}")
 
     # ---- Verification: re-read from DynamoDB ----
     if not dry_run and total_writes > 0:
         print(f"\n{BOLD}  Verification (re-reading from DynamoDB):{RESET}")
-        from engines.dsl.operators.group_cache_lookup import lookup_historical_returns
+        from engines.dsl.operators.group_cache_lookup import (
+            lookup_historical_returns,
+        )
 
         for gname, gdata in results.items():
             gid = gdata["group_id"]
@@ -1098,10 +1457,7 @@ def backfill_strategy_groups(
             if days_evaluated == 0:
                 continue
 
-            # Use the number of days evaluated for this group as lookback
-            # Add buffer to account for weekends
             verify_lookback = int(days_evaluated * 1.5) + 10
-
             returns = lookup_historical_returns(
                 group_id=gid,
                 lookback_days=verify_lookback,
@@ -1133,6 +1489,8 @@ Examples:
   poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --all --warmup 60
   poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --dry-run
   poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --group "WYLD*"
+  poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --parallel 4
+  poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --level 2
         """,
     )
     parser.add_argument(
@@ -1171,11 +1529,28 @@ Examples:
         help="Glob pattern to filter group names (can repeat). "
              "E.g. --group 'WYLD*' --group 'WAM*'",
     )
+    parser.add_argument(
+        "--parallel",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Number of parallel workers for groups at same depth level. "
+             "Uses fork-based multiprocessing. Default: 1 (sequential).",
+    )
+    parser.add_argument(
+        "--level",
+        type=int,
+        default=None,
+        metavar="DEPTH",
+        help="Process only groups at this depth level. "
+             "Run deepest first (e.g. --level 2 then --level 1 then --level 0).",
+    )
 
     args = parser.parse_args()
 
-    # Default to 45 days if not using --all and --days not specified
-    lookback_days = args.days if args.days is not None else (None if args.backfill_all else 45)
+    lookback_days = args.days if args.days is not None else (
+        None if args.backfill_all else 45
+    )
 
     backfill_strategy_groups(
         clj_path=args.strategy_file,
@@ -1184,6 +1559,8 @@ Examples:
         warmup_days=args.warmup,
         dry_run=args.dry_run,
         group_patterns=args.groups,
+        parallel_workers=args.parallel,
+        target_level=args.level,
     )
 
 
