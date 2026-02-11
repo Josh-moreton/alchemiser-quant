@@ -815,6 +815,52 @@ def _discover_group_symbols(groups: list[GroupInfo], engine: Any) -> set[str]:
 
 
 # ---------------------------------------------------------------------------
+# Wipe group cache table
+# ---------------------------------------------------------------------------
+def _wipe_group_cache() -> int:
+    """Delete all items from the group history DynamoDB table.
+
+    Scans the table in pages (handling the 1MB scan limit) and
+    batch-deletes all items.  Returns the total number of items deleted.
+    """
+    from engines.dsl.operators.group_cache_lookup import get_dynamodb_table
+
+    table = get_dynamodb_table()
+    if table is None:
+        print(f"  {RED}Cannot connect to DynamoDB table{RESET}")
+        return 0
+
+    total_deleted = 0
+    scan_kwargs: dict[str, Any] = {
+        "ProjectionExpression": "group_id, record_date",
+    }
+
+    while True:
+        resp = table.scan(**scan_kwargs)  # type: ignore[attr-defined]
+        items = resp.get("Items", [])
+        if not items:
+            break
+
+        with table.batch_writer() as batch:  # type: ignore[attr-defined]
+            for item in items:
+                batch.delete_item(
+                    Key={
+                        "group_id": item["group_id"],
+                        "record_date": item["record_date"],
+                    }
+                )
+
+        total_deleted += len(items)
+        print(f"  {DIM}Deleted {len(items)} items ({total_deleted} total)...{RESET}")
+
+        if "LastEvaluatedKey" not in resp:
+            break
+        scan_kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+
+    return total_deleted
+
+
+# ---------------------------------------------------------------------------
 # Batch DynamoDB writer
 # ---------------------------------------------------------------------------
 def _batch_write_dynamodb(
@@ -1074,6 +1120,7 @@ def backfill_strategy_groups(
     backfill_all: bool = False,
     warmup_days: int = INDICATOR_WARMUP_DAYS,
     dry_run: bool = False,
+    wipe: bool = False,
     group_patterns: list[str] | None = None,
     parallel_workers: int = 1,
     target_level: int | None = None,
@@ -1090,6 +1137,7 @@ def backfill_strategy_groups(
         backfill_all: If True, backfill all available historical data.
         warmup_days: Trading days for indicator warm-up period.
         dry_run: If True, compute but do not write to DynamoDB.
+        wipe: If True, delete all existing cache entries before backfilling.
         group_patterns: Optional list of glob patterns to filter groups.
         parallel_workers: Number of parallel workers (1 = sequential).
         target_level: If set, only process groups at this depth level.
@@ -1138,10 +1186,23 @@ def backfill_strategy_groups(
     else:
         print(f"  Lookback: {lookback_days} calendar days")
     print(f"  Dry run:  {dry_run}")
+    print(f"  Wipe:     {wipe}")
     print(f"  Workers:  {parallel_workers}")
     if target_level is not None:
         print(f"  Level:    {target_level} only")
     print(f"  Table:    {os.environ.get('GROUP_HISTORY_TABLE', '(not set)')}")
+
+    # ---- Wipe existing cache if requested ----
+    if wipe and not dry_run:
+        table_name = os.environ.get("GROUP_HISTORY_TABLE", "(not set)")
+        print(f"\n{BOLD}  Wiping group cache table: {table_name}{RESET}")
+        deleted = _wipe_group_cache()
+        if deleted > 0:
+            print(f"  {GREEN}Wiped {deleted} items from {table_name}{RESET}")
+        else:
+            print(f"  {DIM}Table was already empty{RESET}")
+    elif wipe and dry_run:
+        print(f"\n  {YELLOW}DRY RUN -- skipping wipe{RESET}")
 
     # ---- Parse the strategy file ----
     print(f"\n{DIM}Parsing strategy file ...{RESET}", end="", flush=True)
@@ -1507,6 +1568,7 @@ Examples:
   poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --group "WYLD*"
   poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --parallel 4
   poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --level 2
+  poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --wipe --all --parallel 4
         """,
     )
     parser.add_argument(
@@ -1561,6 +1623,12 @@ Examples:
         help="Process only groups at this depth level. "
              "Run deepest first (e.g. --level 2 then --level 1 then --level 0).",
     )
+    parser.add_argument(
+        "--wipe",
+        action="store_true",
+        help="Delete all existing cache entries from DynamoDB before backfilling. "
+             "Use with --all for a clean rebuild.",
+    )
 
     args = parser.parse_args()
 
@@ -1574,6 +1642,7 @@ Examples:
         backfill_all=args.backfill_all,
         warmup_days=args.warmup,
         dry_run=args.dry_run,
+        wipe=args.wipe,
         group_patterns=args.groups,
         parallel_workers=args.parallel,
         target_level=args.level,
