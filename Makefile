@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -22,6 +22,12 @@ help:
 	@echo "  strategy-check-fractionable         Check fractionability (uses strategy.dev.json)"
 	@echo "  strategy-check-fractionable config=strategy.prod.json"
 	@echo "  strategy-check-fractionable all=1   Check all strategy files"
+	@echo ""
+	@echo "Group Cache:"
+	@echo "  backfill-groups s=<file>              Backfill group cache (45 days, sequential)"
+	@echo "  backfill-groups s=<file> all=1 p=6    Full history, 6 parallel workers"
+	@echo "  backfill-groups s=<file> wipe=1       Wipe cache before backfilling"
+	@echo "  backfill-groups s=<file> level=1      Process only groups at depth 1"
 	@echo ""
 	@echo "Strategy Validation:"
 	@echo "  validate-strategy s=<name>           Validate single strategy vs Composer backtest"
@@ -217,6 +223,35 @@ strategy-check-fractionable:
 	if [ -n "$(show-all)" ]; then ARGS="$$ARGS --show-all"; fi; \
 	if [ -n "$(all)" ]; then ARGS="$$ARGS --all-strategies"; fi; \
 	poetry run python scripts/check_fractionable_assets.py $$ARGS
+
+# ============================================================================
+# GROUP CACHE BACKFILL
+# ============================================================================
+
+# Backfill DynamoDB group cache for a .clj strategy file
+# Usage: make backfill-groups s=ftl_starburst.clj                  # 45 days, sequential
+#        make backfill-groups s=ftl_starburst.clj all=1 p=6        # Full history, 6 workers
+#        make backfill-groups s=ftl_starburst.clj all=1 p=6 level=1  # Depth 1 only
+#        make backfill-groups s=ftl_starburst.clj wipe=1 all=1 p=6   # Wipe + full rebuild
+#        make backfill-groups s=ftl_starburst.clj days=60           # Custom lookback
+#        make backfill-groups s=ftl_starburst.clj dry-run=1        # Preview, no writes
+#        make backfill-groups s=ftl_starburst.clj group="WYLD*"    # Filter by group name
+backfill-groups:
+	@if [ -z "$(s)" ]; then \
+		echo "Usage: make backfill-groups s=<strategy_file.clj>"; \
+		echo "       make backfill-groups s=ftl_starburst.clj all=1 p=6"; \
+		exit 1; \
+	fi
+	@ARGS="$(s)"; \
+	if [ -n "$(all)" ]; then ARGS="$$ARGS --all"; fi; \
+	if [ -n "$(days)" ]; then ARGS="$$ARGS --days $(days)"; fi; \
+	if [ -n "$(p)" ]; then ARGS="$$ARGS --parallel $(p)"; fi; \
+	if [ -n "$(level)" ]; then ARGS="$$ARGS --level $(level)"; fi; \
+	if [ -n "$(wipe)" ]; then ARGS="$$ARGS --wipe"; fi; \
+	if [ -n "$(dry-run)" ]; then ARGS="$$ARGS --dry-run"; fi; \
+	if [ -n "$(warmup)" ]; then ARGS="$$ARGS --warmup $(warmup)"; fi; \
+	if [ -n "$(group)" ]; then ARGS="$$ARGS --group '$(group)'"; fi; \
+	poetry run python scripts/backfill_group_cache.py $$ARGS
 
 # ============================================================================
 # STRATEGY VALIDATION
