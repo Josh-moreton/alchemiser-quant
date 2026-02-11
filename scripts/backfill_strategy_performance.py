@@ -116,7 +116,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Backfill strategy performance metrics from TradeLedger",
     )
-    parser.add_argument("--stage", choices=["dev", "prod"], default="dev")
+    parser.add_argument("--stage", choices=["dev", "staging", "prod"], default="dev")
     parser.add_argument("--dry-run", action="store_true", help="Preview without writing")
     parser.add_argument("--no-colour", "--no-color", action="store_true")
 
