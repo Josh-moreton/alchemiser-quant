@@ -322,7 +322,7 @@ def run_strategy_for_date(
     )
 
     correlation_id = f"validate-{dsl_file}-{as_of_date.isoformat()}"
-    allocation, _trace = engine.evaluate_strategy(dsl_file, correlation_id)
+    allocation, _trace = engine.evaluate_strategy(dsl_file, correlation_id, as_of_date=as_of_date)
 
     debug_traces = engine.evaluator.debug_traces
     decision_path = engine.evaluator.decision_path
