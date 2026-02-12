@@ -2132,13 +2132,13 @@ Environment: {env}
 
 
 def _render_strategy_row_html(strat: dict[str, Any]) -> str:
-    """Derive outcome display values for a strategy in HTML context.
+    """Render an HTML table row for a strategy in the consolidated email.
 
     Args:
         strat: Per-strategy summary dict.
 
     Returns:
-        Tuple of (outcome_color, outcome_label, details, trade_count).
+        HTML table row (``<tr>``) string for the strategy.
 
     """
     outcome = strat.get("outcome", "")
@@ -2171,8 +2171,7 @@ def _render_strategy_row_html(strat: dict[str, Any]) -> str:
         details = ""
 
     name = strat.get("name", "unknown")
-    return (
-        f"""
+    return f"""
                 <tr>
                     <td style="padding: 4px 6px; border-bottom: 1px solid #dee2e6;"><strong>{name}</strong></td>
                     <td style="padding: 4px 6px; border-bottom: 1px solid #dee2e6;">
@@ -2182,7 +2181,6 @@ def _render_strategy_row_html(strat: dict[str, Any]) -> str:
                     <td style="padding: 4px 6px; border-bottom: 1px solid #dee2e6;">{details}</td>
                 </tr>
 """
-    )
 
 
 def _render_portfolio_snapshot_html(
@@ -2266,9 +2264,7 @@ def render_consolidated_run_html(context: dict[str, Any]) -> str:
     yearly_pnl = pnl_metrics.get("yearly_pnl", {})
 
     data_freshness = context.get("data_freshness", {})
-    latest_candle, candle_age, freshness_gate = _format_data_freshness_for_display(
-        data_freshness
-    )
+    latest_candle, candle_age, freshness_gate = _format_data_freshness_for_display(data_freshness)
 
     rebalance_plan_summary = context.get("rebalance_plan_summary", [])
     logs_url = context.get("logs_url", "#")
@@ -2464,9 +2460,7 @@ def render_consolidated_run_text(context: dict[str, Any]) -> str:
     yearly_pnl = pnl_metrics.get("yearly_pnl", {})
 
     data_freshness = context.get("data_freshness", {})
-    latest_candle, candle_age, freshness_gate = _format_data_freshness_for_display(
-        data_freshness
-    )
+    latest_candle, candle_age, freshness_gate = _format_data_freshness_for_display(data_freshness)
 
     rebalance_plan_summary = context.get("rebalance_plan_summary", [])
     logs_url = context.get("logs_url", "#")

@@ -316,10 +316,11 @@ def _report_strategy_completion(
         )
 
         logger.info(
-            f"Reported {outcome} to notification session",
+            "Reported outcome to notification session",
             extra={
                 "correlation_id": correlation_id,
                 "strategy_id": strategy_id,
+                "outcome": outcome,
                 "completed_strategies": completed,
                 "total_strategies": total,
             },
@@ -327,15 +328,20 @@ def _report_strategy_completion(
 
         if completed >= total > 0:
             publish_all_strategies_completed(
-                correlation_id, completed, total, "StrategyWorker",
+                correlation_id,
+                completed,
+                total,
+                "StrategyWorker",
             )
 
     except Exception as e:
         logger.warning(
-            f"Failed to report {outcome} to notification session: {e}",
+            "Failed to report outcome to notification session",
             extra={
                 "correlation_id": correlation_id,
                 "strategy_id": strategy_id,
+                "outcome": outcome,
+                "error": str(e),
                 "error_type": type(e).__name__,
             },
         )

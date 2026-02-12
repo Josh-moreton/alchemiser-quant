@@ -12,6 +12,7 @@ Trigger: EventBridge rule matching TradeExecuted events.
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -612,8 +613,6 @@ def _report_strategy_traded(
         all_trades_detail: Serialized AllTradesCompleted event data.
 
     """
-    import os
-
     table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "")
     if not table_name:
         return
@@ -654,17 +653,19 @@ def _report_strategy_traded(
 
         if completed >= total > 0:
             publish_all_strategies_completed(
-                correlation_id, completed, total, "TradeAggregator",
+                correlation_id,
+                completed,
+                total,
+                "TradeAggregator",
             )
 
     except Exception as e:
         logger.warning(
-            f"Failed to report TRADED to notification session: {e}",
+            "Failed to report TRADED to notification session",
             extra={
                 "correlation_id": correlation_id,
                 "run_id": run_id,
+                "error": str(e),
                 "error_type": type(e).__name__,
             },
         )
-
-

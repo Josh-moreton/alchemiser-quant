@@ -989,9 +989,7 @@ class AllStrategiesCompleted(BaseEvent):
     - FAILED: Strategy execution failed before trades could be enqueued
     """
 
-    event_type: str = Field(
-        default="AllStrategiesCompleted", description=EVENT_TYPE_DESCRIPTION
-    )
+    event_type: str = Field(default="AllStrategiesCompleted", description=EVENT_TYPE_DESCRIPTION)
     __event_version__: str = CONTRACT_VERSION
 
     schema_version: str = Field(

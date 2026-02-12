@@ -18,6 +18,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
+from consolidated_handler import handle_all_strategies_completed
 from service import NotificationService
 from strategy_report_service import generate_performance_report_url
 
@@ -76,7 +77,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
         # Route to appropriate handler based on event type
         if detail_type == "AllStrategiesCompleted":
-            return _handle_all_strategies_completed(detail, correlation_id)
+            return handle_all_strategies_completed(detail, correlation_id)
         if detail_type == "AllTradesCompleted":
             return _handle_all_trades_completed(detail, correlation_id)
         if detail_type == "WorkflowFailed":
@@ -93,8 +94,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             return _handle_cloudwatch_alarm(event, correlation_id)
 
         logger.debug(
-            f"Ignoring unsupported event type: {detail_type}",
-            extra={"correlation_id": correlation_id},
+            "Ignoring unsupported event type",
+            extra={"correlation_id": correlation_id, "detail_type": detail_type},
         )
         return {
             "statusCode": 200,
@@ -103,10 +104,11 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
     except Exception as e:
         logger.error(
-            f"Notifications Lambda failed: {e}",
+            "Notifications Lambda failed",
             exc_info=True,
             extra={
                 "correlation_id": correlation_id,
+                "error": str(e),
                 "error_type": type(e).__name__,
             },
         )
@@ -227,297 +229,10 @@ def _get_notification_session(correlation_id: str) -> dict[str, Any] | None:
         return session_service.get_session(correlation_id)
     except Exception as e:
         logger.warning(
-            f"Failed to check notification session: {e}",
-            extra={"correlation_id": correlation_id},
+            "Failed to check notification session",
+            extra={"correlation_id": correlation_id, "error": str(e)},
         )
         return None
-
-
-def _handle_all_strategies_completed(
-    detail: dict[str, Any], correlation_id: str
-) -> dict[str, Any]:
-    """Handle AllStrategiesCompleted event - send consolidated email.
-
-    This handler fires when all strategies in a daily run have completed
-    (TRADED, ALL_HOLD, or FAILED). It reads all per-strategy results from
-    the notification session and sends a single consolidated email.
-
-    Args:
-        detail: The detail payload from AllStrategiesCompleted event.
-        correlation_id: Correlation ID for tracing.
-
-    Returns:
-        Response with status code and message.
-
-    """
-    total_strategies = detail.get("total_strategies", 0)
-    completed_strategies = detail.get("completed_strategies", 0)
-
-    logger.info(
-        "Processing AllStrategiesCompleted for consolidated email",
-        extra={
-            "correlation_id": correlation_id,
-            "total_strategies": total_strategies,
-            "completed_strategies": completed_strategies,
-        },
-    )
-
-    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "")
-    if not table_name:
-        logger.warning(
-            "EXECUTION_RUNS_TABLE_NAME not set - cannot send consolidated email",
-            extra={"correlation_id": correlation_id},
-        )
-        return {"statusCode": 500, "body": "Missing EXECUTION_RUNS_TABLE_NAME"}
-
-    from the_alchemiser.shared.services.notification_session_service import (
-        NotificationSessionService,
-    )
-
-    session_service = NotificationSessionService(table_name=table_name)
-
-    # Claim notification lock (atomic, exactly-once)
-    if not session_service.try_claim_notification(correlation_id):
-        logger.info(
-            "Consolidated notification already claimed",
-            extra={"correlation_id": correlation_id},
-        )
-        return {"statusCode": 200, "body": "Notification already claimed"}
-
-    # Read all per-strategy results
-    strategy_results = session_service.get_all_strategy_results(correlation_id)
-
-    logger.info(
-        "Building consolidated email",
-        extra={
-            "correlation_id": correlation_id,
-            "strategy_count": len(strategy_results),
-            "outcomes": [r.get("outcome") for r in strategy_results],
-        },
-    )
-
-    # Build consolidated email context
-    context = _build_consolidated_context(
-        correlation_id=correlation_id,
-        strategy_results=strategy_results,
-        total_strategies=total_strategies,
-    )
-
-    # Generate strategy performance report
-    report_url = _generate_strategy_report(correlation_id)
-    if report_url:
-        context["strategy_performance_report_url"] = report_url
-
-    # Render and send consolidated email
-    from the_alchemiser.shared.notifications.templates import (
-        render_consolidated_run_html,
-        render_consolidated_run_text,
-    )
-
-    html_body = render_consolidated_run_html(context)
-    text_body = render_consolidated_run_text(context)
-
-    container = ApplicationContainer.create_for_notifications("production")
-    notification_service = NotificationService(container)
-    notification_service.send_notification(
-        component="daily rebalance summary",
-        status=context["overall_status"],
-        html_body=html_body,
-        text_body=text_body,
-        correlation_id=correlation_id,
-    )
-
-    # Mark session as sent
-    session_service.mark_session_sent(correlation_id)
-
-    logger.info(
-        "Consolidated notification sent successfully",
-        extra={
-            "correlation_id": correlation_id,
-            "total_strategies": total_strategies,
-            "overall_status": context["overall_status"],
-        },
-    )
-
-    return {
-        "statusCode": 200,
-        "body": f"Consolidated notification sent for {correlation_id}",
-    }
-
-
-def _process_traded_outcome(
-    result: dict[str, Any],
-    strategy_id: str,
-    strategy_summary: dict[str, Any],
-) -> dict[str, Any]:
-    """Extract trade counts and detail from a TRADED strategy result.
-
-    Args:
-        result: Raw strategy result from DynamoDB.
-        strategy_id: Strategy identifier for tagging rebalance plans.
-        strategy_summary: Mutable summary dict to enrich with trade details.
-
-    Returns:
-        Dict with keys: total, succeeded, failed, skipped, has_failures,
-        rebalance_plans, portfolio_snapshot, pnl_metrics, data_freshness,
-        started_at, completed_at.
-
-    """
-    exec_detail = result.get("execution_detail", {})
-
-    s_total = exec_detail.get("total_trades", 0)
-    s_succeeded = exec_detail.get("succeeded_trades", 0)
-    s_failed = exec_detail.get("failed_trades", 0)
-    s_skipped = exec_detail.get("skipped_trades", 0)
-
-    strategy_summary["succeeded_trades"] = s_succeeded
-    strategy_summary["failed_trades"] = s_failed
-    strategy_summary["skipped_trades"] = s_skipped
-    strategy_summary["failed_symbols"] = exec_detail.get("failed_symbols", [])
-
-    rebalance_plans: list[dict[str, Any]] = []
-    for item in exec_detail.get("rebalance_plan_summary", []):
-        rebalance_plans.append({**item, "strategy": strategy_id})
-
-    return {
-        "total": s_total,
-        "succeeded": s_succeeded,
-        "failed": s_failed,
-        "skipped": s_skipped,
-        "has_failures": s_failed > 0,
-        "rebalance_plans": rebalance_plans,
-        "portfolio_snapshot": exec_detail.get("portfolio_snapshot", {}),
-        "pnl_metrics": exec_detail.get("pnl_metrics", {}),
-        "data_freshness": exec_detail.get("data_freshness", {}),
-        "started_at": exec_detail.get("started_at", ""),
-        "completed_at": exec_detail.get("completed_at", ""),
-    }
-
-
-def _determine_overall_status(
-    has_failures: bool,
-    has_traded: bool,
-    total_succeeded: int,
-) -> str:
-    """Determine overall run status from aggregated strategy outcomes.
-
-    Args:
-        has_failures: Whether any strategy had failures.
-        has_traded: Whether any strategy executed trades.
-        total_succeeded: Total number of succeeded trades across strategies.
-
-    Returns:
-        One of 'SUCCESS', 'PARTIAL_SUCCESS', or 'FAILURE'.
-
-    """
-    if has_failures:
-        if has_traded and total_succeeded > 0:
-            return "PARTIAL_SUCCESS"
-        return "FAILURE"
-    return "SUCCESS"
-
-
-def _build_consolidated_context(
-    correlation_id: str,
-    strategy_results: list[dict[str, Any]],
-    total_strategies: int,
-) -> dict[str, Any]:
-    """Build template context for consolidated email from per-strategy results.
-
-    Args:
-        correlation_id: Shared workflow correlation ID.
-        strategy_results: List of per-strategy result dicts from DynamoDB.
-        total_strategies: Total strategies in the run.
-
-    Returns:
-        Template context dict for consolidated email rendering.
-
-    """
-    stage = os.environ.get("APP__STAGE", "dev")
-
-    strategies: list[dict[str, Any]] = []
-    total_trades = 0
-    total_succeeded = 0
-    total_failed = 0
-    total_skipped = 0
-    has_failures = False
-    has_traded = False
-
-    portfolio_snapshot: dict[str, Any] = {}
-    pnl_metrics: dict[str, Any] = {}
-    data_freshness: dict[str, Any] = {}
-    latest_start_time = ""
-    latest_end_time = ""
-    all_rebalance_plans: list[dict[str, Any]] = []
-
-    for result in strategy_results:
-        outcome = result.get("outcome", "")
-        strategy_id = result.get("strategy_id", "unknown")
-
-        strategy_summary: dict[str, Any] = {
-            "name": strategy_id,
-            "dsl_file": result.get("dsl_file", ""),
-            "outcome": outcome,
-            "trade_count": result.get("trade_count", 0),
-        }
-
-        if outcome == "TRADED":
-            has_traded = True
-            traded = _process_traded_outcome(result, strategy_id, strategy_summary)
-
-            total_trades += traded["total"]
-            total_succeeded += traded["succeeded"]
-            total_failed += traded["failed"]
-            total_skipped += traded["skipped"]
-            if traded["has_failures"]:
-                has_failures = True
-            all_rebalance_plans.extend(traded["rebalance_plans"])
-
-            if not portfolio_snapshot and traded["portfolio_snapshot"]:
-                portfolio_snapshot = traded["portfolio_snapshot"]
-                pnl_metrics = traded["pnl_metrics"]
-                data_freshness = traded["data_freshness"]
-
-            started = traded["started_at"]
-            ended = traded["completed_at"]
-            if started and (not latest_start_time or started < latest_start_time):
-                latest_start_time = started
-            if ended and (not latest_end_time or ended > latest_end_time):
-                latest_end_time = ended
-
-        elif outcome == "FAILED":
-            has_failures = True
-            fail_detail = result.get("failure_detail", {})
-            strategy_summary["failure_reason"] = fail_detail.get(
-                "error", fail_detail.get("failure_reason", "Unknown error")
-            )
-
-        strategies.append(strategy_summary)
-
-    overall_status = _determine_overall_status(has_failures, has_traded, total_succeeded)
-
-    container = ApplicationContainer.create_for_notifications("production")
-    notification_service = NotificationService(container)
-    logs_url = notification_service._build_logs_url(correlation_id)
-
-    return {
-        "env": stage,
-        "correlation_id": correlation_id,
-        "overall_status": overall_status,
-        "total_strategies": total_strategies,
-        "strategies": strategies,
-        "total_trades": total_trades,
-        "total_succeeded": total_succeeded,
-        "total_failed": total_failed,
-        "total_skipped": total_skipped,
-        "portfolio_snapshot": portfolio_snapshot,
-        "pnl_metrics": pnl_metrics,
-        "data_freshness": data_freshness,
-        "rebalance_plan_summary": all_rebalance_plans,
-        "start_time_utc": latest_start_time,
-        "end_time_utc": latest_end_time,
-        "logs_url": logs_url,
-    }
 
 
 def _build_trading_notification_from_aggregated(
@@ -700,6 +415,12 @@ def _handle_workflow_failed(
 ) -> dict[str, Any]:
     """Handle WorkflowFailed events by sending error notifications.
 
+    If a notification session exists for this correlation_id (created by the
+    Coordinator for multi-strategy runs), defers per-strategy failure emails
+    to the consolidated AllStrategiesCompleted handler. Otherwise, sends the
+    error email immediately (backward compatible for direct invocations and
+    non-strategy workflow types like hedge_evaluation).
+
     Args:
         detail: The detail payload from WorkflowFailed event
         correlation_id: Correlation ID for tracing
@@ -709,12 +430,50 @@ def _handle_workflow_failed(
         Response with status code and message
 
     """
+    workflow_type = detail.get("workflow_type", "unknown")
+
     logger.info(
         "Processing WorkflowFailed event",
-        extra={"correlation_id": correlation_id, "source": source},
+        extra={
+            "correlation_id": correlation_id,
+            "source": source,
+            "workflow_type": workflow_type,
+        },
     )
 
-    # Create minimal ApplicationContainer for notifications
+    # Only defer strategy-related failures when a notification session exists.
+    # Non-strategy failures (hedge_evaluation, etc.) always send immediately.
+    #
+    # NOTE: "strategy_execution" is intentionally EXCLUDED from this set.
+    # Individual strategy failures (workflow_type="strategy_execution") always
+    # send an immediate error email for fast alerting, AND the failure is
+    # recorded in the notification session for inclusion in the consolidated
+    # summary. This deliberate duplication ensures operators are notified
+    # promptly when a strategy fails, rather than waiting for the full run
+    # to complete.
+    strategy_workflow_types = {
+        "strategy_coordination",
+        "trade_aggregation",
+        "portfolio_analysis",
+    }
+    if workflow_type in strategy_workflow_types:
+        session = _get_notification_session(correlation_id)
+        if session is not None:
+            logger.info(
+                "Notification session found - deferring error email to consolidated handler",
+                extra={
+                    "correlation_id": correlation_id,
+                    "workflow_type": workflow_type,
+                    "total_strategies": session.get("total_strategies"),
+                    "completed_strategies": session.get("completed_strategies"),
+                },
+            )
+            return {
+                "statusCode": 200,
+                "body": f"Deferred to consolidated notification for {correlation_id}",
+            }
+
+    # No session or non-strategy workflow type - send immediately
     container = ApplicationContainer.create_for_notifications("production")
 
     # Build error notification event
@@ -729,7 +488,7 @@ def _handle_workflow_failed(
         extra={
             "correlation_id": correlation_id,
             "failure_step": detail.get("failure_step", "unknown"),
-            "workflow_type": detail.get("workflow_type", "unknown"),
+            "workflow_type": workflow_type,
         },
     )
 
@@ -803,7 +562,7 @@ def _build_hedge_success_context(detail: dict[str, Any], correlation_id: str) ->
     # Reuse NotificationService's logs URL builder for consistency
     container = ApplicationContainer.create_for_notifications("production")
     notification_service = NotificationService(container)
-    logs_url = notification_service._build_logs_url(correlation_id)
+    logs_url = notification_service.build_logs_url(correlation_id)
 
     budget_nav_pct = detail.get("budget_nav_pct", "0")
     try:
@@ -970,9 +729,10 @@ def _generate_strategy_report(correlation_id: str) -> str | None:
     except Exception as e:
         # Don't fail the notification if report generation fails
         logger.warning(
-            f"Failed to generate strategy performance report: {e}",
+            "Failed to generate strategy performance report",
             extra={
                 "correlation_id": correlation_id,
+                "error": str(e),
                 "error_type": type(e).__name__,
             },
         )
@@ -1279,8 +1039,12 @@ def _handle_cloudwatch_alarm(event: dict[str, Any], correlation_id: str) -> dict
     # Only process ALARM state (not OK or INSUFFICIENT_DATA)
     if state_value != "ALARM":
         logger.debug(
-            f"Ignoring CloudWatch alarm state change: {state_value}",
-            extra={"correlation_id": correlation_id, "alarm_name": alarm_name},
+            "Ignoring CloudWatch alarm state change",
+            extra={
+                "correlation_id": correlation_id,
+                "alarm_name": alarm_name,
+                "state_value": state_value,
+            },
         )
         return {
             "statusCode": 200,

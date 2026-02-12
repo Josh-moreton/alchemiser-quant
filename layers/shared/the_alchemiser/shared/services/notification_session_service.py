@@ -159,7 +159,13 @@ class NotificationSessionService:
         ttl_val = int((now + timedelta(hours=SESSION_TTL_HOURS)).timestamp())
 
         strategy_item = self._build_strategy_item(
-            correlation_id, strategy_id, dsl_file, outcome, detail, now, ttl_val,
+            correlation_id,
+            strategy_id,
+            dsl_file,
+            outcome,
+            detail,
+            now,
+            ttl_val,
         )
 
         try:
@@ -346,19 +352,26 @@ class NotificationSessionService:
             List of per-strategy result dicts.
 
         """
-        response = self._client.query(
-            TableName=self._table_name,
-            KeyConditionExpression="PK = :pk AND begins_with(SK, :sk_prefix)",
-            ExpressionAttributeValues={
+        items: list[dict[str, Any]] = []
+        query_kwargs: dict[str, Any] = {
+            "TableName": self._table_name,
+            "KeyConditionExpression": "PK = :pk AND begins_with(SK, :sk_prefix)",
+            "ExpressionAttributeValues": {
                 ":pk": {"S": f"NOTIFY#{correlation_id}"},
                 ":sk_prefix": {"S": "STRATEGY#"},
             },
-        )
+        }
 
-        results = [
-            self._parse_strategy_result_item(item)
-            for item in response.get("Items", [])
-        ]
+        while True:
+            response = self._client.query(**query_kwargs)
+            items.extend(response.get("Items", []))
+
+            last_key = response.get("LastEvaluatedKey")
+            if not last_key:
+                break
+            query_kwargs["ExclusiveStartKey"] = last_key
+
+        results = [self._parse_strategy_result_item(item) for item in items]
 
         logger.debug(
             "Retrieved strategy results",
@@ -506,6 +519,6 @@ def publish_all_strategies_completed(
         )
     except Exception as e:
         logger.error(
-            f"Failed to publish AllStrategiesCompleted: {e}",
-            extra={"correlation_id": correlation_id},
+            "Failed to publish AllStrategiesCompleted",
+            extra={"correlation_id": correlation_id, "error": str(e)},
         )

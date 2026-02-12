@@ -213,9 +213,10 @@ def _create_notification_session(
         )
     except Exception as e:
         logger.warning(
-            f"Failed to create notification session: {e}",
+            "Failed to create notification session",
             extra={
                 "correlation_id": correlation_id,
+                "error": str(e),
                 "error_type": type(e).__name__,
             },
         )
