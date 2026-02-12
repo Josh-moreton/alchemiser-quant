@@ -252,6 +252,15 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         # Publish to EventBridge (triggers Notifications Lambda)
         publish_to_eventbridge(all_trades_event)
 
+        # Report TRADED strategy to notification session for consolidated email
+        _report_strategy_traded(
+            correlation_id=correlation_id,
+            run_id=run_id,
+            strategy_id=run_metadata.get("strategy_id", ""),
+            dsl_file=run_metadata.get("dsl_file", ""),
+            all_trades_detail=all_trades_event.model_dump(mode="json"),
+        )
+
         # Mark run as completed
         aggregator_service.mark_run_completed(run_id)
 
@@ -554,3 +563,131 @@ def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
             },
         )
         return empty_pnl
+
+
+def _report_strategy_traded(
+    correlation_id: str,
+    run_id: str,
+    strategy_id: str,
+    dsl_file: str,
+    all_trades_detail: dict[str, Any],
+) -> None:
+    """Report a TRADED strategy to the notification session for consolidated email.
+
+    Non-fatal: if session recording fails, per-strategy emails still work
+    as a fallback when no notification session exists.
+
+    Args:
+        correlation_id: Shared workflow correlation ID.
+        run_id: Execution run identifier.
+        strategy_id: Strategy identifier from run metadata.
+        dsl_file: DSL file name from plan metadata.
+        all_trades_detail: Serialized AllTradesCompleted event data.
+
+    """
+    import os
+
+    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "")
+    if not table_name:
+        return
+
+    # Derive strategy_id from plan metadata if not stored in run
+    if not strategy_id:
+        plan_summary = all_trades_detail.get("rebalance_plan_summary", [])
+        metadata = all_trades_detail.get("metadata", {})
+        strategy_id = metadata.get("strategy_name", run_id[:8])
+        if not strategy_id and plan_summary:
+            strategy_id = f"run-{run_id[:8]}"
+
+    # Derive dsl_file from plan metadata if not available
+    if not dsl_file:
+        metadata = all_trades_detail.get("metadata", {})
+        dsl_file = metadata.get("dsl_file", "")
+
+    try:
+        from the_alchemiser.shared.services.notification_session_service import (
+            NotificationSessionService,
+        )
+
+        session_service = NotificationSessionService(table_name=table_name)
+
+        # Include run_id in detail for cross-reference
+        detail = {**all_trades_detail, "run_id": run_id}
+
+        completed, total = session_service.record_strategy_completion(
+            correlation_id=correlation_id,
+            strategy_id=strategy_id,
+            dsl_file=dsl_file,
+            outcome="TRADED",
+            detail=detail,
+        )
+
+        logger.info(
+            "Reported TRADED to notification session",
+            extra={
+                "correlation_id": correlation_id,
+                "strategy_id": strategy_id,
+                "run_id": run_id,
+                "completed_strategies": completed,
+                "total_strategies": total,
+            },
+        )
+
+        # If this was the last strategy, publish AllStrategiesCompleted
+        if completed >= total > 0:
+            _publish_all_strategies_completed(correlation_id, completed, total)
+
+    except Exception as e:
+        logger.warning(
+            f"Failed to report TRADED to notification session: {e}",
+            extra={
+                "correlation_id": correlation_id,
+                "run_id": run_id,
+                "error_type": type(e).__name__,
+            },
+        )
+
+
+def _publish_all_strategies_completed(
+    correlation_id: str,
+    completed: int,
+    total: int,
+) -> None:
+    """Publish AllStrategiesCompleted event to trigger consolidated email.
+
+    Args:
+        correlation_id: Shared workflow correlation ID.
+        completed: Number of strategies that completed.
+        total: Total strategies in the run.
+
+    """
+    from datetime import UTC, datetime
+
+    try:
+        from the_alchemiser.shared.events import AllStrategiesCompleted
+
+        event = AllStrategiesCompleted(
+            event_id=f"all-strategies-completed-{uuid.uuid4()}",
+            correlation_id=correlation_id,
+            causation_id=correlation_id,
+            timestamp=datetime.now(UTC),
+            source_module="coordinator",
+            source_component="TradeAggregator",
+            total_strategies=total,
+            completed_strategies=completed,
+        )
+        publish_to_eventbridge(event)
+
+        logger.info(
+            "Published AllStrategiesCompleted event",
+            extra={
+                "correlation_id": correlation_id,
+                "total_strategies": total,
+                "completed_strategies": completed,
+            },
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to publish AllStrategiesCompleted: {e}",
+            extra={"correlation_id": correlation_id},
+        )

@@ -12,6 +12,7 @@ Triggered by:
 
 from __future__ import annotations
 
+import os
 import sys
 import uuid
 from datetime import UTC, datetime
@@ -162,6 +163,17 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             },
         )
 
+        # Report ALL_HOLD to notification session (no trades = nothing for
+        # TradeAggregator to pick up, so strategy worker must report directly)
+        if rebalance_result.trade_count == 0:
+            _report_strategy_completion(
+                correlation_id=correlation_id,
+                strategy_id=strategy_id,
+                dsl_file=dsl_file,
+                outcome="ALL_HOLD",
+                detail={"dsl_file": dsl_file, "trade_count": 0},
+            )
+
         return {
             "statusCode": 200,
             "body": {
@@ -186,6 +198,19 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "error_type": type(e).__name__,
             },
             exc_info=True,
+        )
+
+        # Report FAILED to notification session for consolidated email
+        _report_strategy_completion(
+            correlation_id=correlation_id,
+            strategy_id=strategy_id,
+            dsl_file=dsl_file,
+            outcome="FAILED",
+            detail={
+                "dsl_file": dsl_file,
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
         )
 
         # Publish WorkflowFailed so notifications can fire
@@ -248,4 +273,110 @@ def _publish_failure_event(
                 "correlation_id": correlation_id,
                 "error": str(pub_error),
             },
+        )
+
+
+def _report_strategy_completion(
+    correlation_id: str,
+    strategy_id: str,
+    dsl_file: str,
+    outcome: str,
+    detail: dict[str, Any],
+) -> None:
+    """Report strategy completion to notification session for consolidated email.
+
+    Non-fatal: if session recording fails, per-strategy emails still work
+    as a fallback when no notification session exists.
+
+    Args:
+        correlation_id: Shared workflow correlation ID.
+        strategy_id: Strategy identifier.
+        dsl_file: DSL file name.
+        outcome: One of 'ALL_HOLD' or 'FAILED'.
+        detail: Outcome-specific detail dict.
+
+    """
+    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "")
+    if not table_name:
+        return
+
+    try:
+        from the_alchemiser.shared.services.notification_session_service import (
+            NotificationSessionService,
+        )
+
+        session_service = NotificationSessionService(table_name=table_name)
+        completed, total = session_service.record_strategy_completion(
+            correlation_id=correlation_id,
+            strategy_id=strategy_id,
+            dsl_file=dsl_file,
+            outcome=outcome,
+            detail=detail,
+        )
+
+        logger.info(
+            f"Reported {outcome} to notification session",
+            extra={
+                "correlation_id": correlation_id,
+                "strategy_id": strategy_id,
+                "completed_strategies": completed,
+                "total_strategies": total,
+            },
+        )
+
+        # If this was the last strategy, publish AllStrategiesCompleted
+        if completed >= total > 0:
+            _publish_all_strategies_completed(correlation_id, completed, total)
+
+    except Exception as e:
+        logger.warning(
+            f"Failed to report {outcome} to notification session: {e}",
+            extra={
+                "correlation_id": correlation_id,
+                "strategy_id": strategy_id,
+                "error_type": type(e).__name__,
+            },
+        )
+
+
+def _publish_all_strategies_completed(
+    correlation_id: str,
+    completed: int,
+    total: int,
+) -> None:
+    """Publish AllStrategiesCompleted event to trigger consolidated email.
+
+    Args:
+        correlation_id: Shared workflow correlation ID.
+        completed: Number of strategies that completed.
+        total: Total strategies in the run.
+
+    """
+    try:
+        from the_alchemiser.shared.events import AllStrategiesCompleted
+
+        event = AllStrategiesCompleted(
+            event_id=f"all-strategies-completed-{uuid.uuid4()}",
+            correlation_id=correlation_id,
+            causation_id=correlation_id,
+            timestamp=datetime.now(UTC),
+            source_module="coordinator",
+            source_component="StrategyWorker",
+            total_strategies=total,
+            completed_strategies=completed,
+        )
+        publish_to_eventbridge(event)
+
+        logger.info(
+            "Published AllStrategiesCompleted event",
+            extra={
+                "correlation_id": correlation_id,
+                "total_strategies": total,
+                "completed_strategies": completed,
+            },
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to publish AllStrategiesCompleted: {e}",
+            extra={"correlation_id": correlation_id},
         )

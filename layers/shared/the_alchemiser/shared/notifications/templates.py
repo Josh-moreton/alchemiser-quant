@@ -2129,3 +2129,316 @@ Environment: {env}
 """
 
     return header + body + footer
+
+
+def render_consolidated_run_html(context: dict[str, Any]) -> str:
+    """Render HTML for consolidated daily run email (all strategies).
+
+    This template shows a per-strategy breakdown plus aggregate totals
+    and portfolio snapshot. Used when Coordinator dispatches multiple
+    strategies and the NotificationSession tracks their completion.
+
+    Args:
+        context: Template context with consolidated run data.
+
+    Returns:
+        Complete HTML email body.
+
+    """
+    header = render_html_header("Daily Run", context.get("overall_status", "SUCCESS"))
+    footer = render_html_footer()
+
+    env = context.get("env", "unknown")
+    correlation_id = context.get("correlation_id", "unknown")
+    total_strategies = context.get("total_strategies", 0)
+    strategies = context.get("strategies", [])
+
+    start_time = _format_timestamp_for_display(context.get("start_time_utc", ""))
+    end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
+
+    total_trades = context.get("total_trades", 0)
+    total_succeeded = context.get("total_succeeded", 0)
+    total_failed = context.get("total_failed", 0)
+    total_skipped = context.get("total_skipped", 0)
+
+    portfolio_snapshot = context.get("portfolio_snapshot", {})
+    equity = portfolio_snapshot.get("equity", 0)
+    cash = portfolio_snapshot.get("cash", 0)
+    gross_exposure = portfolio_snapshot.get("gross_exposure", 0)
+    top_positions = portfolio_snapshot.get("top_positions", [])
+
+    pnl_metrics = context.get("pnl_metrics", {})
+    monthly_pnl = pnl_metrics.get("monthly_pnl", {})
+    yearly_pnl = pnl_metrics.get("yearly_pnl", {})
+
+    data_freshness = context.get("data_freshness", {})
+    latest_candle, candle_age, freshness_gate = _format_data_freshness_for_display(
+        data_freshness
+    )
+
+    rebalance_plan_summary = context.get("rebalance_plan_summary", [])
+    logs_url = context.get("logs_url", "#")
+    report_url = context.get("strategy_performance_report_url", "")
+
+    body = f"""
+    <div style="padding: 15px 0;">
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Identity & Timing</h4>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <tr><td style="padding: 3px;"><strong>Env:</strong></td><td style="padding: 3px;">{env}</td>
+                    <td style="padding: 3px;"><strong>Strategies:</strong></td><td style="padding: 3px;">{total_strategies}</td></tr>
+                <tr><td style="padding: 3px;"><strong>Run ID:</strong></td><td colspan="3" style="padding: 3px;">{correlation_id}</td></tr>
+                <tr><td style="padding: 3px;"><strong>Started:</strong></td><td colspan="3" style="padding: 3px;">{start_time}</td></tr>
+                <tr><td style="padding: 3px;"><strong>Ended:</strong></td><td colspan="3" style="padding: 3px;">{end_time}</td></tr>
+            </table>
+        </div>
+
+        <div style="background-color: #e8f4f8; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #17a2b8;">
+            <h4 style="margin: 0 0 8px 0; color: #0c5460; font-size: 13px;">Per-Strategy Results</h4>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <tr style="background-color: #d1ecf1;">
+                    <th style="padding: 4px 6px; text-align: left; border-bottom: 1px solid #bee5eb;">Strategy</th>
+                    <th style="padding: 4px 6px; text-align: left; border-bottom: 1px solid #bee5eb;">Outcome</th>
+                    <th style="padding: 4px 6px; text-align: right; border-bottom: 1px solid #bee5eb;">Trades</th>
+                    <th style="padding: 4px 6px; text-align: left; border-bottom: 1px solid #bee5eb;">Details</th>
+                </tr>
+"""
+
+    for strat in strategies:
+        name = strat.get("name", "unknown")
+        outcome = strat.get("outcome", "")
+        trade_count = strat.get("trade_count", 0)
+
+        if outcome == "TRADED":
+            succeeded = strat.get("succeeded_trades", 0)
+            failed = strat.get("failed_trades", 0)
+            outcome_color = "#28a745" if failed == 0 else "#ffc107"
+            outcome_label = "TRADED"
+            details = f"{succeeded} filled"
+            if failed > 0:
+                details += f", {failed} failed"
+                failed_syms = strat.get("failed_symbols", [])
+                if failed_syms:
+                    details += f" ({', '.join(failed_syms)})"
+        elif outcome == "ALL_HOLD":
+            outcome_color = "#6c757d"
+            outcome_label = "NO REBALANCE"
+            details = "All positions at target"
+        elif outcome == "FAILED":
+            outcome_color = "#dc3545"
+            outcome_label = "FAILED"
+            details = strat.get("failure_reason", "Unknown error")
+            if len(details) > 60:
+                details = details[:57] + "..."
+        else:
+            outcome_color = "#6c757d"
+            outcome_label = outcome
+            details = ""
+
+        body += f"""
+                <tr>
+                    <td style="padding: 4px 6px; border-bottom: 1px solid #dee2e6;"><strong>{name}</strong></td>
+                    <td style="padding: 4px 6px; border-bottom: 1px solid #dee2e6;">
+                        <span style="color: {outcome_color}; font-weight: bold;">{outcome_label}</span>
+                    </td>
+                    <td style="padding: 4px 6px; text-align: right; border-bottom: 1px solid #dee2e6;">{trade_count}</td>
+                    <td style="padding: 4px 6px; border-bottom: 1px solid #dee2e6;">{details}</td>
+                </tr>
+"""
+
+    # Determine aggregate outcome styling
+    if total_failed == 0:
+        agg_bg = "#e7f5e9"
+        agg_border = "#28a745"
+        agg_color = "#155724"
+    else:
+        agg_bg = "#fff3cd"
+        agg_border = "#ffc107"
+        agg_color = "#856404"
+
+    body += f"""
+            </table>
+        </div>
+
+        <div style="background-color: {agg_bg}; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid {agg_border};">
+            <h4 style="margin: 0 0 8px 0; color: {agg_color}; font-size: 13px;">Aggregate Totals</h4>
+            <p style="margin: 0; font-size: 11px;">
+                <strong>Total trades:</strong> {total_trades} |
+                <strong>Succeeded:</strong> {total_succeeded} |
+                <strong>Failed:</strong> {total_failed} |
+                <strong>Skipped:</strong> {total_skipped}
+            </p>
+        </div>
+"""
+
+    # Portfolio snapshot
+    if equity or cash:
+        body += f"""
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Portfolio Snapshot (Post-Run)</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Equity:</strong> ${equity:,.2f} | <strong>Cash:</strong> ${cash:,.2f}</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Exposure:</strong> {gross_exposure:.2f}x</p>
+            <p style="margin: 0; font-size: 11px;"><strong>Top positions:</strong></p>
+            <ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 11px;">
+"""
+        for pos in top_positions[:5]:
+            body += f"                <li>{pos['symbol']} {pos['weight']:.1f}%</li>\n"
+        if not top_positions:
+            body += "                <li>No positions</li>\n"
+        body += """
+            </ul>
+        </div>
+"""
+
+    # P&L metrics
+    body += _format_pnl_html(monthly_pnl, yearly_pnl)
+
+    # Rebalance plan
+    body += _format_rebalance_plan_html(rebalance_plan_summary)
+
+    # Data freshness
+    if data_freshness:
+        body += f"""
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Data Freshness</h4>
+            <p style="margin: 0; font-size: 11px;"><strong>Daily candles:</strong> {latest_candle} (age {candle_age})
+            <span style="color: {"#28a745" if freshness_gate == "PASS" else "#dc3545"}; font-weight: bold;">
+                DATA_FRESHNESS_GATE={freshness_gate}
+            </span></p>
+        </div>
+"""
+
+    # Links
+    links_items = f'<p style="margin: 0; font-size: 11px;"><a href="{logs_url}" style="color: #007bff; text-decoration: none;">View Logs</a></p>'
+    if report_url:
+        links_items += f'\n            <p style="margin: 4px 0 0 0; font-size: 11px;"><a href="{report_url}" style="color: #007bff; text-decoration: none;">Download Strategy Performance Report (CSV)</a></p>'
+
+    body += f"""
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Links</h4>
+            {links_items}
+        </div>
+    </div>
+"""
+
+    return header + body + footer
+
+
+def render_consolidated_run_text(context: dict[str, Any]) -> str:
+    """Render plain text for consolidated daily run email (all strategies).
+
+    Args:
+        context: Template context with consolidated run data.
+
+    Returns:
+        Complete plain text email body.
+
+    """
+    header = render_text_header("Daily Run", context.get("overall_status", "SUCCESS"))
+    footer = render_text_footer()
+
+    env = context.get("env", "unknown")
+    correlation_id = context.get("correlation_id", "unknown")
+    total_strategies = context.get("total_strategies", 0)
+    strategies = context.get("strategies", [])
+
+    start_time = _format_timestamp_for_display(context.get("start_time_utc", ""))
+    end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
+
+    total_trades = context.get("total_trades", 0)
+    total_succeeded = context.get("total_succeeded", 0)
+    total_failed = context.get("total_failed", 0)
+    total_skipped = context.get("total_skipped", 0)
+
+    portfolio_snapshot = context.get("portfolio_snapshot", {})
+    equity = portfolio_snapshot.get("equity", 0)
+    cash = portfolio_snapshot.get("cash", 0)
+    gross_exposure = portfolio_snapshot.get("gross_exposure", 0)
+    top_positions = portfolio_snapshot.get("top_positions", [])
+
+    pnl_metrics = context.get("pnl_metrics", {})
+    monthly_pnl = pnl_metrics.get("monthly_pnl", {})
+    yearly_pnl = pnl_metrics.get("yearly_pnl", {})
+
+    data_freshness = context.get("data_freshness", {})
+    latest_candle, candle_age, freshness_gate = _format_data_freshness_for_display(
+        data_freshness
+    )
+
+    rebalance_plan_summary = context.get("rebalance_plan_summary", [])
+    logs_url = context.get("logs_url", "#")
+    report_url = context.get("strategy_performance_report_url", "")
+
+    body = f"""
+Env: {env} | Strategies: {total_strategies} | Run ID: {correlation_id}
+Time: {start_time} -> {end_time}
+
+PER-STRATEGY RESULTS
+--------------------
+"""
+
+    for strat in strategies:
+        name = strat.get("name", "unknown")
+        outcome = strat.get("outcome", "")
+        trade_count = strat.get("trade_count", 0)
+
+        if outcome == "TRADED":
+            succeeded = strat.get("succeeded_trades", 0)
+            failed = strat.get("failed_trades", 0)
+            line = f"  {name}: {trade_count} trades ({succeeded} filled"
+            if failed > 0:
+                failed_syms = strat.get("failed_symbols", [])
+                line += f", {failed} failed"
+                if failed_syms:
+                    line += f" [{', '.join(failed_syms)}]"
+            line += ")"
+        elif outcome == "ALL_HOLD":
+            line = f"  {name}: No rebalance needed"
+        elif outcome == "FAILED":
+            reason = strat.get("failure_reason", "Unknown error")
+            if len(reason) > 60:
+                reason = reason[:57] + "..."
+            line = f"  {name}: FAILED - {reason}"
+        else:
+            line = f"  {name}: {outcome}"
+
+        body += line + "\n"
+
+    body += f"""
+AGGREGATE TOTALS
+----------------
+Total trades: {total_trades} | Succeeded: {total_succeeded} | Failed: {total_failed} | Skipped: {total_skipped}
+"""
+
+    if equity or cash:
+        body += f"""
+PORTFOLIO SNAPSHOT (POST-RUN)
+-----------------------------
+Equity: ${equity:,.2f} | Cash: ${cash:,.2f}
+Exposure: {gross_exposure:.2f}x
+Top positions:
+"""
+        for pos in top_positions[:5]:
+            body += f"  - {pos['symbol']} {pos['weight']:.1f}%\n"
+        if not top_positions:
+            body += "  - No positions\n"
+
+    body += _format_pnl_text(monthly_pnl, yearly_pnl)
+    body += _format_rebalance_plan_text(rebalance_plan_summary)
+
+    if data_freshness:
+        body += f"""
+DATA FRESHNESS
+--------------
+Daily candles: {latest_candle} (age {candle_age}) DATA_FRESHNESS_GATE={freshness_gate}
+"""
+
+    body += f"""
+LINKS
+-----
+Logs: {logs_url}
+"""
+    if report_url:
+        body += f"Strategy Performance Report: {report_url}\n"
+
+    return header + body + footer

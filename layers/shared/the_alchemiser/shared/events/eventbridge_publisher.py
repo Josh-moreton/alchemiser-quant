@@ -44,6 +44,7 @@ EVENT_TYPE_TO_DETAIL_TYPE: dict[str, tuple[str, str]] = {
     "HedgeExecuted": ("hedge", "HedgeExecuted"),
     "AllHedgesCompleted": ("hedge", "AllHedgesCompleted"),
     "HedgeRollTriggered": ("hedge", "HedgeRollTriggered"),
+    "AllStrategiesCompleted": ("coordinator", "AllStrategiesCompleted"),
 }
 
 # Mapping from source_module prefix to EventBridge source suffix
