@@ -133,13 +133,14 @@ class StrategyRebalancer:
             strategy_capital = equity * allocation
 
             logger.info(
-                "Calculated strategy capital",
+                "Calculated strategy capital from account equity",
                 extra={
                     "strategy_id": strategy_id,
                     "account_equity": str(equity),
                     "allocation": str(allocation),
                     "strategy_capital": str(strategy_capital),
                     "correlation_id": correlation_id,
+                    "note": "Equity read is per-worker; concurrent workers may see different equity values if trades settle between reads",
                 },
             )
 
