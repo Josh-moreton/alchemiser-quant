@@ -576,6 +576,7 @@ Error Details:
         error_title=f"Workflow Failed: {failure_step}",
         error_report=error_report.strip(),
         error_code=error_details.get("exception_type"),
+        workflow_type=workflow_type,
     )
 
 

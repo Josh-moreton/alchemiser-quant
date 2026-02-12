@@ -48,12 +48,11 @@ from the_alchemiser.shared.notifications.templates import (
 def _derive_error_context(
     event: ErrorNotificationRequested,
 ) -> tuple[str, str, str, list[str]]:
-    """Derive notification context from error event severity.
+    """Derive notification context from error event workflow type and severity.
 
-    Maps error severity to appropriate component name, display status,
-    impact description, and suggested quick actions. Hedge evaluation
-    failures use WARNING severity (set by lambda_handler) to distinguish
-    them from main portfolio failures.
+    Maps workflow_type to appropriate component name, display status,
+    impact description, and suggested quick actions. Falls back to
+    severity-based routing for events without workflow_type.
 
     Args:
         event: The error notification event
@@ -75,6 +74,73 @@ def _derive_error_context(
             ],
         )
 
+    wt = event.workflow_type
+
+    if wt == "data_refresh":
+        return (
+            "data refresh",
+            "FAILURE",
+            "Market data refresh did not complete successfully",
+            [
+                "Check CloudWatch Logs for detailed stack trace",
+                "Verify Alpaca API connectivity and credentials",
+                "Check S3 bucket permissions and data paths",
+                "Verify strategy .clj files reference valid symbols",
+            ],
+        )
+
+    if wt == "schedule_creation":
+        return (
+            "schedule creation",
+            "FAILURE",
+            "EventBridge schedule could not be created",
+            [
+                "Check CloudWatch Logs for detailed stack trace",
+                "Verify EventBridge permissions and rule configuration",
+                "Review recent code changes",
+            ],
+        )
+
+    if wt == "signal_aggregation":
+        return (
+            "signal aggregation",
+            "FAILURE",
+            "Strategy signals could not be aggregated",
+            [
+                "Check CloudWatch Logs for detailed stack trace",
+                "Verify DynamoDB aggregation session state",
+                "Check if all strategy workers completed",
+                "Review recent code changes",
+            ],
+        )
+
+    if wt == "trade_aggregation":
+        return (
+            "trade aggregation",
+            "FAILURE",
+            "Trade results could not be aggregated",
+            [
+                "Check CloudWatch Logs for detailed stack trace",
+                "Verify trade ledger state in DynamoDB",
+                "Check execution Lambda logs for individual trade failures",
+                "Review recent code changes",
+            ],
+        )
+
+    if wt == "TradingExecution":
+        return (
+            "trade execution",
+            "FAILURE",
+            "Trade execution did not complete successfully",
+            [
+                "Check CloudWatch Logs for detailed stack trace",
+                "Verify Alpaca API connectivity and credentials",
+                "Check order status in Alpaca dashboard",
+                "Review recent code changes",
+            ],
+        )
+
+    # Default covers portfolio_analysis, strategy_coordination, and unknown types
     return (
         "your daily rebalance summary",
         "FAILURE",
