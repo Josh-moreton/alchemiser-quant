@@ -21,6 +21,8 @@ import streamlit as st
 from boto3.dynamodb.conditions import Attr, Key
 from settings import get_dashboard_settings
 
+from data import account as account_access
+
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
@@ -398,6 +400,27 @@ def get_all_strategy_metadata() -> dict[str, dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Attribution Coverage / Data Quality
 # ---------------------------------------------------------------------------
+
+
+@st.cache_data(ttl=120)
+def get_current_price_map() -> dict[str, float]:
+    """Build a symbol -> current_price mapping from account positions.
+
+    Used by the open lots view to compute per-lot unrealized P&L.
+    Returns an empty dict if positions cannot be loaded.
+    """
+    try:
+        positions = account_access.get_latest_positions()
+        if not positions:
+            return {}
+        return {
+            pos.symbol: float(pos.current_price)
+            for pos in positions
+            if hasattr(pos, "symbol") and hasattr(pos, "current_price")
+        }
+    except Exception:
+        logger.warning("Failed to load current prices for unrealized P&L", exc_info=True)
+        return {}
 
 
 @st.cache_data(ttl=900)  # 15-min TTL — full table scan, call sparingly
