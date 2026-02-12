@@ -1266,8 +1266,10 @@ Resources:
                 Action:
                   - dynamodb:PutItem
                   - dynamodb:GetItem
+                  - dynamodb:Query
                 Resource:
                   - !GetAtt TradeLedgerTable.Arn
+                  - !Sub "${TradeLedgerTable.Arn}/index/*"
               # S3 permissions for per-stage market data bucket (read-only)
               - Effect: Allow
                 Action:
