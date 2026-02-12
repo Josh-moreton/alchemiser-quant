@@ -439,6 +439,10 @@ class ErrorNotificationRequested(BaseEvent):
     error_code: str | None = Field(
         default=None, description="Optional error code for categorization"
     )
+    workflow_type: str | None = Field(
+        default=None,
+        description="Originating workflow type (e.g. data_refresh, portfolio_analysis)",
+    )
     recipient_override: str | None = Field(default=None, description=RECIPIENT_OVERRIDE_DESCRIPTION)
 
 
