@@ -975,6 +975,35 @@ class HedgeRollTriggered(BaseEvent):
 # ========== PER-STRATEGY BOOK ARCHITECTURE (PROPOSED) ==========
 # The following event schemas support the proposed per-strategy book architecture.
 # See docs/ARCH_PER_STRATEGY_BOOKS.md for full design details.
+class AllStrategiesCompleted(BaseEvent):
+    """Event emitted when all strategies in a daily run have completed.
+
+    Published by whichever Lambda (Strategy Worker or Trade Aggregator)
+    records the final strategy completion in the notification session.
+    Triggers the Notifications Lambda to send one consolidated email
+    summarizing all strategies in the run.
+
+    Strategy outcomes tracked:
+    - TRADED: Strategy had trades that executed (success/failure)
+    - ALL_HOLD: Strategy evaluated but all positions were at target
+    - FAILED: Strategy execution failed before trades could be enqueued
+    """
+
+    event_type: str = Field(default="AllStrategiesCompleted", description=EVENT_TYPE_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    total_strategies: int = Field(
+        ..., description="Total number of strategies dispatched by coordinator"
+    )
+    completed_strategies: int = Field(
+        ..., description="Number of strategies that completed (should equal total)"
+    )
+
+
 class StrategyExecutionRequested(BaseEvent):
     """Event emitted when a strategy requests trade execution.
 

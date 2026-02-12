@@ -18,6 +18,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
+from consolidated_handler import handle_all_strategies_completed
 from service import NotificationService
 from strategy_report_service import generate_performance_report_url
 
@@ -75,6 +76,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         )
 
         # Route to appropriate handler based on event type
+        if detail_type == "AllStrategiesCompleted":
+            return handle_all_strategies_completed(detail, correlation_id)
         if detail_type == "AllTradesCompleted":
             return _handle_all_trades_completed(detail, correlation_id)
         if detail_type == "WorkflowFailed":
@@ -91,8 +94,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             return _handle_cloudwatch_alarm(event, correlation_id)
 
         logger.debug(
-            f"Ignoring unsupported event type: {detail_type}",
-            extra={"correlation_id": correlation_id},
+            "Ignoring unsupported event type",
+            extra={"correlation_id": correlation_id, "detail_type": detail_type},
         )
         return {
             "statusCode": 200,
@@ -101,10 +104,11 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
     except Exception as e:
         logger.error(
-            f"Notifications Lambda failed: {e}",
+            "Notifications Lambda failed",
             exc_info=True,
             extra={
                 "correlation_id": correlation_id,
+                "error": str(e),
                 "error_type": type(e).__name__,
             },
         )
@@ -118,8 +122,9 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 def _handle_all_trades_completed(detail: dict[str, Any], correlation_id: str) -> dict[str, Any]:
     """Handle AllTradesCompleted event from TradeAggregator.
 
-    This is the primary handler - receives pre-aggregated trade data
-    and sends a single notification. No racing or locking needed.
+    If a notification session exists for this correlation_id (created by the
+    Coordinator), defers email to the consolidated AllStrategiesCompleted handler.
+    Otherwise, sends email immediately (backward compatible for direct invocations).
 
     Args:
         detail: The detail payload from AllTradesCompleted event
@@ -135,7 +140,7 @@ def _handle_all_trades_completed(detail: dict[str, Any], correlation_id: str) ->
     failed_trades = detail.get("failed_trades", 0)
 
     logger.info(
-        f"🏁 Processing AllTradesCompleted for run {run_id}",
+        "Processing AllTradesCompleted for run",
         extra={
             "correlation_id": correlation_id,
             "run_id": run_id,
@@ -143,6 +148,30 @@ def _handle_all_trades_completed(detail: dict[str, Any], correlation_id: str) ->
             "succeeded_trades": succeeded_trades,
             "failed_trades": failed_trades,
         },
+    )
+
+    # Check if a notification session exists (from Coordinator)
+    # If so, defer - the consolidated email will be sent by AllStrategiesCompleted
+    session = _get_notification_session(correlation_id)
+    if session is not None:
+        logger.info(
+            "Notification session found - deferring email to consolidated handler",
+            extra={
+                "correlation_id": correlation_id,
+                "run_id": run_id,
+                "total_strategies": session.get("total_strategies"),
+                "completed_strategies": session.get("completed_strategies"),
+            },
+        )
+        return {
+            "statusCode": 200,
+            "body": f"Deferred to consolidated notification for run {run_id}",
+        }
+
+    # No session - backward compatible, send immediately
+    logger.info(
+        "No notification session - sending per-strategy email",
+        extra={"correlation_id": correlation_id, "run_id": run_id},
     )
 
     # Create minimal ApplicationContainer for notifications
@@ -161,7 +190,7 @@ def _handle_all_trades_completed(detail: dict[str, Any], correlation_id: str) ->
     notification_service.handle_event(notification_event)
 
     logger.info(
-        "✅ Trading notification sent successfully",
+        "Trading notification sent successfully (no session fallback)",
         extra={
             "correlation_id": correlation_id,
             "run_id": run_id,
@@ -175,6 +204,35 @@ def _handle_all_trades_completed(detail: dict[str, Any], correlation_id: str) ->
         "statusCode": 200,
         "body": f"Notification sent for run {run_id}",
     }
+
+
+def _get_notification_session(correlation_id: str) -> dict[str, Any] | None:
+    """Check if a notification session exists for this correlation_id.
+
+    Args:
+        correlation_id: Shared workflow correlation ID.
+
+    Returns:
+        Session metadata dict, or None if no session exists.
+
+    """
+    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "")
+    if not table_name:
+        return None
+
+    try:
+        from the_alchemiser.shared.services.notification_session_service import (
+            NotificationSessionService,
+        )
+
+        session_service = NotificationSessionService(table_name=table_name)
+        return session_service.get_session(correlation_id)
+    except Exception as e:
+        logger.warning(
+            "Failed to check notification session",
+            extra={"correlation_id": correlation_id, "error": str(e)},
+        )
+        return None
 
 
 def _build_trading_notification_from_aggregated(
@@ -357,6 +415,12 @@ def _handle_workflow_failed(
 ) -> dict[str, Any]:
     """Handle WorkflowFailed events by sending error notifications.
 
+    If a notification session exists for this correlation_id (created by the
+    Coordinator for multi-strategy runs), defers per-strategy failure emails
+    to the consolidated AllStrategiesCompleted handler. Otherwise, sends the
+    error email immediately (backward compatible for direct invocations and
+    non-strategy workflow types like hedge_evaluation).
+
     Args:
         detail: The detail payload from WorkflowFailed event
         correlation_id: Correlation ID for tracing
@@ -366,12 +430,50 @@ def _handle_workflow_failed(
         Response with status code and message
 
     """
+    workflow_type = detail.get("workflow_type", "unknown")
+
     logger.info(
         "Processing WorkflowFailed event",
-        extra={"correlation_id": correlation_id, "source": source},
+        extra={
+            "correlation_id": correlation_id,
+            "source": source,
+            "workflow_type": workflow_type,
+        },
     )
 
-    # Create minimal ApplicationContainer for notifications
+    # Only defer strategy-related failures when a notification session exists.
+    # Non-strategy failures (hedge_evaluation, etc.) always send immediately.
+    #
+    # NOTE: "strategy_execution" is intentionally EXCLUDED from this set.
+    # Individual strategy failures (workflow_type="strategy_execution") always
+    # send an immediate error email for fast alerting, AND the failure is
+    # recorded in the notification session for inclusion in the consolidated
+    # summary. This deliberate duplication ensures operators are notified
+    # promptly when a strategy fails, rather than waiting for the full run
+    # to complete.
+    strategy_workflow_types = {
+        "strategy_coordination",
+        "trade_aggregation",
+        "portfolio_analysis",
+    }
+    if workflow_type in strategy_workflow_types:
+        session = _get_notification_session(correlation_id)
+        if session is not None:
+            logger.info(
+                "Notification session found - deferring error email to consolidated handler",
+                extra={
+                    "correlation_id": correlation_id,
+                    "workflow_type": workflow_type,
+                    "total_strategies": session.get("total_strategies"),
+                    "completed_strategies": session.get("completed_strategies"),
+                },
+            )
+            return {
+                "statusCode": 200,
+                "body": f"Deferred to consolidated notification for {correlation_id}",
+            }
+
+    # No session or non-strategy workflow type - send immediately
     container = ApplicationContainer.create_for_notifications("production")
 
     # Build error notification event
@@ -386,7 +488,7 @@ def _handle_workflow_failed(
         extra={
             "correlation_id": correlation_id,
             "failure_step": detail.get("failure_step", "unknown"),
-            "workflow_type": detail.get("workflow_type", "unknown"),
+            "workflow_type": workflow_type,
         },
     )
 
@@ -460,7 +562,7 @@ def _build_hedge_success_context(detail: dict[str, Any], correlation_id: str) ->
     # Reuse NotificationService's logs URL builder for consistency
     container = ApplicationContainer.create_for_notifications("production")
     notification_service = NotificationService(container)
-    logs_url = notification_service._build_logs_url(correlation_id)
+    logs_url = notification_service.build_logs_url(correlation_id)
 
     budget_nav_pct = detail.get("budget_nav_pct", "0")
     try:
@@ -627,9 +729,10 @@ def _generate_strategy_report(correlation_id: str) -> str | None:
     except Exception as e:
         # Don't fail the notification if report generation fails
         logger.warning(
-            f"Failed to generate strategy performance report: {e}",
+            "Failed to generate strategy performance report",
             extra={
                 "correlation_id": correlation_id,
+                "error": str(e),
                 "error_type": type(e).__name__,
             },
         )
@@ -936,8 +1039,12 @@ def _handle_cloudwatch_alarm(event: dict[str, Any], correlation_id: str) -> dict
     # Only process ALARM state (not OK or INSUFFICIENT_DATA)
     if state_value != "ALARM":
         logger.debug(
-            f"Ignoring CloudWatch alarm state change: {state_value}",
-            extra={"correlation_id": correlation_id, "alarm_name": alarm_name},
+            "Ignoring CloudWatch alarm state change",
+            extra={
+                "correlation_id": correlation_id,
+                "alarm_name": alarm_name,
+                "state_value": state_value,
+            },
         )
         return {
             "statusCode": 200,

@@ -156,10 +156,9 @@ class StrategyPositionService:
 
             raise PortfolioError(
                 f"Cannot read positions for strategy '{strategy_id}': {e}",
-                context={
-                    "strategy_id": strategy_id,
-                    "error": str(e),
-                },
+                module="strategy_position_service",
+                operation="get_strategy_positions",
+                correlation_id=strategy_id,
             ) from e
 
     def build_portfolio_snapshot(
@@ -215,7 +214,7 @@ class StrategyPositionService:
                 prices[symbol] = price
 
         cash = strategy_capital - total_position_value
-        
+
         # Defensive guard: warn if cash goes negative (position value exceeds allocated capital)
         if cash < Decimal("0"):
             logger.warning(
@@ -228,7 +227,7 @@ class StrategyPositionService:
                     "excess_value": str(abs(cash)),
                 },
             )
-        
+
         total_value = strategy_capital
 
         logger.info(

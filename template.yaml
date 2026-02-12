@@ -1345,6 +1345,7 @@ Resources:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
           STRATEGY_FUNCTION_NAME: !Ref StrategyFunction
+          EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
     Metadata:
       BuildMethod: python3.12
 
@@ -1369,6 +1370,12 @@ Resources:
                   - lambda:InvokeAsync
                 Resource:
                   - !GetAtt StrategyFunction.Arn
+              # Permission to create notification sessions in ExecutionRunsTable
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource:
+                  - !GetAtt ExecutionRunsTable.Arn
 
   # Execution Lambda - Trade execution microservice (triggered via SQS)
   ExecutionFunction:
@@ -1573,7 +1580,18 @@ Resources:
             - "notifications@rwxt.org"
           # Safety: non-prod environments must explicitly enable real emails
           ALLOW_REAL_EMAILS: !If [ IsProduction, "true", "false" ]
+          EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
       Events:
+        # AllStrategiesCompleted from StrategyWorker/TradeAggregator (consolidated email trigger)
+        AllStrategiesCompletedEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserEventBus
+            Pattern:
+              source:
+                - "alchemiser.coordinator"
+              detail-type:
+                - "AllStrategiesCompleted"
         # AllTradesCompleted from TradeAggregator (one event per run, no racing)
         AllTradesCompletedEvent:
           Type: EventBridgeRule
@@ -1692,6 +1710,14 @@ Resources:
                   - ses:SendEmail
                   - ses:SendRawEmail
                 Resource: "*"
+              # Notification session: read strategy results, claim lock, mark sent
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt ExecutionRunsTable.Arn
 
   # ========== STRATEGY PERFORMANCE LAMBDA ==========
   # Publishes per-strategy performance metrics to DynamoDB

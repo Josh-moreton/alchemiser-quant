@@ -164,6 +164,7 @@ def enqueue_rebalance_trades(
         data_freshness=data_freshness,
         strategies_evaluated=strategies_evaluated,
         rebalance_plan_summary=rebalance_plan_summary,
+        strategy_id=rebalance_plan.strategy_id,
     )
 
     sqs_client = boto3.client("sqs")

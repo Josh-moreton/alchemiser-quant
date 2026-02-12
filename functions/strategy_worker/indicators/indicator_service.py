@@ -91,7 +91,6 @@ class IndicatorService:
         Changing this value clears the computed-indicator cache so cached
         results do not leak across dates during backfills.
         """
-
         return self._as_of_date
 
     @as_of_date.setter
@@ -110,11 +109,12 @@ class IndicatorService:
                 return repr(v)
             return str(v)
 
-        return tuple(sorted(((k, _val_to_key(v)) for k, v in parameters.items()), key=lambda kv: kv[0]))
+        return tuple(
+            sorted(((k, _val_to_key(v)) for k, v in parameters.items()), key=lambda kv: kv[0])
+        )
 
     def _get_bars_cached(self, *, symbol: str, period: str, timeframe: str) -> list[BarModel]:
         """Fetch market bars with in-process caching."""
-
         cache_key = (symbol, period, timeframe)
         cached = self._bars_cache.get(cache_key)
         if cached is not None:

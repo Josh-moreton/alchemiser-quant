@@ -12,6 +12,7 @@ Trigger: EventBridge rule matching TradeExecuted events.
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -251,6 +252,15 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
         # Publish to EventBridge (triggers Notifications Lambda)
         publish_to_eventbridge(all_trades_event)
+
+        # Report TRADED strategy to notification session for consolidated email
+        _report_strategy_traded(
+            correlation_id=correlation_id,
+            run_id=run_id,
+            strategy_id=run_metadata.get("strategy_id", ""),
+            dsl_file=run_metadata.get("dsl_file", ""),
+            all_trades_detail=all_trades_event.model_dump(mode="json"),
+        )
 
         # Mark run as completed
         aggregator_service.mark_run_completed(run_id)
@@ -554,3 +564,108 @@ def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
             },
         )
         return empty_pnl
+
+
+def _derive_strategy_id(
+    strategy_id: str,
+    run_id: str,
+    all_trades_detail: dict[str, Any],
+) -> str:
+    """Derive strategy_id from plan metadata if not stored in run.
+
+    Args:
+        strategy_id: Strategy identifier (may be empty).
+        run_id: Execution run identifier for fallback.
+        all_trades_detail: Serialized AllTradesCompleted event data.
+
+    Returns:
+        Resolved strategy identifier.
+
+    """
+    if strategy_id:
+        return strategy_id
+    metadata = all_trades_detail.get("metadata", {})
+    derived = metadata.get("strategy_name", run_id[:8])
+    if not derived:
+        plan_summary = all_trades_detail.get("rebalance_plan_summary", [])
+        if plan_summary:
+            derived = f"run-{run_id[:8]}"
+    return derived or run_id[:8]
+
+
+def _report_strategy_traded(
+    correlation_id: str,
+    run_id: str,
+    strategy_id: str,
+    dsl_file: str,
+    all_trades_detail: dict[str, Any],
+) -> None:
+    """Report a TRADED strategy to the notification session for consolidated email.
+
+    Non-fatal: if session recording fails, per-strategy emails still work
+    as a fallback when no notification session exists.
+
+    Args:
+        correlation_id: Shared workflow correlation ID.
+        run_id: Execution run identifier.
+        strategy_id: Strategy identifier from run metadata.
+        dsl_file: DSL file name from plan metadata.
+        all_trades_detail: Serialized AllTradesCompleted event data.
+
+    """
+    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "")
+    if not table_name:
+        return
+
+    strategy_id = _derive_strategy_id(strategy_id, run_id, all_trades_detail)
+
+    if not dsl_file:
+        metadata = all_trades_detail.get("metadata", {})
+        dsl_file = metadata.get("dsl_file", "")
+
+    try:
+        from the_alchemiser.shared.services.notification_session_service import (
+            NotificationSessionService,
+            publish_all_strategies_completed,
+        )
+
+        session_service = NotificationSessionService(table_name=table_name)
+        detail = {**all_trades_detail, "run_id": run_id}
+
+        completed, total = session_service.record_strategy_completion(
+            correlation_id=correlation_id,
+            strategy_id=strategy_id,
+            dsl_file=dsl_file,
+            outcome="TRADED",
+            detail=detail,
+        )
+
+        logger.info(
+            "Reported TRADED to notification session",
+            extra={
+                "correlation_id": correlation_id,
+                "strategy_id": strategy_id,
+                "run_id": run_id,
+                "completed_strategies": completed,
+                "total_strategies": total,
+            },
+        )
+
+        if completed >= total > 0:
+            publish_all_strategies_completed(
+                correlation_id,
+                completed,
+                total,
+                "TradeAggregator",
+            )
+
+    except Exception as e:
+        logger.warning(
+            "Failed to report TRADED to notification session",
+            extra={
+                "correlation_id": correlation_id,
+                "run_id": run_id,
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
+        )

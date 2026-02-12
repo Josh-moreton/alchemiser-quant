@@ -13,6 +13,7 @@ and enqueues trades. No aggregation session or planner step required.
 from __future__ import annotations
 
 import math
+import os
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -111,6 +112,13 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             strategy_configs=strategy_configs,
         )
 
+        # Create notification session for consolidated email
+        _create_notification_session(
+            correlation_id=correlation_id,
+            total_strategies=len(strategy_configs),
+            strategy_files=dsl_files,
+        )
+
         logger.info(
             "Coordinator completed - strategies dispatched",
             extra={
@@ -169,3 +177,46 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "error": str(e),
             },
         }
+
+
+def _create_notification_session(
+    correlation_id: str,
+    total_strategies: int,
+    strategy_files: list[str],
+) -> None:
+    """Create a notification session for consolidated email delivery.
+
+    Non-fatal: if session creation fails, strategies fall back to
+    per-strategy emails (backward compatible).
+
+    Args:
+        correlation_id: Shared workflow correlation ID.
+        total_strategies: Number of strategies dispatched.
+        strategy_files: List of DSL file names.
+
+    """
+    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "")
+    if not table_name:
+        logger.debug("EXECUTION_RUNS_TABLE_NAME not set - skipping notification session")
+        return
+
+    try:
+        from the_alchemiser.shared.services.notification_session_service import (
+            NotificationSessionService,
+        )
+
+        session_service = NotificationSessionService(table_name=table_name)
+        session_service.create_session(
+            correlation_id=correlation_id,
+            total_strategies=total_strategies,
+            strategy_files=strategy_files,
+        )
+    except Exception as e:
+        logger.warning(
+            "Failed to create notification session",
+            extra={
+                "correlation_id": correlation_id,
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
+        )
