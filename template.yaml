@@ -107,11 +107,11 @@ Parameters:
     Default: https://api.alpaca.markets
     Description: Alpaca API endpoint for production
 
-  # Single daily data refresh after US market close (4:05 PM ET)
+  # Daily data refresh: midnight ET (post-close bars) + noon ET (intraday catch-up)
   DataRefreshScheduleExpr:
     Type: String
-    Default: "cron(5 16 ? * MON-FRI *)"
-    Description: Daily market data refresh (4:05 PM ET, Mon-Fri)
+    Default: "cron(0 0,12 ? * TUE-SAT *)"
+    Description: Daily market data refresh (midnight & noon ET, Tue-Sat for Mon-Fri trading days)
 
   FetchCooldownMinutes:
     Type: Number
@@ -2298,7 +2298,7 @@ Resources:
                 Resource:
                   - !GetAtt ScheduleManagerFunction.Arn
 
-  # Daily data refresh (4:05 PM ET, after US market close, fetches completed daily bars)
+  # Daily data refresh (midnight ET, after US market close, fetches completed daily bars)
   DataRefreshSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
@@ -2306,7 +2306,7 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-data-refresh"
         - !Sub "alchemiser-${Stage}-data-refresh"
-      Description: !Sub "Daily market data refresh for ${Stage} (4:05 PM ET, Mon-Fri)"
+      Description: !Sub "Daily market data refresh for ${Stage} (midnight & noon ET, Tue-Sat)"
       ScheduleExpression: !Ref DataRefreshScheduleExpr
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow:
