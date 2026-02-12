@@ -2345,7 +2345,7 @@ Resources:
       Architectures:
         - x86_64
       CodeUri: functions/account_data/
-      Handler: lambda_handler.handler
+      Handler: lambda_handler.lambda_handler
       Role: !GetAtt AccountDataExecutionRole.Arn
       Layers:
         - !Ref SharedCodeLayer
