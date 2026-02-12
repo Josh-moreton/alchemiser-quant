@@ -303,6 +303,7 @@ def _report_strategy_completion(
     try:
         from the_alchemiser.shared.services.notification_session_service import (
             NotificationSessionService,
+            publish_all_strategies_completed,
         )
 
         session_service = NotificationSessionService(table_name=table_name)
@@ -324,9 +325,10 @@ def _report_strategy_completion(
             },
         )
 
-        # If this was the last strategy, publish AllStrategiesCompleted
         if completed >= total > 0:
-            _publish_all_strategies_completed(correlation_id, completed, total)
+            publish_all_strategies_completed(
+                correlation_id, completed, total, "StrategyWorker",
+            )
 
     except Exception as e:
         logger.warning(
@@ -336,47 +338,4 @@ def _report_strategy_completion(
                 "strategy_id": strategy_id,
                 "error_type": type(e).__name__,
             },
-        )
-
-
-def _publish_all_strategies_completed(
-    correlation_id: str,
-    completed: int,
-    total: int,
-) -> None:
-    """Publish AllStrategiesCompleted event to trigger consolidated email.
-
-    Args:
-        correlation_id: Shared workflow correlation ID.
-        completed: Number of strategies that completed.
-        total: Total strategies in the run.
-
-    """
-    try:
-        from the_alchemiser.shared.events import AllStrategiesCompleted
-
-        event = AllStrategiesCompleted(
-            event_id=f"all-strategies-completed-{uuid.uuid4()}",
-            correlation_id=correlation_id,
-            causation_id=correlation_id,
-            timestamp=datetime.now(UTC),
-            source_module="coordinator",
-            source_component="StrategyWorker",
-            total_strategies=total,
-            completed_strategies=completed,
-        )
-        publish_to_eventbridge(event)
-
-        logger.info(
-            "Published AllStrategiesCompleted event",
-            extra={
-                "correlation_id": correlation_id,
-                "total_strategies": total,
-                "completed_strategies": completed,
-            },
-        )
-    except Exception as e:
-        logger.error(
-            f"Failed to publish AllStrategiesCompleted: {e}",
-            extra={"correlation_id": correlation_id},
         )

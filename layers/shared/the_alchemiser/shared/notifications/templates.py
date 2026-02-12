@@ -2131,6 +2131,100 @@ Environment: {env}
     return header + body + footer
 
 
+def _render_strategy_row_html(strat: dict[str, Any]) -> str:
+    """Derive outcome display values for a strategy in HTML context.
+
+    Args:
+        strat: Per-strategy summary dict.
+
+    Returns:
+        Tuple of (outcome_color, outcome_label, details, trade_count).
+
+    """
+    outcome = strat.get("outcome", "")
+    trade_count = strat.get("trade_count", 0)
+
+    if outcome == "TRADED":
+        succeeded = strat.get("succeeded_trades", 0)
+        failed = strat.get("failed_trades", 0)
+        outcome_color = "#28a745" if failed == 0 else "#ffc107"
+        outcome_label = "TRADED"
+        details = f"{succeeded} filled"
+        if failed > 0:
+            details += f", {failed} failed"
+            failed_syms = strat.get("failed_symbols", [])
+            if failed_syms:
+                details += f" ({', '.join(failed_syms)})"
+    elif outcome == "ALL_HOLD":
+        outcome_color = "#6c757d"
+        outcome_label = "NO REBALANCE"
+        details = "All positions at target"
+    elif outcome == "FAILED":
+        outcome_color = "#dc3545"
+        outcome_label = "FAILED"
+        details = strat.get("failure_reason", "Unknown error")
+        if len(details) > 60:
+            details = details[:57] + "..."
+    else:
+        outcome_color = "#6c757d"
+        outcome_label = outcome
+        details = ""
+
+    name = strat.get("name", "unknown")
+    return (
+        f"""
+                <tr>
+                    <td style="padding: 4px 6px; border-bottom: 1px solid #dee2e6;"><strong>{name}</strong></td>
+                    <td style="padding: 4px 6px; border-bottom: 1px solid #dee2e6;">
+                        <span style="color: {outcome_color}; font-weight: bold;">{outcome_label}</span>
+                    </td>
+                    <td style="padding: 4px 6px; text-align: right; border-bottom: 1px solid #dee2e6;">{trade_count}</td>
+                    <td style="padding: 4px 6px; border-bottom: 1px solid #dee2e6;">{details}</td>
+                </tr>
+"""
+    )
+
+
+def _render_portfolio_snapshot_html(
+    equity: float,
+    cash: float,
+    gross_exposure: float,
+    top_positions: list[dict[str, Any]],
+) -> str:
+    """Render the portfolio snapshot section as HTML.
+
+    Args:
+        equity: Account equity.
+        cash: Account cash.
+        gross_exposure: Gross exposure ratio.
+        top_positions: Top portfolio positions.
+
+    Returns:
+        HTML snippet for portfolio snapshot (empty string if no data).
+
+    """
+    if not equity and not cash:
+        return ""
+
+    positions_html = ""
+    for pos in top_positions[:5]:
+        positions_html += f"                <li>{pos['symbol']} {pos['weight']:.1f}%</li>\n"
+    if not top_positions:
+        positions_html = "                <li>No positions</li>\n"
+
+    return f"""
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Portfolio Snapshot (Post-Run)</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Equity:</strong> ${equity:,.2f} | <strong>Cash:</strong> ${cash:,.2f}</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Exposure:</strong> {gross_exposure:.2f}x</p>
+            <p style="margin: 0; font-size: 11px;"><strong>Top positions:</strong></p>
+            <ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 11px;">
+{positions_html}
+            </ul>
+        </div>
+"""
+
+
 def render_consolidated_run_html(context: dict[str, Any]) -> str:
     """Render HTML for consolidated daily run email (all strategies).
 
@@ -2180,6 +2274,7 @@ def render_consolidated_run_html(context: dict[str, Any]) -> str:
     logs_url = context.get("logs_url", "#")
     report_url = context.get("strategy_performance_report_url", "")
 
+    # Identity & timing header
     body = f"""
     <div style="padding: 15px 0;">
         <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
@@ -2204,49 +2299,11 @@ def render_consolidated_run_html(context: dict[str, Any]) -> str:
                 </tr>
 """
 
+    # Per-strategy rows
     for strat in strategies:
-        name = strat.get("name", "unknown")
-        outcome = strat.get("outcome", "")
-        trade_count = strat.get("trade_count", 0)
+        body += _render_strategy_row_html(strat)
 
-        if outcome == "TRADED":
-            succeeded = strat.get("succeeded_trades", 0)
-            failed = strat.get("failed_trades", 0)
-            outcome_color = "#28a745" if failed == 0 else "#ffc107"
-            outcome_label = "TRADED"
-            details = f"{succeeded} filled"
-            if failed > 0:
-                details += f", {failed} failed"
-                failed_syms = strat.get("failed_symbols", [])
-                if failed_syms:
-                    details += f" ({', '.join(failed_syms)})"
-        elif outcome == "ALL_HOLD":
-            outcome_color = "#6c757d"
-            outcome_label = "NO REBALANCE"
-            details = "All positions at target"
-        elif outcome == "FAILED":
-            outcome_color = "#dc3545"
-            outcome_label = "FAILED"
-            details = strat.get("failure_reason", "Unknown error")
-            if len(details) > 60:
-                details = details[:57] + "..."
-        else:
-            outcome_color = "#6c757d"
-            outcome_label = outcome
-            details = ""
-
-        body += f"""
-                <tr>
-                    <td style="padding: 4px 6px; border-bottom: 1px solid #dee2e6;"><strong>{name}</strong></td>
-                    <td style="padding: 4px 6px; border-bottom: 1px solid #dee2e6;">
-                        <span style="color: {outcome_color}; font-weight: bold;">{outcome_label}</span>
-                    </td>
-                    <td style="padding: 4px 6px; text-align: right; border-bottom: 1px solid #dee2e6;">{trade_count}</td>
-                    <td style="padding: 4px 6px; border-bottom: 1px solid #dee2e6;">{details}</td>
-                </tr>
-"""
-
-    # Determine aggregate outcome styling
+    # Aggregate totals
     if total_failed == 0:
         agg_bg = "#e7f5e9"
         agg_border = "#28a745"
@@ -2271,29 +2328,8 @@ def render_consolidated_run_html(context: dict[str, Any]) -> str:
         </div>
 """
 
-    # Portfolio snapshot
-    if equity or cash:
-        body += f"""
-        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
-            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Portfolio Snapshot (Post-Run)</h4>
-            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Equity:</strong> ${equity:,.2f} | <strong>Cash:</strong> ${cash:,.2f}</p>
-            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Exposure:</strong> {gross_exposure:.2f}x</p>
-            <p style="margin: 0; font-size: 11px;"><strong>Top positions:</strong></p>
-            <ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 11px;">
-"""
-        for pos in top_positions[:5]:
-            body += f"                <li>{pos['symbol']} {pos['weight']:.1f}%</li>\n"
-        if not top_positions:
-            body += "                <li>No positions</li>\n"
-        body += """
-            </ul>
-        </div>
-"""
-
-    # P&L metrics
+    body += _render_portfolio_snapshot_html(equity, cash, gross_exposure, top_positions)
     body += _format_pnl_html(monthly_pnl, yearly_pnl)
-
-    # Rebalance plan
     body += _format_rebalance_plan_html(rebalance_plan_summary)
 
     # Data freshness
@@ -2324,6 +2360,78 @@ def render_consolidated_run_html(context: dict[str, Any]) -> str:
     return header + body + footer
 
 
+def _render_strategy_line_text(strat: dict[str, Any]) -> str:
+    """Render a single strategy result as a plain-text line.
+
+    Args:
+        strat: Per-strategy summary dict.
+
+    Returns:
+        Formatted text line for the strategy.
+
+    """
+    name = strat.get("name", "unknown")
+    outcome = strat.get("outcome", "")
+    trade_count = strat.get("trade_count", 0)
+
+    if outcome == "TRADED":
+        succeeded = strat.get("succeeded_trades", 0)
+        failed = strat.get("failed_trades", 0)
+        line = f"  {name}: {trade_count} trades ({succeeded} filled"
+        if failed > 0:
+            failed_syms = strat.get("failed_symbols", [])
+            line += f", {failed} failed"
+            if failed_syms:
+                line += f" [{', '.join(failed_syms)}]"
+        line += ")"
+    elif outcome == "ALL_HOLD":
+        line = f"  {name}: No rebalance needed"
+    elif outcome == "FAILED":
+        reason = strat.get("failure_reason", "Unknown error")
+        if len(reason) > 60:
+            reason = reason[:57] + "..."
+        line = f"  {name}: FAILED - {reason}"
+    else:
+        line = f"  {name}: {outcome}"
+
+    return line
+
+
+def _render_portfolio_snapshot_text(
+    equity: float,
+    cash: float,
+    gross_exposure: float,
+    top_positions: list[dict[str, Any]],
+) -> str:
+    """Render the portfolio snapshot section as plain text.
+
+    Args:
+        equity: Account equity.
+        cash: Account cash.
+        gross_exposure: Gross exposure ratio.
+        top_positions: Top portfolio positions.
+
+    Returns:
+        Plain text snippet for portfolio snapshot (empty string if no data).
+
+    """
+    if not equity and not cash:
+        return ""
+
+    text = f"""
+PORTFOLIO SNAPSHOT (POST-RUN)
+-----------------------------
+Equity: ${equity:,.2f} | Cash: ${cash:,.2f}
+Exposure: {gross_exposure:.2f}x
+Top positions:
+"""
+    for pos in top_positions[:5]:
+        text += f"  - {pos['symbol']} {pos['weight']:.1f}%\n"
+    if not top_positions:
+        text += "  - No positions\n"
+    return text
+
+
 def render_consolidated_run_text(context: dict[str, Any]) -> str:
     """Render plain text for consolidated daily run email (all strategies).
 
@@ -2351,11 +2459,6 @@ def render_consolidated_run_text(context: dict[str, Any]) -> str:
     total_skipped = context.get("total_skipped", 0)
 
     portfolio_snapshot = context.get("portfolio_snapshot", {})
-    equity = portfolio_snapshot.get("equity", 0)
-    cash = portfolio_snapshot.get("cash", 0)
-    gross_exposure = portfolio_snapshot.get("gross_exposure", 0)
-    top_positions = portfolio_snapshot.get("top_positions", [])
-
     pnl_metrics = context.get("pnl_metrics", {})
     monthly_pnl = pnl_metrics.get("monthly_pnl", {})
     yearly_pnl = pnl_metrics.get("yearly_pnl", {})
@@ -2378,31 +2481,7 @@ PER-STRATEGY RESULTS
 """
 
     for strat in strategies:
-        name = strat.get("name", "unknown")
-        outcome = strat.get("outcome", "")
-        trade_count = strat.get("trade_count", 0)
-
-        if outcome == "TRADED":
-            succeeded = strat.get("succeeded_trades", 0)
-            failed = strat.get("failed_trades", 0)
-            line = f"  {name}: {trade_count} trades ({succeeded} filled"
-            if failed > 0:
-                failed_syms = strat.get("failed_symbols", [])
-                line += f", {failed} failed"
-                if failed_syms:
-                    line += f" [{', '.join(failed_syms)}]"
-            line += ")"
-        elif outcome == "ALL_HOLD":
-            line = f"  {name}: No rebalance needed"
-        elif outcome == "FAILED":
-            reason = strat.get("failure_reason", "Unknown error")
-            if len(reason) > 60:
-                reason = reason[:57] + "..."
-            line = f"  {name}: FAILED - {reason}"
-        else:
-            line = f"  {name}: {outcome}"
-
-        body += line + "\n"
+        body += _render_strategy_line_text(strat) + "\n"
 
     body += f"""
 AGGREGATE TOTALS
@@ -2410,18 +2489,12 @@ AGGREGATE TOTALS
 Total trades: {total_trades} | Succeeded: {total_succeeded} | Failed: {total_failed} | Skipped: {total_skipped}
 """
 
-    if equity or cash:
-        body += f"""
-PORTFOLIO SNAPSHOT (POST-RUN)
------------------------------
-Equity: ${equity:,.2f} | Cash: ${cash:,.2f}
-Exposure: {gross_exposure:.2f}x
-Top positions:
-"""
-        for pos in top_positions[:5]:
-            body += f"  - {pos['symbol']} {pos['weight']:.1f}%\n"
-        if not top_positions:
-            body += "  - No positions\n"
+    body += _render_portfolio_snapshot_text(
+        portfolio_snapshot.get("equity", 0),
+        portfolio_snapshot.get("cash", 0),
+        portfolio_snapshot.get("gross_exposure", 0),
+        portfolio_snapshot.get("top_positions", []),
+    )
 
     body += _format_pnl_text(monthly_pnl, yearly_pnl)
     body += _format_rebalance_plan_text(rebalance_plan_summary)

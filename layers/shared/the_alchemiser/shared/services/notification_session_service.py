@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 import boto3
 
@@ -157,27 +158,9 @@ class NotificationSessionService:
         now = datetime.now(UTC)
         ttl_val = int((now + timedelta(hours=SESSION_TTL_HOURS)).timestamp())
 
-        # Step 1: Write per-strategy result (idempotent via conditional put)
-        strategy_item: dict[str, dict[str, str]] = {
-            "PK": {"S": f"NOTIFY#{correlation_id}"},
-            "SK": {"S": f"STRATEGY#{strategy_id}"},
-            "strategy_id": {"S": strategy_id},
-            "dsl_file": {"S": dsl_file},
-            "outcome": {"S": outcome},
-            "completed_at": {"S": now.isoformat()},
-            "TTL": {"N": str(ttl_val)},
-        }
-
-        # Add outcome-specific fields
-        if outcome == "TRADED":
-            strategy_item["run_id"] = {"S": detail.get("run_id", "")}
-            strategy_item["trade_count"] = {"N": str(detail.get("total_trades", 0))}
-            strategy_item["execution_detail"] = {"S": json.dumps(detail, default=str)}
-        elif outcome == "ALL_HOLD":
-            strategy_item["trade_count"] = {"N": "0"}
-        elif outcome == "FAILED":
-            strategy_item["trade_count"] = {"N": "0"}
-            strategy_item["failure_detail"] = {"S": json.dumps(detail, default=str)}
+        strategy_item = self._build_strategy_item(
+            correlation_id, strategy_id, dsl_file, outcome, detail, now, ttl_val,
+        )
 
         try:
             self._client.put_item(
@@ -186,7 +169,6 @@ class NotificationSessionService:
                 ConditionExpression="attribute_not_exists(PK)",
             )
         except self._client.exceptions.ConditionalCheckFailedException:
-            # Already recorded - read current counts without incrementing
             logger.info(
                 "Strategy already recorded (idempotent)",
                 extra={
@@ -224,6 +206,53 @@ class NotificationSessionService:
         )
 
         return (completed, total)
+
+    @staticmethod
+    def _build_strategy_item(
+        correlation_id: str,
+        strategy_id: str,
+        dsl_file: str,
+        outcome: str,
+        detail: dict[str, Any],
+        now: datetime,
+        ttl_val: int,
+    ) -> dict[str, dict[str, str]]:
+        """Build the DynamoDB item for a per-strategy result.
+
+        Args:
+            correlation_id: Shared workflow correlation ID.
+            strategy_id: Strategy identifier.
+            dsl_file: DSL file name.
+            outcome: One of 'TRADED', 'ALL_HOLD', 'FAILED'.
+            detail: Outcome-specific detail dict.
+            now: Current UTC timestamp.
+            ttl_val: TTL epoch seconds.
+
+        Returns:
+            DynamoDB item dict ready for PutItem.
+
+        """
+        item: dict[str, dict[str, str]] = {
+            "PK": {"S": f"NOTIFY#{correlation_id}"},
+            "SK": {"S": f"STRATEGY#{strategy_id}"},
+            "strategy_id": {"S": strategy_id},
+            "dsl_file": {"S": dsl_file},
+            "outcome": {"S": outcome},
+            "completed_at": {"S": now.isoformat()},
+            "TTL": {"N": str(ttl_val)},
+        }
+
+        if outcome == "TRADED":
+            item["run_id"] = {"S": detail.get("run_id", "")}
+            item["trade_count"] = {"N": str(detail.get("total_trades", 0))}
+            item["execution_detail"] = {"S": json.dumps(detail, default=str)}
+        elif outcome == "ALL_HOLD":
+            item["trade_count"] = {"N": "0"}
+        elif outcome == "FAILED":
+            item["trade_count"] = {"N": "0"}
+            item["failure_detail"] = {"S": json.dumps(detail, default=str)}
+
+        return item
 
     def try_claim_notification(self, correlation_id: str) -> bool:
         """Atomically claim the right to send the consolidated notification.
@@ -326,36 +355,10 @@ class NotificationSessionService:
             },
         )
 
-        results: list[dict[str, Any]] = []
-        for item in response.get("Items", []):
-            result: dict[str, Any] = {
-                "strategy_id": item.get("strategy_id", {}).get("S", ""),
-                "dsl_file": item.get("dsl_file", {}).get("S", ""),
-                "outcome": item.get("outcome", {}).get("S", ""),
-                "trade_count": int(item.get("trade_count", {}).get("N", "0")),
-                "completed_at": item.get("completed_at", {}).get("S", ""),
-            }
-
-            # Parse TRADED execution detail
-            if result["outcome"] == "TRADED":
-                result["run_id"] = item.get("run_id", {}).get("S", "")
-                exec_detail_raw = item.get("execution_detail", {}).get("S")
-                if exec_detail_raw:
-                    try:
-                        result["execution_detail"] = json.loads(exec_detail_raw)
-                    except json.JSONDecodeError:
-                        result["execution_detail"] = {}
-
-            # Parse FAILED failure detail
-            if result["outcome"] == "FAILED":
-                fail_detail_raw = item.get("failure_detail", {}).get("S")
-                if fail_detail_raw:
-                    try:
-                        result["failure_detail"] = json.loads(fail_detail_raw)
-                    except json.JSONDecodeError:
-                        result["failure_detail"] = {}
-
-            results.append(result)
+        results = [
+            self._parse_strategy_result_item(item)
+            for item in response.get("Items", [])
+        ]
 
         logger.debug(
             "Retrieved strategy results",
@@ -366,6 +369,44 @@ class NotificationSessionService:
         )
 
         return results
+
+    @staticmethod
+    def _parse_strategy_result_item(item: dict[str, Any]) -> dict[str, Any]:
+        """Parse a DynamoDB strategy result item into a plain dict.
+
+        Args:
+            item: Raw DynamoDB item from query response.
+
+        Returns:
+            Parsed strategy result dict.
+
+        """
+        result: dict[str, Any] = {
+            "strategy_id": item.get("strategy_id", {}).get("S", ""),
+            "dsl_file": item.get("dsl_file", {}).get("S", ""),
+            "outcome": item.get("outcome", {}).get("S", ""),
+            "trade_count": int(item.get("trade_count", {}).get("N", "0")),
+            "completed_at": item.get("completed_at", {}).get("S", ""),
+        }
+
+        if result["outcome"] == "TRADED":
+            result["run_id"] = item.get("run_id", {}).get("S", "")
+            exec_detail_raw = item.get("execution_detail", {}).get("S")
+            if exec_detail_raw:
+                try:
+                    result["execution_detail"] = json.loads(exec_detail_raw)
+                except json.JSONDecodeError:
+                    result["execution_detail"] = {}
+
+        if result["outcome"] == "FAILED":
+            fail_detail_raw = item.get("failure_detail", {}).get("S")
+            if fail_detail_raw:
+                try:
+                    result["failure_detail"] = json.loads(fail_detail_raw)
+                except json.JSONDecodeError:
+                    result["failure_detail"] = {}
+
+        return result
 
     def mark_session_sent(self, correlation_id: str) -> None:
         """Mark the notification session as sent after email dispatched.
@@ -420,3 +461,51 @@ class NotificationSessionService:
         completed = int(item.get("completed_strategies", {}).get("N", "0"))
         total = int(item.get("total_strategies", {}).get("N", "0"))
         return (completed, total)
+
+
+def publish_all_strategies_completed(
+    correlation_id: str,
+    completed: int,
+    total: int,
+    source_component: str,
+) -> None:
+    """Publish AllStrategiesCompleted event to trigger consolidated email.
+
+    Args:
+        correlation_id: Shared workflow correlation ID.
+        completed: Number of strategies that completed.
+        total: Total strategies in the run.
+        source_component: Name of the calling component (e.g. 'StrategyWorker').
+
+    """
+    try:
+        from the_alchemiser.shared.events import AllStrategiesCompleted
+        from the_alchemiser.shared.events.eventbridge_publisher import (
+            publish_to_eventbridge,
+        )
+
+        event = AllStrategiesCompleted(
+            event_id=f"all-strategies-completed-{uuid4()}",
+            correlation_id=correlation_id,
+            causation_id=correlation_id,
+            timestamp=datetime.now(UTC),
+            source_module="coordinator",
+            source_component=source_component,
+            total_strategies=total,
+            completed_strategies=completed,
+        )
+        publish_to_eventbridge(event)
+
+        logger.info(
+            "Published AllStrategiesCompleted event",
+            extra={
+                "correlation_id": correlation_id,
+                "total_strategies": total,
+                "completed_strategies": completed,
+            },
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to publish AllStrategiesCompleted: {e}",
+            extra={"correlation_id": correlation_id},
+        )

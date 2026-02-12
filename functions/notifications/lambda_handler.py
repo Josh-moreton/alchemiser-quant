@@ -345,6 +345,78 @@ def _handle_all_strategies_completed(
     }
 
 
+def _process_traded_outcome(
+    result: dict[str, Any],
+    strategy_id: str,
+    strategy_summary: dict[str, Any],
+) -> dict[str, Any]:
+    """Extract trade counts and detail from a TRADED strategy result.
+
+    Args:
+        result: Raw strategy result from DynamoDB.
+        strategy_id: Strategy identifier for tagging rebalance plans.
+        strategy_summary: Mutable summary dict to enrich with trade details.
+
+    Returns:
+        Dict with keys: total, succeeded, failed, skipped, has_failures,
+        rebalance_plans, portfolio_snapshot, pnl_metrics, data_freshness,
+        started_at, completed_at.
+
+    """
+    exec_detail = result.get("execution_detail", {})
+
+    s_total = exec_detail.get("total_trades", 0)
+    s_succeeded = exec_detail.get("succeeded_trades", 0)
+    s_failed = exec_detail.get("failed_trades", 0)
+    s_skipped = exec_detail.get("skipped_trades", 0)
+
+    strategy_summary["succeeded_trades"] = s_succeeded
+    strategy_summary["failed_trades"] = s_failed
+    strategy_summary["skipped_trades"] = s_skipped
+    strategy_summary["failed_symbols"] = exec_detail.get("failed_symbols", [])
+
+    rebalance_plans: list[dict[str, Any]] = []
+    for item in exec_detail.get("rebalance_plan_summary", []):
+        rebalance_plans.append({**item, "strategy": strategy_id})
+
+    return {
+        "total": s_total,
+        "succeeded": s_succeeded,
+        "failed": s_failed,
+        "skipped": s_skipped,
+        "has_failures": s_failed > 0,
+        "rebalance_plans": rebalance_plans,
+        "portfolio_snapshot": exec_detail.get("portfolio_snapshot", {}),
+        "pnl_metrics": exec_detail.get("pnl_metrics", {}),
+        "data_freshness": exec_detail.get("data_freshness", {}),
+        "started_at": exec_detail.get("started_at", ""),
+        "completed_at": exec_detail.get("completed_at", ""),
+    }
+
+
+def _determine_overall_status(
+    has_failures: bool,
+    has_traded: bool,
+    total_succeeded: int,
+) -> str:
+    """Determine overall run status from aggregated strategy outcomes.
+
+    Args:
+        has_failures: Whether any strategy had failures.
+        has_traded: Whether any strategy executed trades.
+        total_succeeded: Total number of succeeded trades across strategies.
+
+    Returns:
+        One of 'SUCCESS', 'PARTIAL_SUCCESS', or 'FAILURE'.
+
+    """
+    if has_failures:
+        if has_traded and total_succeeded > 0:
+            return "PARTIAL_SUCCESS"
+        return "FAILURE"
+    return "SUCCESS"
+
+
 def _build_consolidated_context(
     correlation_id: str,
     strategy_results: list[dict[str, Any]],
@@ -371,8 +443,6 @@ def _build_consolidated_context(
     has_failures = False
     has_traded = False
 
-    # Collect portfolio snapshot and P&L from the first TRADED strategy
-    # (all strategies share the same Alpaca account)
     portfolio_snapshot: dict[str, Any] = {}
     pnl_metrics: dict[str, Any] = {}
     data_freshness: dict[str, Any] = {}
@@ -383,55 +453,33 @@ def _build_consolidated_context(
     for result in strategy_results:
         outcome = result.get("outcome", "")
         strategy_id = result.get("strategy_id", "unknown")
-        dsl_file = result.get("dsl_file", "")
 
         strategy_summary: dict[str, Any] = {
             "name": strategy_id,
-            "dsl_file": dsl_file,
+            "dsl_file": result.get("dsl_file", ""),
             "outcome": outcome,
             "trade_count": result.get("trade_count", 0),
         }
 
         if outcome == "TRADED":
             has_traded = True
-            exec_detail = result.get("execution_detail", {})
+            traded = _process_traded_outcome(result, strategy_id, strategy_summary)
 
-            s_total = exec_detail.get("total_trades", 0)
-            s_succeeded = exec_detail.get("succeeded_trades", 0)
-            s_failed = exec_detail.get("failed_trades", 0)
-            s_skipped = exec_detail.get("skipped_trades", 0)
-
-            total_trades += s_total
-            total_succeeded += s_succeeded
-            total_failed += s_failed
-            total_skipped += s_skipped
-
-            if s_failed > 0:
+            total_trades += traded["total"]
+            total_succeeded += traded["succeeded"]
+            total_failed += traded["failed"]
+            total_skipped += traded["skipped"]
+            if traded["has_failures"]:
                 has_failures = True
+            all_rebalance_plans.extend(traded["rebalance_plans"])
 
-            strategy_summary["succeeded_trades"] = s_succeeded
-            strategy_summary["failed_trades"] = s_failed
-            strategy_summary["skipped_trades"] = s_skipped
-            strategy_summary["failed_symbols"] = exec_detail.get("failed_symbols", [])
+            if not portfolio_snapshot and traded["portfolio_snapshot"]:
+                portfolio_snapshot = traded["portfolio_snapshot"]
+                pnl_metrics = traded["pnl_metrics"]
+                data_freshness = traded["data_freshness"]
 
-            # Collect rebalance plan summary for this strategy
-            plan_summary = exec_detail.get("rebalance_plan_summary", [])
-            if plan_summary:
-                for item in plan_summary:
-                    item["strategy"] = strategy_id
-                all_rebalance_plans.extend(plan_summary)
-
-            # Use portfolio snapshot from first TRADED strategy (all same account)
-            if not portfolio_snapshot:
-                ps = exec_detail.get("portfolio_snapshot", {})
-                if ps:
-                    portfolio_snapshot = ps
-                pnl_metrics = exec_detail.get("pnl_metrics", {})
-                data_freshness = exec_detail.get("data_freshness", {})
-
-            # Track timing
-            started = exec_detail.get("started_at", "")
-            ended = exec_detail.get("completed_at", "")
+            started = traded["started_at"]
+            ended = traded["completed_at"]
             if started and (not latest_start_time or started < latest_start_time):
                 latest_start_time = started
             if ended and (not latest_end_time or ended > latest_end_time):
@@ -446,16 +494,8 @@ def _build_consolidated_context(
 
         strategies.append(strategy_summary)
 
-    # Determine overall status
-    if has_failures:
-        if has_traded and total_succeeded > 0:
-            overall_status = "PARTIAL_SUCCESS"
-        else:
-            overall_status = "FAILURE"
-    else:
-        overall_status = "SUCCESS"
+    overall_status = _determine_overall_status(has_failures, has_traded, total_succeeded)
 
-    # Build logs URL
     container = ApplicationContainer.create_for_notifications("production")
     notification_service = NotificationService(container)
     logs_url = notification_service._build_logs_url(correlation_id)
