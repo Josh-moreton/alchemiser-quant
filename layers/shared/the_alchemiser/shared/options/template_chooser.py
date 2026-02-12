@@ -22,8 +22,9 @@ from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Template type alias
+# Template type aliases
 TemplateType = Literal["tail_first", "smoothing"]
+RegimeType = Literal["low_iv_normal_skew", "mid_iv_moderate_skew", "high_iv_rich_skew"]
 
 
 @dataclass(frozen=True)
@@ -60,7 +61,7 @@ class TemplateSelectionRationale:
     vix: Decimal
     vix_percentile: Decimal | None  # Future: historical percentile
     skew: Decimal | None  # Future: put/call skew metric
-    regime: str  # e.g., "low_iv_normal_skew", "high_iv_rich_skew"
+    regime: RegimeType
     reason: str  # Human-readable explanation
     previous_template: TemplateType | None
     hysteresis_applied: bool
@@ -165,7 +166,7 @@ class TemplateChooser:
         vix: Decimal,
         vix_percentile: Decimal | None,
         skew: Decimal | None,
-    ) -> str:
+    ) -> RegimeType:
         """Classify market regime based on IV and skew metrics.
 
         Args:
@@ -191,13 +192,13 @@ class TemplateChooser:
 
     def _select_template_for_regime(
         self,
-        regime: str,
+        regime: RegimeType,
         vix: Decimal,
     ) -> TemplateType:
         """Select template based on regime classification.
 
         Args:
-            regime: Regime classification string
+            regime: Regime classification literal
             vix: Current VIX value
 
         Returns:

@@ -11,6 +11,7 @@ All functions are cached via st.cache_data for efficient Streamlit re-renders.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any
@@ -19,6 +20,8 @@ import boto3
 import streamlit as st
 from boto3.dynamodb.conditions import Attr, Key
 from settings import get_dashboard_settings
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.service_resource import Table as DynamoDBTable
@@ -42,14 +45,18 @@ def _get_trade_ledger_table() -> DynamoDBTable:
     """Get a boto3 Table resource for the trade ledger."""
     settings = get_dashboard_settings()
     dynamodb = boto3.resource("dynamodb", **settings.get_boto3_client_kwargs())
-    return dynamodb.Table(settings.trade_ledger_table)
+    table_name = settings.trade_ledger_table
+    logger.info("Using trade ledger table: %s (stage=%s)", table_name, settings.stage)
+    return dynamodb.Table(table_name)
 
 
 def _get_strategy_performance_table() -> DynamoDBTable:
     """Get a boto3 Table resource for strategy performance snapshots."""
     settings = get_dashboard_settings()
     dynamodb = boto3.resource("dynamodb", **settings.get_boto3_client_kwargs())
-    return dynamodb.Table(settings.strategy_performance_table)
+    table_name = settings.strategy_performance_table
+    logger.info("Using strategy performance table: %s (stage=%s)", table_name, settings.stage)
+    return dynamodb.Table(table_name)
 
 
 def _has_credentials() -> bool:

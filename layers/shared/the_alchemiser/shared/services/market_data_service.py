@@ -819,7 +819,7 @@ class MarketDataService(MarketDataPort):
         """Convert period string to start and end dates.
 
         Args:
-            period: Period string like "1Y", "6M", "30D"
+            period: Period string like "1Y", "6M", "30D", or "MAX"
 
         Returns:
             Tuple of (start_date, end_date) as strings in YYYY-MM-DD format
@@ -836,39 +836,43 @@ class MarketDataService(MarketDataPort):
         if not period_upper:
             raise ValidationError("Period string cannot be empty", field_name="period")
 
-        try:
-            if "Y" in period_upper:
-                years = int(period_upper.replace("Y", ""))
-                if years <= 0:
+        # MAX = all available history (use 10 years as practical maximum)
+        if period_upper == "MAX":
+            days = 3650
+        else:
+            try:
+                if "Y" in period_upper:
+                    years = int(period_upper.replace("Y", ""))
+                    if years <= 0:
+                        raise ValidationError(
+                            "Years must be positive", field_name="period", value=period
+                        )
+                    days = years * 365
+                elif "M" in period_upper:
+                    months = int(period_upper.replace("M", ""))
+                    if months <= 0:
+                        raise ValidationError(
+                            "Months must be positive", field_name="period", value=period
+                        )
+                    days = months * 30
+                elif "D" in period_upper:
+                    days = int(period_upper.replace("D", ""))
+                    if days <= 0:
+                        raise ValidationError(
+                            "Days must be positive", field_name="period", value=period
+                        )
+                else:
                     raise ValidationError(
-                        "Years must be positive", field_name="period", value=period
+                        f"Invalid period format: {period}. Expected format: <number><Y|M|D> or 'MAX' (e.g., '1Y', '6M', '30D')",
+                        field_name="period",
+                        value=period,
                     )
-                days = years * 365
-            elif "M" in period_upper:
-                months = int(period_upper.replace("M", ""))
-                if months <= 0:
-                    raise ValidationError(
-                        "Months must be positive", field_name="period", value=period
-                    )
-                days = months * 30
-            elif "D" in period_upper:
-                days = int(period_upper.replace("D", ""))
-                if days <= 0:
-                    raise ValidationError(
-                        "Days must be positive", field_name="period", value=period
-                    )
-            else:
+            except (ValueError, AttributeError) as e:
                 raise ValidationError(
-                    f"Invalid period format: {period}. Expected format: <number><Y|M|D> (e.g., '1Y', '6M', '30D')",
+                    f"Invalid period format: {period}. Expected format: <number><Y|M|D> or 'MAX' (e.g., '1Y', '6M', '30D')",
                     field_name="period",
                     value=period,
-                )
-        except (ValueError, AttributeError) as e:
-            raise ValidationError(
-                f"Invalid period format: {period}. Expected format: <number><Y|M|D> (e.g., '1Y', '6M', '30D')",
-                field_name="period",
-                value=period,
-            ) from e
+                ) from e
 
         start_date = end_date - timedelta(days=days)
 

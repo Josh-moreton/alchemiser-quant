@@ -946,7 +946,9 @@ class HedgeEvaluationCompleted(BaseEvent):
     )
     template_regime: (
         Literal["low_iv_normal_skew", "mid_iv_moderate_skew", "high_iv_rich_skew"] | None
-    ) = Field(default=None, description="Regime classification for template selection")
+    ) = Field(
+        default=None, description="Regime classification for template selection"
+    )  # Matches RegimeType
     template_selection_reason: str | None = Field(
         default=None, description="Human-readable reason for template selection"
     )

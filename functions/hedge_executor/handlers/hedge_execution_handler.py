@@ -456,7 +456,9 @@ class HedgeExecutionHandler:
                         limit_price=selected_spread.long_limit_price,
                     )
                 else:
-                    # Single-leg order
+                    # Single-leg order -- selected is guaranteed non-None here
+                    # because the None case returned early above
+                    assert selected is not None  # noqa: S101
                     selected_for_persistence = selected
 
                 self._persist_hedge_position(

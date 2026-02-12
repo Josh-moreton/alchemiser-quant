@@ -4,25 +4,18 @@
  (weight-equal
   [(if
     (<
-     (cumulative-return "GDX" {:window 38})
-     (cumulative-return "GLD" {:window 38}))
+     (cumulative-return "GDX" {:window 35})
+     (cumulative-return "GLD" {:window 35}))
     [(weight-equal
       [(if
         (<
-         (cumulative-return "GLD" {:window 38})
-         (cumulative-return "SPY" {:window 38}))
-        [(weight-equal
-          [(asset
-            "SPY"
-            "SSgA Active Trust - State Street SPDR S&P 500 ETF Trust")])]
-        [(asset
-          "BIL"
-          "SPDR Series Trust - State Street SPDR Bloomberg 1-3 Month T-Bill ETF")])])]
+         (cumulative-return "GLD" {:window 35})
+         (cumulative-return "SPY" {:window 35}))
+        [(asset "SPY" nil)]
+        [(asset "BIL" nil)])])]
     [(if
-      (< (cumulative-return "GDXU" {:window 19}) -0.03)
-      [(asset
-        "BIL"
-        "SPDR Series Trust - SPDR Bloomberg 1-3 Month T-Bill ETF")]
+      (< (cumulative-return "GDX" {:window 20}) -2)
+      [(asset "BIL" nil)]
       [(if
         (> (rsi "GDXU" {:window 10}) 79)
         [(asset

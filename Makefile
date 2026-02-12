@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-data-lake validate-dynamo validate-signals debug-strategy debug-strategy-historical rebalance-weights pnl-report
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -23,15 +23,15 @@ help:
 	@echo "  strategy-check-fractionable config=strategy.prod.json"
 	@echo "  strategy-check-fractionable all=1   Check all strategy files"
 	@echo ""
-	@echo "Data Validation:"
-	@echo "  validate-data-lake                   Validate S3 data lake against yfinance + Alpaca"
-	@echo "  validate-data-lake symbols=SPY,QQQ   Validate specific symbols"
-	@echo "  validate-data-lake mark-bad=1        Mark failed symbols for refetch"
-	@echo "  validate-data-lake debug=1           Show detailed debug output"
-	@echo "  validate-dynamo                      Validate DynamoDB data quality"
-	@echo "  validate-dynamo stage=dev            Validate dev environment data"
-	@echo "  validate-signals                     Validate signals vs Composer.trade"
-	@echo "  validate-signals stage=prod          Validate prod signals"
+	@echo "Group Cache:"
+	@echo "  backfill-groups s=<file>              Backfill group cache (45 days, sequential)"
+	@echo "  backfill-groups s=<file> all=1 p=6    Full history, 6 parallel workers"
+	@echo "  backfill-groups s=<file> wipe=1       Wipe cache before backfilling"
+	@echo "  backfill-groups s=<file> level=1      Process only groups at depth 1"
+	@echo ""
+	@echo "Strategy Validation:"
+	@echo "  validate-strategy s=<name>           Validate single strategy vs Composer backtest"
+	@echo "  validate-strategy s=<name> days=10   Validate with custom window"
 	@echo ""
 	@echo "Performance Reports:"
 	@echo "  dashboard                            Run enhanced multi-page trading dashboard"
@@ -225,42 +225,67 @@ strategy-check-fractionable:
 	poetry run python scripts/check_fractionable_assets.py $$ARGS
 
 # ============================================================================
-# DATA VALIDATION
+# GROUP CACHE BACKFILL
 # ============================================================================
 
-# Validate S3 data lake against yfinance and Alpaca (with Adjustment.ALL)
-# Usage: make validate-data-lake                   # Validate all configured symbols
-#        make validate-data-lake symbols=SPY,QQQ   # Validate specific symbols
-#        make validate-data-lake mark-bad=1        # Mark failed symbols for refetch
-#        make validate-data-lake debug=1           # Show detailed debug output
-#        make validate-data-lake limit=5           # Limit symbols (for testing)
-validate-data-lake:
-	@echo "🔍 Validating S3 data lake against yfinance + Alpaca..."
-	@ARGS=""; \
-	if [ -n "$(symbols)" ]; then ARGS="$$ARGS --symbols $(symbols)"; fi; \
-	if [ -n "$(mark-bad)" ]; then ARGS="$$ARGS --mark-bad"; fi; \
-	if [ -n "$(debug)" ]; then ARGS="$$ARGS --debug"; fi; \
-	if [ -n "$(limit)" ]; then ARGS="$$ARGS --limit $(limit)"; fi; \
-	poetry run python scripts/validation/validate_data_lake.py $$ARGS
+# Backfill DynamoDB group cache for a .clj strategy file
+# Usage: make backfill-groups s=ftl_starburst.clj                  # 45 days, sequential
+#        make backfill-groups s=ftl_starburst.clj all=1 p=6        # Full history, 6 workers
+#        make backfill-groups s=ftl_starburst.clj all=1 p=6 level=1  # Depth 1 only
+#        make backfill-groups s=ftl_starburst.clj wipe=1 all=1 p=6   # Wipe + full rebuild
+#        make backfill-groups s=ftl_starburst.clj days=60           # Custom lookback
+#        make backfill-groups s=ftl_starburst.clj dry-run=1        # Preview, no writes
+#        make backfill-groups s=ftl_starburst.clj group="WYLD*"    # Filter by group name
+backfill-groups:
+	@if [ -z "$(s)" ]; then \
+		echo "Usage: make backfill-groups s=<strategy_file.clj>"; \
+		echo "       make backfill-groups s=ftl_starburst.clj all=1 p=6"; \
+		exit 1; \
+	fi
+	@ARGS="$(s)"; \
+	if [ -n "$(all)" ]; then ARGS="$$ARGS --all"; fi; \
+	if [ -n "$(days)" ]; then ARGS="$$ARGS --days $(days)"; fi; \
+	if [ -n "$(p)" ]; then ARGS="$$ARGS --parallel $(p)"; fi; \
+	if [ -n "$(level)" ]; then ARGS="$$ARGS --level $(level)"; fi; \
+	if [ -n "$(wipe)" ]; then ARGS="$$ARGS --wipe"; fi; \
+	if [ -n "$(dry-run)" ]; then ARGS="$$ARGS --dry-run"; fi; \
+	if [ -n "$(warmup)" ]; then ARGS="$$ARGS --warmup $(warmup)"; fi; \
+	if [ -n "$(group)" ]; then ARGS="$$ARGS --group '$(group)'"; fi; \
+	poetry run python scripts/backfill_group_cache.py $$ARGS
 
-# Validate DynamoDB data quality for per-strategy performance metrics
-# Usage: make validate-dynamo                      # Validate prod data (default)
-#        make validate-dynamo stage=dev            # Validate dev data
-#        make validate-dynamo verbose=1            # Show detailed output
-#        make validate-dynamo json=1               # Output as JSON
-validate-dynamo:
-	@echo "🔍 Validating DynamoDB data quality..."
-	@ARGS=""; \
-	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; fi; \
-	if [ -n "$(verbose)" ]; then ARGS="$$ARGS --verbose"; fi; \
-	if [ -n "$(json)" ]; then ARGS="$$ARGS --json"; fi; \
-	poetry run python scripts/validation/validate_dynamo_data.py $$ARGS
+# ============================================================================
+# STRATEGY VALIDATION
+# ============================================================================
+
+# Validate a single strategy against Composer daily-close backtest
+# Runs the strategy for each trading day in a window, then prompts for Composer holdings
+# Usage: make validate-strategy s=gold                     # 5 trading days ending yesterday
+#        make validate-strategy s=gold days=10             # 10 trading days
+#        make validate-strategy s=gold end=2026-02-07      # Custom end date
+#        make validate-strategy s=gold no-browser=1        # Don't auto-open Composer URL
+validate-strategy:
+	@if [ -z "$(s)" ]; then \
+		echo "Usage: make validate-strategy s=<strategy_name>"; \
+		echo "       make validate-strategy s=<name> days=10"; \
+		echo "       make validate-strategy s=<name> end=2026-02-07"; \
+		exit 1; \
+	fi
+	@ARGS="$(s)"; \
+	if [ -n "$(days)" ]; then ARGS="$$ARGS --days $(days)"; fi; \
+	if [ -n "$(end)" ]; then ARGS="$$ARGS --end-date $(end)"; fi; \
+	if [ "$(no-browser)" = "1" ]; then ARGS="$$ARGS --no-browser"; fi; \
+	if [ -n "$(tolerance)" ]; then ARGS="$$ARGS --tolerance $(tolerance)"; fi; \
+	poetry run python scripts/validation/validate_single_strategy.py $$ARGS
+
+# ============================================================================
+# DASHBOARD & PORTFOLIO
+# ============================================================================
 
 # Run enhanced multi-page dashboard
 # Usage: make dashboard
 dashboard:
 	@echo "Starting trading dashboard..."
-	poetry run streamlit run dashboard/app.py
+	cd dashboard && poetry run streamlit run app.py
 
 # Recalculate strategy weights using Calmar-tilt formula
 # Usage: make rebalance-weights                    # Use latest CSV, update config, deploy to prod
@@ -294,53 +319,6 @@ rebalance-weights:
 		echo "✅ Strategy weights updated for $$STAGE (no auto-deploy for non-prod)"; \
 	fi
 
-# Validate strategy signals against Composer.trade (shifted T-1 comparison)
-# Captures today's live_signals, compares today's our_signals vs yesterday's live_signals
-# Usage: make validate-signals                    # Validate using local signals (dev)
-#        make validate-signals stage=prod         # Validate prod signals
-#        make validate-signals session=<id>       # Validate specific DynamoDB session
-#        make validate-signals fresh=1            # Start fresh (ignore previous captures)
-#        make validate-signals dynamo=1           # Use DynamoDB instead of local CSV
-validate-signals:
-	@echo "Validating signals against Composer.trade..."
-	@ARGS="--shifted"; \
-	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage '$(stage)'"; else ARGS="$$ARGS --stage dev"; fi; \
-	if [ "$(fresh)" = "1" ]; then ARGS="$$ARGS --fresh"; fi; \
-	if [ -n "$(session)" ]; then ARGS="$$ARGS --session-id '$(session)'"; fi; \
-	if [ "$(dynamo)" = "1" ]; then ARGS="$$ARGS --dynamo"; fi; \
-	poetry run python scripts/validation/validate_signals.py $$ARGS
-
-# Generate daily strategy signals locally (runs DSL engine using completed daily bars from S3)
-# Outputs CSV to validation_results/local_signals/ for use by validate-signals
-# Run at or after market close (4 PM ET). Scheduled daily at 4:30 PM via launchd.
-# Usage: make generate-signals                    # Dev only (default)
-#        make generate-signals stage=prod         # Prod only
-#        make generate-signals stage=both         # Both dev + prod
-generate-signals:
-	@echo "Generating daily strategy signals..."
-	@ARGS=""; \
-	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; else ARGS="$$ARGS --stage dev"; fi; \
-	poetry run python scripts/generate_daily_signals.py $$ARGS
-
-# Install/uninstall the daily signal generation scheduler (macOS launchd)
-# The plist runs generate_daily_signals.py at 4:30 PM Mon-Fri
-install-scheduler:
-	@echo "Installing daily signal generation scheduler..."
-	@PLIST_SRC="scripts/com.alchemiser.daily-signals.plist"; \
-	PLIST_DST="$$HOME/Library/LaunchAgents/com.alchemiser.daily-signals.plist"; \
-	if [ ! -f "$$PLIST_SRC" ]; then echo "Plist not found: $$PLIST_SRC"; exit 1; fi; \
-	cp "$$PLIST_SRC" "$$PLIST_DST"; \
-	launchctl unload "$$PLIST_DST" 2>/dev/null || true; \
-	launchctl load "$$PLIST_DST"; \
-	echo "Scheduler installed and loaded: $$PLIST_DST"
-
-uninstall-scheduler:
-	@echo "Uninstalling daily signal generation scheduler..."
-	@PLIST_DST="$$HOME/Library/LaunchAgents/com.alchemiser.daily-signals.plist"; \
-	launchctl unload "$$PLIST_DST" 2>/dev/null || true; \
-	rm -f "$$PLIST_DST"; \
-	echo "Scheduler uninstalled"
-
 # ============================================================================
 # STRATEGY DEBUGGING
 # ============================================================================
@@ -361,19 +339,6 @@ debug-strategy:
 		echo "🔬 Debugging strategy: $(s)"; \
 		poetry run python scripts/debug_strategy.py $(s); \
 	fi
-
-# Test all strategies with historical (Jan 5) and live (Jan 6 + per-indicator) modes
-# Usage: make test-all-strategies
-#        make test-all-strategies detailed=1
-#        make test-all-strategies historical-only=1
-#        make test-all-strategies s=simons_kmlm
-test-all-strategies:
-	@ARGS=""; \
-	if [ -n "$(s)" ]; then ARGS="$$ARGS --strategy $(s)"; fi; \
-	if [ -n "$(detailed)" ]; then ARGS="$$ARGS --detailed"; fi; \
-	if [ -n "$(historical-only)" ]; then ARGS="$$ARGS --historical-only"; fi; \
-	if [ -n "$(live-only)" ]; then ARGS="$$ARGS --live-only"; fi; \
-	poetry run python scripts/test_all_strategies.py $$ARGS
 
 # Debug strategy with historical data cutoff
 # Usage: make debug-strategy-historical s=simons_kmlm as-of=yesterday

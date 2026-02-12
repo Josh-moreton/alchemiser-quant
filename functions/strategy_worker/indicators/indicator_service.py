@@ -29,6 +29,11 @@ logger = get_logger(__name__)
 # Module constant for logging context
 MODULE_NAME = "strategy_v2.indicators"
 
+# Sentinel value for _required_bars() indicating "use all available data".
+# Composer uses full-history computations for recursive indicators (RSI, EMA),
+# so we request all bars from S3 to maximise parity.
+_ALL_AVAILABLE_BARS = 999_999
+
 
 class IndicatorService:
     """Service for computing technical indicators using real market data.
@@ -518,10 +523,14 @@ class IndicatorService:
         window = int(params.get("window", 0)) if params else 0
         if ind_type in {
             "moving_average",
-            "exponential_moving_average_price",
             "max_drawdown",
         }:
             return max(window, 200)
+        if ind_type == "exponential_moving_average_price":
+            # EMA uses ewm(span=window, adjust=False) which is recursive.
+            # Like RSI, convergence improves with more history. Use all
+            # available data to match Composer's full-history computations.
+            return _ALL_AVAILABLE_BARS
         if ind_type in {
             "moving_average_return",
             "stdev_return",
@@ -536,13 +545,12 @@ class IndicatorService:
         if ind_type == "rsi":
             # RSI uses Wilder's smoothing (ewm with alpha=1/window, adjust=False)
             # which is recursive. The EWM "memory" decays as (1-alpha)^n, so
-            # convergence requires many periods. With alpha=0.1 (window=10):
-            #   200 bars: weight of first bar = 0.9^200 ≈ 7e-10 (converged)
-            #   500 bars: even more stable baseline
-            # We use 500 bars minimum to match Composer's likely longer history
-            # and reduce parity divergence in tight RSI rankings (e.g.,
-            # rains_em_dancer where safe-asset RSI values differ by < 1 point).
-            return max(window * 5 if window > 0 else 500, 500)
+            # convergence improves with more history. Composer uses all available
+            # history for RSI computation, so we request all available bars from
+            # S3 to maximise parity. Previously capped at 500 bars (~3Y), which
+            # caused sub-point RSI divergence near decision thresholds (e.g.,
+            # UVXY RSI(10) near 40 flipping UVXY/UVIX allocation).
+            return _ALL_AVAILABLE_BARS
         if ind_type == "current_price":
             return 1
         if ind_type in {"percentage_price_oscillator", "percentage_price_oscillator_signal"}:
@@ -557,16 +565,20 @@ class IndicatorService:
         """Convert required trading bars to calendar period string.
 
         Args:
-            required_bars: Number of trading days needed
+            required_bars: Number of trading days needed. Use _ALL_AVAILABLE_BARS
+                sentinel to request all available data.
 
         Returns:
-            Period string in format suitable for market data API (e.g., "1Y", "2Y")
+            Period string in format suitable for market data API (e.g., "1Y", "MAX")
 
         Note:
             Assumes ~252 trading days per year. Adds 10% safety margin to account
             for weekends, holidays, and market closures.
 
         """
+        # Sentinel value means "use all available data in S3 cache"
+        if required_bars == _ALL_AVAILABLE_BARS:
+            return "MAX"
         # Use years granularity to avoid weekend/holiday gaps; add 10% safety margin
         bars_with_buffer = math.ceil(required_bars * 1.1)
         years = max(1, math.ceil(bars_with_buffer / 252))

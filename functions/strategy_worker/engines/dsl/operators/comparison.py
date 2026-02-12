@@ -27,6 +27,16 @@ logger = get_logger(__name__)
 # Binary operators require exactly 2 arguments
 BINARY_ARG_COUNT = 2
 
+# Proximity thresholds for fragile decision detection.
+# When the absolute margin between compared values is below these thresholds,
+# the decision is flagged as "fragile" -- a small calculation difference
+# (e.g., RSI convergence from different history lengths) could flip the branch.
+#
+# RSI scale: 0-100, so 2.0 points means values like 39.5 vs threshold 40
+# Price comparison: 0.5% relative margin for current-price vs MA comparisons
+FRAGILE_ABSOLUTE_MARGIN = 2.0  # For RSI and similar 0-100 scale indicators
+FRAGILE_RELATIVE_MARGIN = 0.005  # 0.5% for price-level comparisons
+
 
 def _validate_binary_args(args: list[ASTNode], operator: str) -> None:
     """Validate that a binary operator receives exactly 2 arguments.
@@ -79,6 +89,67 @@ def _ast_to_expr_string(node: ASTNode) -> str:
     return "<expr>"
 
 
+def _detect_fragile_decision(
+    left_value: Decimal,
+    right_value: Decimal,
+    operator: str,
+    left_expr: str,
+    right_expr: str,
+    context: DslContext,
+) -> None:
+    """Detect and log fragile decisions where values are near the threshold.
+
+    A fragile decision is one where a small change in indicator calculation
+    (e.g., different RSI history length) could flip the branch. This is the
+    primary cause of Composer parity mismatches.
+
+    Uses absolute margin for small-scale indicators (RSI 0-100) and relative
+    margin for price-level comparisons (current-price vs MA).
+
+    Args:
+        left_value: Left operand value
+        right_value: Right operand value
+        operator: Comparison operator string
+        left_expr: Human-readable left expression
+        right_expr: Human-readable right expression
+        context: DSL evaluation context
+
+    """
+    margin = abs(float(left_value - right_value))
+
+    # Determine if this is a price-level comparison (both sides > 100)
+    # or an indicator-scale comparison (RSI, cumulative-return, etc.)
+    max_val = max(abs(float(left_value)), abs(float(right_value)))
+    is_price_comparison = max_val > 100.0
+
+    if is_price_comparison:
+        # Relative margin for price comparisons
+        relative_margin = margin / max_val if max_val > 0 else 0.0
+        is_fragile = relative_margin < FRAGILE_RELATIVE_MARGIN
+    else:
+        # Absolute margin for RSI-scale indicators
+        is_fragile = margin < FRAGILE_ABSOLUTE_MARGIN
+
+    if is_fragile:
+        fragile_entry = {
+            "condition": f"{left_expr} {operator} {right_expr}",
+            "left_value": float(left_value),
+            "right_value": float(right_value),
+            "margin": round(margin, 4),
+            "is_price_comparison": is_price_comparison,
+        }
+        context.fragile_decisions.append(fragile_entry)
+
+        logger.warning(
+            "Fragile decision detected: values near threshold, parity mismatch risk with Composer",
+            condition=f"{left_expr} {operator} {right_expr}",
+            left_value=float(left_value),
+            right_value=float(right_value),
+            margin=round(margin, 4),
+            correlation_id=context.correlation_id,
+        )
+
+
 def greater_than(args: list[ASTNode], context: DslContext) -> bool:
     """Evaluate > - greater than comparison.
 
@@ -102,12 +173,20 @@ def greater_than(args: list[ASTNode], context: DslContext) -> bool:
     right_decimal = context.as_decimal(right_v)
     result = left_decimal > right_decimal
 
+    left_expr_str = _ast_to_expr_string(args[0])
+    right_expr_str = _ast_to_expr_string(args[1])
+
+    # Detect fragile decisions where values are near the threshold
+    _detect_fragile_decision(
+        left_decimal, right_decimal, ">", left_expr_str, right_expr_str, context
+    )
+
     # Add debug trace if debug mode is enabled
     context.add_debug_trace(
         operator=">",
-        left_expr=_ast_to_expr_string(args[0]),
+        left_expr=left_expr_str,
         left_value=float(left_decimal),
-        right_expr=_ast_to_expr_string(args[1]),
+        right_expr=right_expr_str,
         right_value=float(right_decimal),
         result=result,
     )
@@ -147,12 +226,20 @@ def less_than(args: list[ASTNode], context: DslContext) -> bool:
     right_decimal = context.as_decimal(right_v)
     result = left_decimal < right_decimal
 
+    left_expr_str = _ast_to_expr_string(args[0])
+    right_expr_str = _ast_to_expr_string(args[1])
+
+    # Detect fragile decisions where values are near the threshold
+    _detect_fragile_decision(
+        left_decimal, right_decimal, "<", left_expr_str, right_expr_str, context
+    )
+
     # Add debug trace if debug mode is enabled
     context.add_debug_trace(
         operator="<",
-        left_expr=_ast_to_expr_string(args[0]),
+        left_expr=left_expr_str,
         left_value=float(left_decimal),
-        right_expr=_ast_to_expr_string(args[1]),
+        right_expr=right_expr_str,
         right_value=float(right_decimal),
         result=result,
     )

@@ -24,6 +24,7 @@ from typing import Any
 import boto3
 from dynamodb_writer import (
     update_latest_pointer,
+    write_account_registry,
     write_account_snapshot,
     write_pnl_records,
     write_positions_snapshot,
@@ -104,6 +105,7 @@ def handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             account_id = str(account_dict.get("id", "unknown"))
             write_account_snapshot(table, account_id, account_dict, timestamp)
             update_latest_pointer(table, account_id, "ACCOUNT", timestamp)
+            write_account_registry(table, account_id, timestamp)
             phases["account_snapshot"] = "success"
             logger.info(
                 "Phase 1 complete: account snapshot",

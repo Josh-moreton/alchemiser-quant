@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "10.9.0"
+version = "10.10.16"
 package-mode = false  # Dependency management only - no package installation
 
 # This is an AWS Lambda microservices project deployed via SAM.
@@ -77,8 +77,8 @@ dependency-injector = "^4.48.3"
 structlog = "^25.5.0"
 httpx = "^0.28.1"
 openpyxl = "^3.1.0"
-plotly = "^5.18.0"
-streamlit = "^1.32.0"
+plotly = "^6.5.2"
+streamlit = "^1.54.0"
 streamlit-authenticator = "^0.4.2"
 bcrypt = "^5.0.0"
 
@@ -118,12 +118,12 @@ pydocstyle = ">=6.0.0"
 pip-audit = "^2.10.0"
 detect-secrets = "^1.5.0"
 pyright = "^1.1.408"
-import-linter = "^2.9"
+import-linter = "^2.10"
 mypy-boto3-sns = "^1.41.0"
 mypy-boto3-s3 = "^1.42.37"
 mypy-boto3-events = "^1.41.0"
-boto3-stubs = {extras = ["dynamodb", "events", "lambda", "s3", "sns"], version = "^1.42.40"}
-boto3 = "^1.42.40"
+boto3-stubs = {extras = ["dynamodb", "events", "lambda", "s3", "sns"], version = "^1.42.44"}
+boto3 = "^1.42.45"
 ipython = "^9.10.0"
-mypy-boto3-dynamodb = "^1.42.33"
+mypy-boto3-dynamodb = "^1.42.41"
 yfinance = "^1.1.0"

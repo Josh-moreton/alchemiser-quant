@@ -16,7 +16,7 @@ POLICY_ARN=$(aws iam create-policy --policy-name "$POLICY_NAME" --no-cli-pager -
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "DynamoDBReadProd",
+            "Sid": "DynamoDBReadAllStages",
             "Effect": "Allow",
             "Action": [
                 "dynamodb:GetItem",
@@ -25,12 +25,16 @@ POLICY_ARN=$(aws iam create-policy --policy-name "$POLICY_NAME" --no-cli-pager -
                 "dynamodb:DescribeTable"
             ],
             "Resource": [
+                "arn:aws:dynamodb:us-east-1:*:table/alchemiser-dev-*",
+                "arn:aws:dynamodb:us-east-1:*:table/alchemiser-dev-*/index/*",
+                "arn:aws:dynamodb:us-east-1:*:table/alchemiser-staging-*",
+                "arn:aws:dynamodb:us-east-1:*:table/alchemiser-staging-*/index/*",
                 "arn:aws:dynamodb:us-east-1:*:table/alchemiser-prod-*",
                 "arn:aws:dynamodb:us-east-1:*:table/alchemiser-prod-*/index/*"
             ]
         },
         {
-            "Sid": "CloudWatchLogsReadProd",
+            "Sid": "CloudWatchLogsReadAllStages",
             "Effect": "Allow",
             "Action": [
                 "logs:FilterLogEvents",
@@ -39,6 +43,8 @@ POLICY_ARN=$(aws iam create-policy --policy-name "$POLICY_NAME" --no-cli-pager -
                 "logs:DescribeLogGroups"
             ],
             "Resource": [
+                "arn:aws:logs:us-east-1:*:log-group:/aws/lambda/alchemiser-dev-*:*",
+                "arn:aws:logs:us-east-1:*:log-group:/aws/lambda/alchemiser-staging-*:*",
                 "arn:aws:logs:us-east-1:*:log-group:/aws/lambda/alchemiser-prod-*:*"
             ]
         }

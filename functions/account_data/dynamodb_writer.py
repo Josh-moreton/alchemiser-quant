@@ -181,6 +181,38 @@ def update_latest_pointer(
     )
 
 
+def write_account_registry(
+    table: Any,  # noqa: ANN401
+    account_id: str,
+    timestamp: str,
+) -> None:
+    """Write a well-known registry entry so readers can discover the account ID.
+
+    Stores a single item at ``PK=REGISTRY``, ``SK=ACCOUNT_ID`` that holds the
+    account identifier.  Dashboard consumers can read this with a cheap
+    GetItem instead of requiring a Scan or external API call to discover
+    which account ID is stored in the table.
+
+    Args:
+        table: boto3 DynamoDB Table resource.
+        account_id: Alpaca account identifier.
+        timestamp: ISO 8601 timestamp of the write.
+
+    """
+    table.put_item(
+        Item={
+            "PK": "REGISTRY",
+            "SK": "ACCOUNT_ID",
+            "account_id": account_id,
+            "updated_at": timestamp,
+        }
+    )
+    logger.info(
+        "Wrote account registry entry",
+        extra={"account_id": account_id},
+    )
+
+
 def _sanitize_for_dynamodb(obj: Any) -> Any:  # noqa: ANN401
     """Recursively convert Decimal and other non-JSON-serialisable types to strings.
 

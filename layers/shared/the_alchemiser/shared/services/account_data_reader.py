@@ -44,6 +44,51 @@ class AccountDataReader:
     """
 
     # ------------------------------------------------------------------
+    # Account ID discovery
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def discover_account_id(
+        table: Any,  # noqa: ANN401
+    ) -> str:
+        """Discover the account ID from the registry entry in DynamoDB.
+
+        The account_data Lambda writes a well-known item at
+        ``PK=REGISTRY``, ``SK=ACCOUNT_ID`` containing the Alpaca account
+        identifier.  This allows consumers to discover the account ID
+        with a single GetItem (no Scan required).
+
+        Args:
+            table: boto3 DynamoDB Table resource.
+
+        Returns:
+            Account ID string, or empty string if no registry entry exists.
+
+        """
+        try:
+            item = table.get_item(
+                Key={"PK": "REGISTRY", "SK": "ACCOUNT_ID"},
+            ).get("Item")
+        except Exception:
+            logger.warning(
+                "Failed to read account registry from DynamoDB",
+                exc_info=True,
+            )
+            return ""
+
+        if not item:
+            logger.info("No account registry entry found in DynamoDB table")
+            return ""
+
+        account_id: str = str(item.get("account_id", ""))
+        if account_id:
+            logger.info(
+                "Discovered account_id from DynamoDB registry",
+                extra={"account_id": account_id},
+            )
+        return account_id
+
+    # ------------------------------------------------------------------
     # Account snapshot
     # ------------------------------------------------------------------
 
