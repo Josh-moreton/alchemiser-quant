@@ -142,7 +142,7 @@ class StrategyPositionService:
 
         except Exception as e:
             logger.error(
-                "Failed to query strategy positions",
+                "Failed to query strategy positions - failing closed",
                 extra={
                     "strategy_id": strategy_id,
                     "error": str(e),
@@ -150,8 +150,17 @@ class StrategyPositionService:
                 },
                 exc_info=True,
             )
-            # Return empty positions on error - strategy starts fresh
-            return {}
+            # Fail closed: propagate error so strategy does not trade
+            # with incorrect position state (could double exposure)
+            from the_alchemiser.shared.errors.exceptions import PortfolioError
+
+            raise PortfolioError(
+                f"Cannot read positions for strategy '{strategy_id}': {e}",
+                context={
+                    "strategy_id": strategy_id,
+                    "error": str(e),
+                },
+            ) from e
 
     def build_portfolio_snapshot(
         self,

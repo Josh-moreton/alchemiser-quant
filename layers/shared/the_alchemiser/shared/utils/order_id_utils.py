@@ -103,12 +103,28 @@ def generate_client_order_id(
     )
     max_prefix_length = MAX_CLIENT_ORDER_ID_LENGTH - fixed_length
 
+    # Guard: if symbol + timestamp + uuid + version already consumes the budget,
+    # ensure we still produce a valid (non-empty) prefix and final ID <= 48 chars.
+    if max_prefix_length <= 0:
+        raise ValueError(
+            f"Cannot build client_order_id: symbol '{normalized_symbol}' and fixed "
+            f"fields consume {fixed_length} chars, exceeding the {MAX_CLIENT_ORDER_ID_LENGTH}-char limit. "
+            f"Use a shorter symbol or omit signal_version."
+        )
+
     # Auto-truncate prefix if it would exceed Alpaca's limit
     if len(prefix_part) > max_prefix_length:
         prefix_part = prefix_part[:max_prefix_length]
 
-    # Construct client order ID
-    return f"{prefix_part}-{normalized_symbol}-{timestamp}-{uuid_suffix}{version_suffix}"
+    # Final length validation (defensive)
+    client_order_id = f"{prefix_part}-{normalized_symbol}-{timestamp}-{uuid_suffix}{version_suffix}"
+    if len(client_order_id) > MAX_CLIENT_ORDER_ID_LENGTH:
+        raise ValueError(
+            f"Generated client_order_id exceeds {MAX_CLIENT_ORDER_ID_LENGTH} chars: "
+            f"{len(client_order_id)} ('{client_order_id}')"
+        )
+
+    return client_order_id
 
 
 def parse_client_order_id(client_order_id: str) -> dict[str, str | None] | None:

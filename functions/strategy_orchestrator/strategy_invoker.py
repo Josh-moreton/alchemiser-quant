@@ -72,7 +72,7 @@ class StrategyInvoker:
         payload = {
             "correlation_id": correlation_id,
             "dsl_file": dsl_file,
-            "allocation": float(allocation),
+            "allocation": str(allocation),
         }
 
         logger.info(

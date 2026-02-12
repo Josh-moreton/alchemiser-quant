@@ -839,13 +839,20 @@ def query_executed_trades(
 ) -> dict[str, dict[str, Any]]:
     """Query executed trades from Trade Ledger DynamoDB by correlation_id.
 
+    Returns a dict keyed by ``strategy_id::symbol`` (primary) and ``symbol``
+    (fallback for pre-migration trades without strategy_id).  When multiple
+    per-strategy plans share a symbol, the strategy-qualified key prevents
+    one plan's execution status from leaking into another.
+
     Args:
         dynamodb: boto3 DynamoDB client
         correlation_id: The workflow correlation ID
         stage: Environment stage (dev or prod)
 
     Returns:
-        Dict mapping symbol to trade data (direction, filled_qty, fill_price, etc.)
+        Dict mapping key -> trade data.  Keys are both
+        ``strategy_id::symbol`` and plain ``symbol`` (last-write wins
+        for plain symbol, kept as backward-compat fallback).
 
     """
     table_name = f"alchemiser-{stage}-trade-ledger"
@@ -858,13 +865,14 @@ def query_executed_trades(
             ExpressionAttributeValues={":pk": {"S": f"CORR#{correlation_id}"}},
         )
 
-        trades_by_symbol = {}
+        trades_by_key: dict[str, dict[str, Any]] = {}
         for item in response.get("Items", []):
             symbol = item.get("symbol", {}).get("S", "")
             if symbol:
-                # Extract trade details from DynamoDB item
+                strategy_id = item.get("strategy_id", {}).get("S", "")
                 trade_data = {
                     "symbol": symbol,
+                    "strategy_id": strategy_id,
                     "direction": item.get("direction", {}).get("S", ""),
                     "filled_qty": item.get("filled_qty", {}).get("S", "0"),
                     "fill_price": item.get("fill_price", {}).get("S", "0"),
@@ -872,9 +880,13 @@ def query_executed_trades(
                     "fill_timestamp": item.get("fill_timestamp", {}).get("S", ""),
                     "success": True,  # If it's in the ledger, it was executed
                 }
-                trades_by_symbol[symbol] = trade_data
+                # Strategy-qualified key (primary lookup for per-strategy plans)
+                if strategy_id:
+                    trades_by_key[f"{strategy_id}::{symbol}"] = trade_data
+                # Plain symbol key (backward-compat fallback)
+                trades_by_key[symbol] = trade_data
 
-        return trades_by_symbol
+        return trades_by_key
 
     except ClientError as e:
         logger.error(
@@ -929,7 +941,11 @@ def print_single_plan_summary(
         action_short = action[0:3] if len(action) >= 3 else action
 
         # Check if this trade was executed (present in Trade Ledger)
-        executed = executed_by_symbol.get(symbol)
+        # Use strategy-qualified key first, fall back to plain symbol
+        executed = (
+            executed_by_symbol.get(f"{strategy_id}::{symbol}")
+            or executed_by_symbol.get(symbol)
+        )
 
         if action == "HOLD":
             status = colour("-- HOLD", "cyan")
@@ -954,7 +970,10 @@ def print_single_plan_summary(
 
     # Count execution results from Trade Ledger for symbols in this plan
     plan_symbols = {i.get("symbol") for i in items if i.get("action") in ("BUY", "SELL")}
-    executed_count = sum(1 for s in plan_symbols if s in executed_by_symbol)
+    executed_count = sum(
+        1 for s in plan_symbols
+        if executed_by_symbol.get(f"{strategy_id}::{s}") or executed_by_symbol.get(s)
+    )
     planned_trades = len(buys) + len(sells)
     not_executed = planned_trades - executed_count
 
@@ -1020,13 +1039,17 @@ def print_trades_execution_summary(
         buys = [i for i in items if i.get("action") == "BUY"]
         sells = [i for i in items if i.get("action") == "SELL"]
         holds = [i for i in items if i.get("action") == "HOLD"]
+        plan_strategy_id = plan.get("strategy_id") or "unknown"
         plan_symbols = {i.get("symbol") for i in items if i.get("action") in ("BUY", "SELL")}
 
         all_buys += len(buys)
         all_sells += len(sells)
         all_holds += len(holds)
         all_planned += len(buys) + len(sells)
-        all_executed += sum(1 for s in plan_symbols if s in executed_by_symbol)
+        all_executed += sum(
+            1 for s in plan_symbols
+            if executed_by_symbol.get(f"{plan_strategy_id}::{s}") or executed_by_symbol.get(s)
+        )
 
     # Cross-strategy totals
     if len(plans) > 1:

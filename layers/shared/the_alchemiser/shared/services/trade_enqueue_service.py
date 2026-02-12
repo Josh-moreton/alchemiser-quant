@@ -38,12 +38,12 @@ def enqueue_rebalance_trades(
     data_freshness: dict[str, Any] | None = None,
     strategies_evaluated: int = 0,
 ) -> int:
-    """Decompose rebalance plan and enqueue to SQS for parallel execution.
+    """Decompose rebalance plan and enqueue to SQS FIFO queue for parallel execution.
 
     Two-Phase Parallel Execution Architecture:
     1. Creates TradeMessage for each BUY/SELL item (skips HOLD)
     2. Creates run state entry in DynamoDB (BUY trades stored with status=WAITING)
-    3. Enqueues only SELL trades to SQS Standard queue
+    3. Enqueues only SELL trades to SQS FIFO queue (MessageGroupId + MessageDeduplicationId)
     4. When last SELL completes, Execution Lambda enqueues BUY trades
     5. Multiple Lambda invocations process BUYs in parallel
 
@@ -63,6 +63,9 @@ def enqueue_rebalance_trades(
     """
     run_id = str(uuid.uuid4())
     run_timestamp = datetime.now(UTC)
+
+    # Pre-compute total non-HOLD trades once (avoid re-counting per item)
+    total_run_trades = sum(1 for i in rebalance_plan.items if i.action in ["BUY", "SELL"])
 
     trade_messages: list[TradeMessage] = []
     for item in rebalance_plan.items:
@@ -98,7 +101,7 @@ def enqueue_rebalance_trades(
             is_complete_exit=is_complete_exit,
             is_full_liquidation=is_full_liquidation,
             total_portfolio_value=rebalance_plan.total_portfolio_value,
-            total_run_trades=sum(1 for i in rebalance_plan.items if i.action in ["BUY", "SELL"]),
+            total_run_trades=total_run_trades,
             run_timestamp=run_timestamp,
             metadata=rebalance_plan.metadata,
         )

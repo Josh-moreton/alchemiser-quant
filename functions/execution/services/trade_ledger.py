@@ -449,6 +449,25 @@ class TradeLedgerService:
                 )
                 return strategy_names, strategy_weights
 
+        # Fallback: rebalance plan metadata (backward-compat with aggregation flow)
+        if rebalance_plan and rebalance_plan.metadata:
+            strategy_attr = rebalance_plan.metadata.get("strategy_attribution", {})
+            symbol_attr = strategy_attr.get(symbol_upper, {}) or strategy_attr.get(symbol, {})
+            if symbol_attr:
+                strategy_names = list(symbol_attr.keys())
+                strategy_weights = {
+                    name: Decimal(str(weight)) for name, weight in symbol_attr.items()
+                }
+                logger.debug(
+                    "Strategy attribution from rebalance plan",
+                    extra={
+                        "symbol": symbol_upper,
+                        "strategies": strategy_names,
+                        "source": "rebalance_plan_metadata",
+                    },
+                )
+                return strategy_names, strategy_weights
+
         # Safety net: client_order_id parsing
         if order_result and order_result.client_order_id:
             parsed = parse_client_order_id(order_result.client_order_id)
