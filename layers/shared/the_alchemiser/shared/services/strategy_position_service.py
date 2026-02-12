@@ -215,6 +215,20 @@ class StrategyPositionService:
                 prices[symbol] = price
 
         cash = strategy_capital - total_position_value
+        
+        # Defensive guard: warn if cash goes negative (position value exceeds allocated capital)
+        if cash < Decimal("0"):
+            logger.warning(
+                "Negative implied cash for strategy - positions exceed allocated capital",
+                extra={
+                    "strategy_id": strategy_id,
+                    "cash": str(cash),
+                    "strategy_capital": str(strategy_capital),
+                    "total_position_value": str(total_position_value),
+                    "excess_value": str(abs(cash)),
+                },
+            )
+        
         total_value = strategy_capital
 
         logger.info(
