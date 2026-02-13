@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ...constants import CONTRACT_VERSION
 
 
-class OptionType(str, Enum):
+class OptionType(StrEnum):
     """Option type enumeration."""
 
     PUT = "put"

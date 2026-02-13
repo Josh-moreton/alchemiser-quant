@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -18,7 +18,7 @@ from ...constants import CONTRACT_VERSION
 from ...utils.timezone_utils import ensure_timezone_aware
 
 
-class HedgeAction(str, Enum):
+class HedgeAction(StrEnum):
     """Hedge action enumeration for audit trail."""
 
     HEDGE_OPENED = "hedge_opened"  # New hedge position created

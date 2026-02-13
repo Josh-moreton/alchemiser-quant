@@ -15,7 +15,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.logging import get_logger
@@ -36,14 +36,14 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class OrderSide(str, Enum):
+class OrderSide(StrEnum):
     """Order side for pricing rules."""
 
     OPEN = "open"  # Opening a new position
     CLOSE = "close"  # Closing an existing position
 
 
-class MarketCondition(str, Enum):
+class MarketCondition(StrEnum):
     """Market condition for pricing rules."""
 
     CALM = "calm"  # VIX < threshold (patient pricing)

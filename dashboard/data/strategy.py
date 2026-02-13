@@ -245,6 +245,69 @@ def get_strategy_tearsheet_url(strategy_name: str) -> str | None:
         return None
 
 
+@st.cache_data(ttl=300)
+def get_tearsheet_html(name: str) -> str | None:
+    """Download the raw HTML content of a quantstats tearsheet from S3.
+
+    Args:
+        name: Strategy name or '_account' for the account-level tearsheet.
+
+    Returns:
+        HTML string, or None if the tearsheet does not exist.
+    """
+    if not _has_credentials():
+        return None
+
+    try:
+        s3 = _get_s3_client()
+        bucket = _get_reports_bucket()
+        key = f"{S3_REPORTS_PREFIX}/{name}/tearsheet.html"
+        response = s3.get_object(Bucket=bucket, Key=key)
+        return response["Body"].read().decode("utf-8")  # type: ignore[no-any-return]
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "NoSuchKey":
+            return None
+        logger.warning("Failed to load tearsheet for %s: %s", name, e)
+        return None
+    except Exception as e:
+        logger.warning("Failed to load tearsheet for %s: %s", name, e)
+        return None
+
+
+@st.cache_data(ttl=300)
+def get_available_tearsheets() -> list[str]:
+    """List strategy names that have a tearsheet in S3.
+
+    Reads the analytics manifest for strategy names and checks whether
+    each has a tearsheet HTML object.  Also checks for the account-level
+    tearsheet (``_account``).
+    """
+    if not _has_credentials():
+        return []
+
+    try:
+        s3 = _get_s3_client()
+        bucket = _get_reports_bucket()
+
+        # List objects under the reports prefix to discover tearsheets
+        paginator = s3.get_paginator("list_objects_v2")
+        available: list[str] = []
+        for page in paginator.paginate(Bucket=bucket, Prefix=f"{S3_REPORTS_PREFIX}/"):
+            for obj in page.get("Contents", []):
+                key = obj["Key"]
+                if key.endswith("/tearsheet.html"):
+                    # Extract the name between the prefix and /tearsheet.html
+                    parts = key.replace(f"{S3_REPORTS_PREFIX}/", "", 1)
+                    name = parts.replace("/tearsheet.html", "")
+                    if name:
+                        available.append(name)
+
+        return sorted(available)
+    except Exception as e:
+        logger.warning("Failed to discover tearsheets: %s", e)
+        return []
+
+
 @st.cache_data(ttl=60)
 def get_capital_deployed() -> float | None:
     """Compute capital deployed percentage from strategy snapshots.

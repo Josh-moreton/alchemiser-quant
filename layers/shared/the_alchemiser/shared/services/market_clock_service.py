@@ -16,7 +16,7 @@ Key Features:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING, NamedTuple
 
 from the_alchemiser.shared.errors.exceptions import (
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class MarketStatus(str, Enum):
+class MarketStatus(StrEnum):
     """Market status enumeration."""
 
     OPEN = "open"

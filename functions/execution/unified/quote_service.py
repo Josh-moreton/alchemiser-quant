@@ -15,7 +15,7 @@ import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.logging import get_logger
@@ -34,7 +34,7 @@ DEFAULT_QUOTE_FRESHNESS_SECONDS = 10.0
 MINIMUM_VALID_PRICE = Decimal("0.01")
 
 
-class QuoteSource(str, Enum):
+class QuoteSource(StrEnum):
     """Source of the quote data."""
 
     STREAMING = "streaming"  # WebSocket real-time data
