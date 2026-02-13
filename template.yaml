@@ -110,7 +110,7 @@ Parameters:
   # Daily data refresh: midnight ET (post-close bars) + noon ET (intraday catch-up)
   DataRefreshScheduleExpr:
     Type: String
-    Default: "cron(0 0,12 ? * TUE-SAT *)"
+    Default: "cron(0 12 ? * MON-SAT *)"
     Description: Daily market data refresh (midnight & noon ET, Tue-Sat for Mon-Fri trading days)
 
   FetchCooldownMinutes:
