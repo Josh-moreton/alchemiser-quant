@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups hedge-kill-switch-status hedge-kill-switch-reset
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -46,6 +46,12 @@ help:
 	@echo "  debug-strategy s=<name>              Debug strategy with full condition tracing"
 	@echo "  debug-strategy list=1                List all available strategies"
 	@echo "  debug-strategy-historical s=<name> as-of=<date>  Debug with historical data cutoff"
+	@echo ""
+	@echo "Hedge Kill Switch:"
+	@echo "  hedge-kill-switch-status              Check kill switch state (dev)"
+	@echo "  hedge-kill-switch-status stage=prod   Check kill switch state (prod)"
+	@echo "  hedge-kill-switch-reset               Deactivate kill switch (dev)"
+	@echo "  hedge-kill-switch-reset stage=prod    Deactivate kill switch (prod)"
 	@echo ""
 	@echo "Observability:"
 	@echo "  logs                       Fetch logs from most recent workflow (dev)"
@@ -375,6 +381,37 @@ logs:
 	if [ -n "$(verbose)" ]; then ARGS="$$ARGS --verbose"; fi; \
 	if [ -n "$(output)" ]; then ARGS="$$ARGS --output $(output)"; fi; \
 	poetry run python scripts/fetch_workflow_logs.py $$ARGS
+
+# ============================================================================
+# HEDGE KILL SWITCH
+# ============================================================================
+
+# Check the current state of the hedge kill switch
+# Usage: make hedge-kill-switch-status
+#        make hedge-kill-switch-status stage=prod
+hedge-kill-switch-status:
+	@STAGE=$${stage:-dev}; \
+	TABLE="alchemiser-$${STAGE}-hedge-kill-switch"; \
+	echo "Checking hedge kill switch state in $$TABLE..."; \
+	aws dynamodb get-item \
+		--table-name "$$TABLE" \
+		--key '{"switch_id": {"S": "HEDGE_KILL_SWITCH"}}' \
+		--no-cli-pager
+
+# Reset (deactivate) the hedge kill switch
+# Usage: make hedge-kill-switch-reset
+#        make hedge-kill-switch-reset stage=prod
+hedge-kill-switch-reset:
+	@STAGE=$${stage:-dev}; \
+	TABLE="alchemiser-$${STAGE}-hedge-kill-switch"; \
+	echo "Resetting hedge kill switch in $$TABLE..."; \
+	aws dynamodb update-item \
+		--table-name "$$TABLE" \
+		--key '{"switch_id": {"S": "HEDGE_KILL_SWITCH"}}' \
+		--update-expression "SET is_active = :false, failure_count = :zero, trigger_reason = :null, triggered_at = :null, triggered_by = :null, last_failure_at = :null, updated_at = :now" \
+		--expression-attribute-values '{":false": {"BOOL": false}, ":zero": {"N": "0"}, ":null": {"NULL": true}, ":now": {"S": "'"$$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"'"}}' \
+		--no-cli-pager; \
+	echo "Kill switch deactivated."
 
 # ============================================================================
 # DEPLOYMENT (via GitHub Actions CI/CD)
