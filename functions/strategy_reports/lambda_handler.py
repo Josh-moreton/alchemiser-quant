@@ -112,6 +112,88 @@ def _generate_tearsheet_html(
         return None
 
 
+def _validate_reports_config() -> tuple[str, str]:
+    """Validate and return reports configuration from environment.
+
+    Returns:
+        Tuple of (bucket_name, stage).
+
+    Raises:
+        ValueError: If required environment variables are missing.
+
+    """
+    bucket_name = os.environ.get("PERFORMANCE_REPORTS_BUCKET", "")
+    stage = os.environ.get("STAGE", "dev")
+
+    if not bucket_name:
+        raise ValueError("Missing PERFORMANCE_REPORTS_BUCKET")
+    return bucket_name, stage
+
+
+def _process_strategy_report(
+    s3_client: S3Client,
+    bucket_name: str,
+    strategy_name: str,
+) -> bool:
+    """Generate and write a tearsheet report for a single strategy.
+
+    Args:
+        s3_client: Boto3 S3 client.
+        bucket_name: S3 bucket for output.
+        strategy_name: Name of the strategy.
+
+    Returns:
+        True if a report was generated, False otherwise.
+
+    """
+    returns = _read_daily_returns(s3_client, bucket_name, strategy_name)
+    if returns is None:
+        return False
+
+    html = _generate_tearsheet_html(returns, strategy_name)
+    if html is None:
+        return False
+
+    report_key = f"{S3_REPORTS_PREFIX}/{strategy_name}/tearsheet.html"
+    s3_client.put_object(
+        Bucket=bucket_name,
+        Key=report_key,
+        Body=html.encode("utf-8"),
+        ContentType="text/html",
+    )
+
+    logger.info(
+        "Tearsheet written",
+        extra={"strategy": strategy_name, "key": report_key},
+    )
+    return True
+
+
+def _write_reports_manifest(
+    s3_client: S3Client,
+    bucket_name: str,
+    run_id: str,
+    run_timestamp: str,
+    stage: str,
+    reports_generated: int,
+    strategy_names: list[str],
+) -> None:
+    """Write the reports manifest to S3."""
+    reports_manifest = {
+        "run_id": run_id,
+        "run_timestamp": run_timestamp,
+        "stage": stage,
+        "reports_generated": reports_generated,
+        "strategy_names": strategy_names,
+    }
+    s3_client.put_object(
+        Bucket=bucket_name,
+        Key=f"{S3_REPORTS_PREFIX}/_manifest.json",
+        Body=json.dumps(reports_manifest, default=str).encode("utf-8"),
+        ContentType="application/json",
+    )
+
+
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Generate quantstats HTML tearsheet reports for each strategy.
 
@@ -130,10 +212,9 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     run_id = str(uuid.uuid4())[:8]
     run_timestamp = datetime.now(UTC).isoformat()
 
-    bucket_name = os.environ.get("PERFORMANCE_REPORTS_BUCKET", "")
-    stage = os.environ.get("STAGE", "dev")
-
-    if not bucket_name:
+    try:
+        bucket_name, stage = _validate_reports_config()
+    except ValueError:
         logger.error("Missing PERFORMANCE_REPORTS_BUCKET environment variable")
         return {"statusCode": 500, "body": {"error": "Missing configuration"}}
 
@@ -155,47 +236,17 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
     for strategy_name in strategy_names:
         try:
-            returns = _read_daily_returns(s3_client, bucket_name, strategy_name)
-            if returns is None:
-                continue
-
-            html = _generate_tearsheet_html(returns, strategy_name)
-            if html is None:
-                continue
-
-            report_key = f"{S3_REPORTS_PREFIX}/{strategy_name}/tearsheet.html"
-            s3_client.put_object(
-                Bucket=bucket_name,
-                Key=report_key,
-                Body=html.encode("utf-8"),
-                ContentType="text/html",
-            )
-
-            reports_generated += 1
-            logger.info(
-                "Tearsheet written",
-                extra={"strategy": strategy_name, "key": report_key},
-            )
-
+            if _process_strategy_report(s3_client, bucket_name, strategy_name):
+                reports_generated += 1
         except Exception:
             logger.exception(
                 "Failed to generate report",
                 extra={"strategy": strategy_name},
             )
 
-    # Write reports manifest
-    reports_manifest = {
-        "run_id": run_id,
-        "run_timestamp": run_timestamp,
-        "stage": stage,
-        "reports_generated": reports_generated,
-        "strategy_names": strategy_names,
-    }
-    s3_client.put_object(
-        Bucket=bucket_name,
-        Key=f"{S3_REPORTS_PREFIX}/_manifest.json",
-        Body=json.dumps(reports_manifest, default=str).encode("utf-8"),
-        ContentType="application/json",
+    _write_reports_manifest(
+        s3_client, bucket_name, run_id, run_timestamp, stage,
+        reports_generated, strategy_names,
     )
 
     logger.info(

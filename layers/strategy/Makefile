@@ -54,6 +54,7 @@ build-StrategyLayer:
 		structlog \
 		dependency-injector \
 		cachetools \
+		quantstats \
 		-t "$(ARTIFACTS_DIR)/python" \
 		--upgrade
 	

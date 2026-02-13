@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 import boto3
 import pandas as pd
+from botocore.exceptions import ClientError
 import streamlit as st
 from boto3.dynamodb.conditions import Attr, Key
 from settings import get_dashboard_settings
@@ -128,10 +129,13 @@ def get_all_strategy_snapshots() -> list[dict[str, Any]]:
             })
         return snapshots
 
-    except Exception as e:
-        if "NoSuchKey" in str(type(e).__name__):
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "NoSuchKey":
             logger.info("No strategy analytics summary found yet")
             return []
+        st.error(f"Error loading strategy snapshots: {e}")
+        return []
+    except Exception as e:
         st.error(f"Error loading strategy snapshots: {e}")
         return []
 
@@ -174,10 +178,13 @@ def get_strategy_time_series(strategy_name: str) -> list[dict[str, Any]]:
             for (_, row), cum_val in zip(df.iterrows(), cum_pnl)
         ]
 
-    except Exception as e:
-        if "NoSuchKey" in str(type(e).__name__):
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "NoSuchKey":
             logger.info("No daily returns found for %s", strategy_name)
             return []
+        st.error(f"Error loading time series for {strategy_name}: {e}")
+        return []
+    except Exception as e:
         st.error(f"Error loading time series for {strategy_name}: {e}")
         return []
 
@@ -200,9 +207,12 @@ def get_strategy_metrics(strategy_name: str) -> dict[str, Any] | None:
         )
         return json.loads(response["Body"].read().decode("utf-8"))  # type: ignore[no-any-return]
 
-    except Exception as e:
-        if "NoSuchKey" in str(type(e).__name__):
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "NoSuchKey":
             return None
+        logger.warning("Failed to load metrics for %s: %s", strategy_name, e)
+        return None
+    except Exception as e:
         logger.warning("Failed to load metrics for %s: %s", strategy_name, e)
         return None
 
@@ -256,7 +266,7 @@ def get_capital_deployed() -> float | None:
         if account and float(account.get("equity", 0)) > 0:
             return (total_holdings_value / float(account["equity"])) * 100.0
     except Exception:
-        pass
+        logger.exception("Failed to compute capital deployed from account data")
 
     return None
 
