@@ -33,7 +33,7 @@ import _setup_imports  # noqa: F401
 import streamlit as st
 from components.styles import inject_styles
 from dotenv import load_dotenv
-from settings import get_active_stage, get_dashboard_settings, set_stage
+from settings import get_dashboard_settings
 
 if TYPE_CHECKING:
     import streamlit_authenticator
@@ -79,12 +79,6 @@ def _page_portfolio_overview() -> None:
     portfolio_overview.show()
 
 
-def _page_forward_projection() -> None:
-    from pages import forward_projection
-
-    forward_projection.show()
-
-
 def _page_last_run_analysis() -> None:
     from pages import last_run_analysis
 
@@ -109,28 +103,10 @@ def _page_execution_quality() -> None:
     execution_quality.show()
 
 
-def _page_symbol_analytics() -> None:
-    from pages import symbol_analytics
-
-    symbol_analytics.show()
-
-
 def _page_options_hedging() -> None:
     from pages import options_hedging
 
     options_hedging.show()
-
-
-def _page_pnl_table() -> None:
-    from pages import pnl_table
-
-    pnl_table.show()
-
-
-def _page_tearsheets() -> None:
-    from pages import tearsheets
-
-    tearsheets.show()
 
 
 # ---------------------------------------------------------------------------
@@ -213,34 +189,11 @@ def show_login_page(authenticator: streamlit_authenticator.Authenticate) -> bool
 # Sidebar controls: environment switcher + connection status
 # ---------------------------------------------------------------------------
 
-_STAGE_OPTIONS = ("dev", "staging", "prod")
-
-
 def _render_sidebar_controls() -> None:
-    """Render the environment switcher and connection status in the sidebar."""
-    current_stage = get_active_stage()
-    stage_index = _STAGE_OPTIONS.index(current_stage) if current_stage in _STAGE_OPTIONS else 0
-
-    selected_stage = st.sidebar.selectbox(
-        "Environment",
-        _STAGE_OPTIONS,
-        index=stage_index,
-        key="env_selector",
-    )
-
-    # If the user changed the environment, rebuild settings + clear caches
-    if selected_stage != current_stage:
-        logger.info("Environment switched from %s to %s", current_stage, selected_stage)
-        set_stage(selected_stage)
-        st.rerun()
-
-    # Connection status indicator
+    """Render connection status in the sidebar (prod-only)."""
     settings = get_dashboard_settings()
-    if not settings.has_aws_credentials():
-        st.sidebar.warning("AWS credentials not configured (using default chain)")
-    else:
-        st.sidebar.caption(f"Connected: {settings.account_data_table}")
-
+    st.sidebar.caption(f"Environment: **{settings.stage}**")
+    st.sidebar.caption(f"Connected: {settings.account_data_table}")
     st.sidebar.markdown("---")
 
 
@@ -260,14 +213,10 @@ def show_dashboard() -> None:
     # Define pages using st.navigation
     nav_pages = [
         st.Page(_page_portfolio_overview, title="Portfolio Overview", default=True),
-        st.Page(_page_forward_projection, title="Forward Projection"),
-        st.Page(_page_pnl_table, title="Daily PnL Table"),
         st.Page(_page_last_run_analysis, title="Last Run Analysis"),
         st.Page(_page_trade_history, title="Trade History"),
         st.Page(_page_strategy_performance, title="Strategy Performance"),
-        st.Page(_page_tearsheets, title="Tearsheets"),
         st.Page(_page_execution_quality, title="Execution Quality"),
-        st.Page(_page_symbol_analytics, title="Symbol Analytics"),
         st.Page(_page_options_hedging, title="Options Hedging"),
     ]
 
