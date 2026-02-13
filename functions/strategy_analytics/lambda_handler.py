@@ -146,9 +146,7 @@ def _compute_time_series_risk_metrics(df: pd.DataFrame) -> dict[str, Any]:
     daily_changes = pnl_values
 
     avg_change = sum(daily_changes) / len(daily_changes)
-    variance = sum((c - avg_change) ** 2 for c in daily_changes) / max(
-        len(daily_changes) - 1, 1
-    )
+    variance = sum((c - avg_change) ** 2 for c in daily_changes) / max(len(daily_changes) - 1, 1)
     std_change = math.sqrt(variance)
 
     pnl_sharpe = 0.0
@@ -277,9 +275,7 @@ def _validate_analytics_config() -> tuple[str, str, str]:
     stage = os.environ.get("STAGE", "dev")
 
     if not table_name or not bucket_name:
-        raise ValueError(
-            f"Missing required env vars: table={table_name}, bucket={bucket_name}"
-        )
+        raise ValueError(f"Missing required env vars: table={table_name}, bucket={bucket_name}")
     return table_name, bucket_name, stage
 
 
@@ -424,7 +420,12 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             )
 
     _write_analytics_output(
-        s3_client, bucket_name, summary_rows, run_id, run_timestamp, stage,
+        s3_client,
+        bucket_name,
+        summary_rows,
+        run_id,
+        run_timestamp,
+        stage,
     )
 
     logger.info(
