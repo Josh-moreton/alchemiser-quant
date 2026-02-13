@@ -3,7 +3,7 @@
 Strategy Performance page -- per-strategy analytics with lot-level detail.
 
 Dual data source architecture:
-- StrategyPerformanceTable for fast summary KPIs and time-series charts
+- S3 PerformanceReportsBucket for pre-computed metrics and daily returns
 - TradeLedger for lot-level drill-down (open/closed lots, trade history)
 - Strategy ledger metadata for enrichment (display names, source URLs, assets)
 
@@ -386,6 +386,6 @@ def show() -> None:
 
     # Footer
     st.caption(
-        "Data from StrategyPerformanceTable (snapshots) and "
+        "Data from S3 strategy analytics (Parquet/JSON) and "
         "TradeLedger (lots). Data cached for 60-300s per query."
     )

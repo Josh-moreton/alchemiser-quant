@@ -19,7 +19,6 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from data import strategy as sda
-from data.risk import calculate_risk_metrics
 from components.ui import (
     metric_card,
     section_header,
@@ -102,38 +101,36 @@ def show_time_series_tab(strategy_name: str) -> None:
 
 
 def show_risk_metrics_tab(strategy_name: str) -> None:
-    """Render risk and return metrics."""
+    """Render risk and return metrics from S3 analytics."""
     section_header("Risk & Return Metrics")
-    time_series = sda.get_strategy_time_series(strategy_name)
+    metrics = sda.get_strategy_metrics(strategy_name)
 
-    if len(time_series) < 5:
+    if metrics is None or metrics.get("data_points", 0) < 5:
         st.info(
             "Need at least 5 data points for risk metrics. "
             "More trade executions will populate this."
         )
         return
 
-    metrics = calculate_risk_metrics(time_series)
-
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         metric_card(
             "P&L Sharpe",
-            f"{metrics['pnl_sharpe']:.2f}",
-            delta_positive=metrics["pnl_sharpe"] > 0,
+            f"{metrics.get('pnl_sharpe', 0):.2f}",
+            delta_positive=metrics.get("pnl_sharpe", 0) > 0,
         )
     with col2:
         metric_card(
             "Max Drawdown",
-            format_currency(metrics["max_drawdown"]),
+            format_currency(metrics.get("max_drawdown", 0)),
         )
     with col3:
         metric_card(
             "Volatility (Ann.)",
-            format_currency(metrics["volatility"]),
+            format_currency(metrics.get("annualized_volatility", 0)),
         )
     with col4:
-        pf = metrics["profit_factor"]
+        pf = metrics.get("profit_factor")
         pf_str = f"{pf:.2f}" if pf is not None else "N/A"
         metric_card(
             "Profit Factor",
@@ -141,7 +138,16 @@ def show_risk_metrics_tab(strategy_name: str) -> None:
             delta_positive=pf is not None and pf > 1.0,
         )
 
-    # Drawdown chart
+    # Tearsheet link
+    tearsheet_url = sda.get_strategy_tearsheet_url(strategy_name)
+    if tearsheet_url:
+        st.markdown(f"[View Full QuantStats Tearsheet]({tearsheet_url})")
+
+    # Drawdown chart from time series
+    time_series = sda.get_strategy_time_series(strategy_name)
+    if len(time_series) < 3:
+        return
+
     pnl_values = [s.get("realized_pnl", 0.0) for s in time_series]
     timestamps = [s["snapshot_timestamp"] for s in time_series]
 
