@@ -145,7 +145,7 @@ Rebalance Planner Lambda
 | `DLQAlertTopic` | SNS | DLQ monitoring alerts |
 | `TradeLedgerTable` | DynamoDB | Trade history persistence |
 | `StrategyAnalyticsFunction` | Lambda | Daily strategy metrics computation (S3 Parquet) |
-| `StrategyReportsFunction` | Lambda | Quantstats HTML tearsheet generation |
+| `StrategyReportsFunction` | Lambda | Reports manifest (tearsheets generated locally) |
 | `PerformanceReportsBucket` | S3 | Strategy analytics (Parquet/JSON) and reports (HTML tearsheets) |
 
 ## Code Style & Guardrails
@@ -430,6 +430,7 @@ logger.info(
 | Strategy engines | `functions/strategy_worker/engines/` |
 | Infrastructure (SAM) | `template.yaml` |
 | Script import helper | `scripts/_setup_imports.py` |
+| Tearsheet generator | `scripts/generate_tearsheets.py` |
 
 ## Pre-Commit Checklist
 

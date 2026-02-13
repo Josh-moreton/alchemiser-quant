@@ -138,10 +138,10 @@ def show_risk_metrics_tab(strategy_name: str) -> None:
             delta_positive=pf is not None and pf > 1.0,
         )
 
-    # Tearsheet link
+    # Tearsheet link (generated locally via scripts/generate_tearsheets.py)
     tearsheet_url = sda.get_strategy_tearsheet_url(strategy_name)
     if tearsheet_url:
-        st.markdown(f"[View Full QuantStats Tearsheet]({tearsheet_url})")
+        st.markdown(f"[View Full Tearsheet]({tearsheet_url})")
 
     # Drawdown chart from time series
     time_series = sda.get_strategy_time_series(strategy_name)

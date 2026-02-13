@@ -1736,8 +1736,9 @@ Resources:
                   - !Sub "${PerformanceReportsBucket.Arn}/strategy-analytics/*"
 
   # ========== STRATEGY REPORTS LAMBDA ==========
-  # Generates quantstats HTML tearsheet reports from the daily returns
-  # Parquet files written by the Strategy Analytics Lambda.
+  # Writes a reports manifest echoing available strategies.
+  # Tearsheet generation runs locally via scripts/generate_tearsheets.py
+  # (quantstats exceeds the Lambda layer size limit).
   # Scheduled to run 15 minutes after the analytics Lambda.
   StrategyReportsFunction:
     Type: AWS::Serverless::Function
