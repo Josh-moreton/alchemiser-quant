@@ -11,7 +11,10 @@ Provides:
 
 from __future__ import annotations
 
+import shutil
 import subprocess
+import sys
+from pathlib import Path
 from typing import Any
 
 import aws_cdk as cdk
@@ -27,6 +30,10 @@ from constructs import Construct
 
 from infra.config import StageConfig
 
+# Resolve pip from the running interpreter's venv so local bundling
+# works even when 'pip' is not on the system PATH.
+_VENV_PIP = str(Path(sys.executable).parent / "pip")
+
 
 @jsii.implements(cdk.ILocalBundling)
 class LocalShellBundling:
@@ -34,7 +41,8 @@ class LocalShellBundling:
 
     The shell command should use '/asset-output' as the output directory
     placeholder -- it will be replaced with the actual CDK output path at
-    bundle time.
+    bundle time.  Bare 'pip' references are automatically rewritten to the
+    venv-resolved pip so builds succeed without Docker.
     """
 
     def __init__(self, command: str) -> None:
@@ -43,6 +51,10 @@ class LocalShellBundling:
     def try_bundle(self, output_dir: str, **kwargs: Any) -> bool:
         """Execute the build command locally, return True on success."""
         cmd = self._command.replace("/asset-output", output_dir)
+        # Replace bare 'pip install' with venv pip so it works without
+        # pip on the system PATH.
+        if shutil.which("pip") is None:
+            cmd = cmd.replace("pip install", f"{_VENV_PIP} install")
         result = subprocess.run(  # noqa: S603
             ["bash", "-c", cmd],
             check=False,
