@@ -29,6 +29,10 @@ parameter_overrides = [
 	"Stage=dev",
 ]
 
+[staging.build.parameters]
+beta_features = true
+use_container = false
+
 [staging.deploy.parameters]
 stack_name = "alchemiser-staging"
 region = "us-east-1"

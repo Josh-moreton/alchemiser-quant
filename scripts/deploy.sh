@@ -108,7 +108,6 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         exit 1
     fi
     ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
-    EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
 
     PARAMS=(
         "Stage=dev"
@@ -117,19 +116,9 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         "AlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
         "EquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
     )
-    if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
-        PARAMS+=("EmailPassword=$EMAIL_PASSWORD_PARAM")
-    fi
     # Notification email (set per-environment in secret store)
     if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
         PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
-    fi
-    # Notion P&L Dashboard credentials
-    if [[ -n "${NOTION_TOKEN:-}" ]]; then
-        PARAMS+=("NotionToken=$NOTION_TOKEN")
-    fi
-    if [[ -n "${NOTION_DATABASE_ID:-}" ]]; then
-        PARAMS+=("NotionDatabaseId=$NOTION_DATABASE_ID")
     fi
 
     sam deploy \
@@ -144,7 +133,6 @@ elif [ "$ENVIRONMENT" = "staging" ]; then
         exit 1
     fi
     STAGING_ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
-    EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
 
     PARAMS=(
         "Stage=staging"
@@ -153,19 +141,9 @@ elif [ "$ENVIRONMENT" = "staging" ]; then
         "StagingAlpacaEndpoint=$STAGING_ALPACA_ENDPOINT_PARAM"
         "StagingEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
     )
-    if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
-        PARAMS+=("StagingEmailPassword=$EMAIL_PASSWORD_PARAM")
-    fi
     # Notification email (set per-environment in secret store)
     if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
         PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
-    fi
-    # Notion P&L Dashboard credentials
-    if [[ -n "${NOTION_TOKEN:-}" ]]; then
-        PARAMS+=("NotionToken=$NOTION_TOKEN")
-    fi
-    if [[ -n "${NOTION_DATABASE_ID:-}" ]]; then
-        PARAMS+=("NotionDatabaseId=$NOTION_DATABASE_ID")
     fi
 
     sam deploy \
@@ -180,7 +158,6 @@ else
         exit 1
     fi
     PROD_ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://api.alpaca.markets"}
-    EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
 
     PARAMS=(
         "Stage=prod"
@@ -189,19 +166,9 @@ else
         "ProdAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
         "ProdEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
     )
-    if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
-        PARAMS+=("ProdEmailPassword=$EMAIL_PASSWORD_PARAM")
-    fi
     # Notification email (set per-environment in secret store)
     if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
         PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
-    fi
-    # Notion P&L Dashboard credentials
-    if [[ -n "${NOTION_TOKEN:-}" ]]; then
-        PARAMS+=("NotionToken=$NOTION_TOKEN")
-    fi
-    if [[ -n "${NOTION_DATABASE_ID:-}" ]]; then
-        PARAMS+=("NotionDatabaseId=$NOTION_DATABASE_ID")
     fi
 
     sam deploy \
