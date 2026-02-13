@@ -79,12 +79,12 @@ os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
 # These dev defaults are the fallback if --stage is not specified.
 _STAGE_RESOURCE_MAP: dict[str, dict[str, str]] = {
     "dev": {
-        "MARKET_DATA_BUCKET": "alchemiser-dev-market-data",
-        "GROUP_HISTORY_TABLE": "alchemiser-dev-group-history",
+        "MARKET_DATA_BUCKET": "alch-dev-market-data",
+        "GROUP_HISTORY_TABLE": "alch-dev-group-history",
     },
     "prod": {
-        "MARKET_DATA_BUCKET": "alchemiser-prod-market-data",
-        "GROUP_HISTORY_TABLE": "alchemiser-prod-group-history",
+        "MARKET_DATA_BUCKET": "alch-prod-market-data",
+        "GROUP_HISTORY_TABLE": "alch-prod-group-history",
     },
 }
 
