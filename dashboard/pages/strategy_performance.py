@@ -3,7 +3,7 @@
 Strategy Performance page -- per-strategy analytics with lot-level detail.
 
 Dual data source architecture:
-- StrategyPerformanceTable for fast summary KPIs and time-series charts
+- S3 PerformanceReportsBucket for pre-computed metrics and daily returns
 - TradeLedger for lot-level drill-down (open/closed lots, trade history)
 - Strategy ledger metadata for enrichment (display names, source URLs, assets)
 
@@ -110,10 +110,19 @@ def _show_summary_grid(
         name = snap["strategy_name"]
         meta = metadata.get(name, {})
         display = meta.get("display_name", name)
+
+        # Book ROI: realized P&L relative to cost basis of current + exited lots
+        cost_basis = snap["current_holdings_value"]
+        realized = snap["realized_pnl"]
+        # Estimate total invested as holdings_value + realized gains (conservative)
+        total_invested = cost_basis + abs(realized) if realized < 0 else cost_basis
+        book_roi = (realized / total_invested * 100) if total_invested > 0 else 0.0
+
         rows.append(
             {
                 "Strategy": display,
                 "Realized P&L": snap["realized_pnl"],
+                "Book ROI (%)": book_roi,
                 "Win Rate (%)": snap["win_rate"],
                 "Trades": snap["completed_trades"],
                 "Open Lots": snap["current_holdings"],
@@ -128,11 +137,12 @@ def _show_summary_grid(
         df,
         formats={
             "Realized P&L": "${:,.2f}",
+            "Book ROI (%)": "{:+.1f}%",
             "Win Rate (%)": "{:.1f}%",
             "Holdings Value": "${:,.2f}",
             "Avg Profit": "${:,.2f}",
         },
-        highlight_positive_negative=["Realized P&L", "Avg Profit"],
+        highlight_positive_negative=["Realized P&L", "Avg Profit", "Book ROI (%)"],
     )
 
     # Horizontal bar chart: P&L by strategy
@@ -376,6 +386,6 @@ def show() -> None:
 
     # Footer
     st.caption(
-        "Data from StrategyPerformanceTable (snapshots) and "
+        "Data from S3 strategy analytics (Parquet/JSON) and "
         "TradeLedger (lots). Data cached for 60-300s per query."
     )

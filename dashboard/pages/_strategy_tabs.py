@@ -19,7 +19,6 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from data import strategy as sda
-from data.risk import calculate_risk_metrics
 from components.ui import (
     metric_card,
     section_header,
@@ -102,38 +101,36 @@ def show_time_series_tab(strategy_name: str) -> None:
 
 
 def show_risk_metrics_tab(strategy_name: str) -> None:
-    """Render risk and return metrics."""
+    """Render risk and return metrics from S3 analytics."""
     section_header("Risk & Return Metrics")
-    time_series = sda.get_strategy_time_series(strategy_name)
+    metrics = sda.get_strategy_metrics(strategy_name)
 
-    if len(time_series) < 5:
+    if metrics is None or metrics.get("data_points", 0) < 5:
         st.info(
             "Need at least 5 data points for risk metrics. "
             "More trade executions will populate this."
         )
         return
 
-    metrics = calculate_risk_metrics(time_series)
-
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         metric_card(
             "P&L Sharpe",
-            f"{metrics['pnl_sharpe']:.2f}",
-            delta_positive=metrics["pnl_sharpe"] > 0,
+            f"{metrics.get('pnl_sharpe', 0):.2f}",
+            delta_positive=metrics.get("pnl_sharpe", 0) > 0,
         )
     with col2:
         metric_card(
             "Max Drawdown",
-            format_currency(metrics["max_drawdown"]),
+            format_currency(metrics.get("max_drawdown", 0)),
         )
     with col3:
         metric_card(
             "Volatility (Ann.)",
-            format_currency(metrics["volatility"]),
+            format_currency(metrics.get("annualized_volatility", 0)),
         )
     with col4:
-        pf = metrics["profit_factor"]
+        pf = metrics.get("profit_factor")
         pf_str = f"{pf:.2f}" if pf is not None else "N/A"
         metric_card(
             "Profit Factor",
@@ -141,7 +138,16 @@ def show_risk_metrics_tab(strategy_name: str) -> None:
             delta_positive=pf is not None and pf > 1.0,
         )
 
-    # Drawdown chart
+    # Tearsheet link (generated locally via scripts/generate_tearsheets.py)
+    tearsheet_url = sda.get_strategy_tearsheet_url(strategy_name)
+    if tearsheet_url:
+        st.markdown(f"[View Full Tearsheet]({tearsheet_url})")
+
+    # Drawdown chart from time series
+    time_series = sda.get_strategy_time_series(strategy_name)
+    if len(time_series) < 3:
+        return
+
     pnl_values = [s.get("realized_pnl", 0.0) for s in time_series]
     timestamps = [s["snapshot_timestamp"] for s in time_series]
 
@@ -178,45 +184,91 @@ def show_risk_metrics_tab(strategy_name: str) -> None:
 
 
 def _render_open_lots(lots: list[dict[str, Any]]) -> None:
-    """Render open lots table with pie chart of positions by cost basis."""
+    """Render open lots table with unrealized P&L and position pie chart."""
+    price_map = sda.get_current_price_map()
+
     rows = []
     for lot in lots:
-        rows.append(
-            {
-                "Symbol": lot["symbol"],
-                "Entry Date": lot["entry_timestamp"][:10] if lot["entry_timestamp"] else "",
-                "Entry Price": lot["entry_price"],
-                "Qty": lot["entry_qty"],
-                "Remaining": lot["remaining_qty"],
-                "Cost Basis": lot["cost_basis"],
-            }
-        )
+        symbol = lot["symbol"]
+        entry_price = lot["entry_price"]
+        remaining_qty = lot["remaining_qty"]
+        cost_basis = lot["cost_basis"]
+        current_price = price_map.get(symbol)
+
+        row: dict[str, Any] = {
+            "Symbol": symbol,
+            "Entry Date": lot["entry_timestamp"][:10] if lot["entry_timestamp"] else "",
+            "Entry Price": entry_price,
+            "Qty": lot["entry_qty"],
+            "Remaining": remaining_qty,
+            "Cost Basis": cost_basis,
+        }
+
+        if current_price is not None:
+            market_value = remaining_qty * current_price
+            unrealized = market_value - (remaining_qty * entry_price)
+            unrealized_pct = (unrealized / (remaining_qty * entry_price) * 100) if entry_price > 0 else 0.0
+            row["Current Price"] = current_price
+            row["Market Value"] = market_value
+            row["Unrealized P&L"] = unrealized
+            row["Unrealized %"] = unrealized_pct
+
+        rows.append(row)
+
     df = pd.DataFrame(rows)
     if df.empty:
         return
 
     df = df.sort_values("Symbol")
-    styled_dataframe(
-        df,
-        formats={
-            "Entry Price": "${:.2f}",
-            "Qty": "{:.4f}",
-            "Remaining": "{:.4f}",
-            "Cost Basis": "${:,.2f}",
-        },
-    )
+
+    has_prices = "Current Price" in df.columns
+
+    # Book summary metrics
+    total_cost = df["Cost Basis"].sum()
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        metric_card("Open Lots", str(len(df)))
+    with col2:
+        metric_card("Total Cost Basis", f"${total_cost:,.2f}")
+    if has_prices:
+        total_market = df["Market Value"].sum()
+        total_unrealized = df["Unrealized P&L"].sum()
+        with col3:
+            metric_card(
+                "Unrealized P&L",
+                f"${total_unrealized:+,.2f}",
+                delta_positive=total_unrealized > 0,
+            )
+
+    formats: dict[str, str] = {
+        "Entry Price": "${:.2f}",
+        "Qty": "{:.4f}",
+        "Remaining": "{:.4f}",
+        "Cost Basis": "${:,.2f}",
+    }
+    highlight_cols: list[str] = []
+    if has_prices:
+        formats["Current Price"] = "${:.2f}"
+        formats["Market Value"] = "${:,.2f}"
+        formats["Unrealized P&L"] = "${:+,.2f}"
+        formats["Unrealized %"] = "{:+.1f}%"
+        highlight_cols = ["Unrealized P&L", "Unrealized %"]
+
+    styled_dataframe(df, formats=formats, highlight_positive_negative=highlight_cols)
 
     if len(df) <= 1:
         return
 
     fig_pie = go.Figure()
+    pie_values = df["Market Value"] if has_prices else df["Cost Basis"]
+    pie_label = "Market Value" if has_prices else "Cost Basis"
     fig_pie.add_trace(
         go.Pie(
             labels=df["Symbol"],
-            values=df["Cost Basis"],
+            values=pie_values,
             hole=0.4,
             hovertemplate=(
-                "%{label}<br>Cost Basis: $%{value:,.2f}<br>%{percent}<extra></extra>"
+                f"%{{label}}<br>{pie_label}: $%{{value:,.2f}}<br>%{{percent}}<extra></extra>"
             ),
             marker={
                 "colors": [

@@ -11,7 +11,7 @@ reads and interprets the run state to detect completion and aggregate results.
 This separation keeps write contention low and maintains clean separation of concerns.
 
 Note: This service is in shared/ because it's used by multiple business modules:
-- portfolio_v2: Creates runs when decomposing RebalancePlans
+- strategy_v2: Creates runs when enqueuing per-strategy rebalance trades
 - execution_v2: Marks trades as started/completed
 - notifications_v2: Checks completion and aggregates results
 """
@@ -105,6 +105,7 @@ class ExecutionRunService:
         data_freshness: dict[str, Any] | None = None,
         strategies_evaluated: int | None = None,
         rebalance_plan_summary: list[dict[str, Any]] | None = None,
+        strategy_id: str | None = None,
     ) -> dict[str, Any]:
         """Create a new execution run with optional two-phase execution.
 
@@ -129,6 +130,7 @@ class ExecutionRunService:
             data_freshness: Data freshness info from strategy phase.
             strategies_evaluated: Number of DSL strategy files evaluated.
             rebalance_plan_summary: Serialized rebalance plan items for email display.
+            strategy_id: Strategy identifier for notification session tracking.
 
         Returns:
             Run metadata dict.
@@ -201,6 +203,18 @@ class ExecutionRunService:
             import json
 
             item["rebalance_plan_summary"] = {"S": json.dumps(rebalance_plan_summary)}
+
+        # Store strategy_id for notification session tracking
+        if strategy_id:
+            item["strategy_id"] = {"S": strategy_id}
+
+        # Store dsl_file from plan metadata for notification session tracking
+        plan_metadata: dict[str, str] = {}
+        if trade_messages:
+            plan_metadata = trade_messages[0].metadata or {}
+        dsl_file = plan_metadata.get("dsl_file", "")
+        if dsl_file:
+            item["dsl_file"] = {"S": dsl_file}
 
         self._client.put_item(TableName=self._table_name, Item=item)
 

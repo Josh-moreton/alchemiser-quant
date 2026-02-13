@@ -331,7 +331,14 @@ def select_symbols(
 
     Returns a PortfolioFragment with equal weights for selected symbols.
     """
-    scored = score_candidates(symbols, condition_expr, context)
+    # De-duplicate candidates while preserving order.
+    # Duplicates can occur due to nested DSL lists or repeated `asset` entries.
+    # If not removed, duplicates cause:
+    # - repeated indicator computations (slow)
+    # - incorrect weight normalisation (dict keys collapse duplicates)
+    unique_symbols = list(dict.fromkeys(symbols))
+
+    scored = score_candidates(unique_symbols, condition_expr, context)
     if not scored:
         return PortfolioFragment(
             fragment_id=str(uuid.uuid4()),

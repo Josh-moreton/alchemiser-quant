@@ -21,6 +21,7 @@ from indicators.indicators import TechnicalIndicators
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
 from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicator
+from the_alchemiser.shared.types.market_data import BarModel
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
@@ -61,15 +62,76 @@ class IndicatorService:
         self.market_data_service = market_data_service
         # Always initialize indicators; data access is gated separately by market_data_service
         self.technical_indicators: TechnicalIndicators = TechnicalIndicators()
+
+        # Cache raw bars by (symbol, period, timeframe) to avoid repeatedly
+        # loading the same history during backfill loops.
+        self._bars_cache: dict[tuple[str, str, str], list[BarModel]] = {}
+
+        # Cache computed indicators for the current as_of_date only.
+        # Cleared whenever as_of_date changes to preserve historical correctness.
+        self._indicator_cache: dict[
+            tuple[str, str, tuple[tuple[str, str], ...], date | None],
+            TechnicalIndicator,
+        ] = {}
+
         # Optional date cutoff for historical evaluation (backfilling).
         # When set, bars are truncated to only include data on or before
         # this date, ensuring indicators reflect the historical state.
-        self.as_of_date: date | None = None
+        self._as_of_date: date | None = None
         logger.info(
             "IndicatorService initialized",
             module=MODULE_NAME,
             has_market_data_service=market_data_service is not None,
         )
+
+    @property
+    def as_of_date(self) -> date | None:
+        """Optional cutoff date for historical evaluation.
+
+        Changing this value clears the computed-indicator cache so cached
+        results do not leak across dates during backfills.
+        """
+        return self._as_of_date
+
+    @as_of_date.setter
+    def as_of_date(self, value: date | None) -> None:
+        if value != self._as_of_date:
+            self._as_of_date = value
+            self._indicator_cache.clear()
+
+    def _parameters_cache_key(
+        self, parameters: dict[str, int | float | str]
+    ) -> tuple[tuple[str, str], ...]:
+        """Create a stable, hashable cache key for indicator parameters."""
+
+        def _val_to_key(v: int | float | str) -> str:
+            if isinstance(v, float):
+                return repr(v)
+            return str(v)
+
+        return tuple(
+            sorted(((k, _val_to_key(v)) for k, v in parameters.items()), key=lambda kv: kv[0])
+        )
+
+    def _get_bars_cached(self, *, symbol: str, period: str, timeframe: str) -> list[BarModel]:
+        """Fetch market bars with in-process caching."""
+        cache_key = (symbol, period, timeframe)
+        cached = self._bars_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        if not self.market_data_service:
+            raise DslEvaluationError(
+                "IndicatorService requires a MarketDataPort; no fallback indicators allowed"
+            )
+
+        bars = self.market_data_service.get_bars(
+            symbol=Symbol(symbol),
+            period=period,
+            timeframe=timeframe,
+        )
+        self._bars_cache[cache_key] = bars
+        return bars
 
     def _latest_value(
         self, series: pd.Series, fallback: float | None = None
@@ -775,6 +837,16 @@ class IndicatorService:
         parameters = request.parameters
         correlation_id = request.correlation_id
 
+        indicator_cache_key = (
+            symbol,
+            indicator_type,
+            self._parameters_cache_key(parameters),
+            self.as_of_date,
+        )
+        cached = self._indicator_cache.get(indicator_cache_key)
+        if cached is not None:
+            return cached
+
         logger.info(
             "Indicator request received",
             module=MODULE_NAME,
@@ -812,12 +884,7 @@ class IndicatorService:
             )
 
             # Fetch bars with computed lookback using standard MarketDataPort interface
-            symbol_obj = Symbol(symbol)
-            bars = self.market_data_service.get_bars(
-                symbol=symbol_obj,
-                period=period,
-                timeframe="1Day",
-            )
+            bars = self._get_bars_cached(symbol=symbol, period=period, timeframe="1Day")
 
             # Truncate bars to as_of_date when doing historical evaluation.
             # Without this, backfilled dates would all use current market data
@@ -881,6 +948,7 @@ class IndicatorService:
                     indicator_type=indicator_type,
                     correlation_id=correlation_id,
                 )
+                self._indicator_cache[indicator_cache_key] = result
                 return result
 
             # Unsupported indicator types

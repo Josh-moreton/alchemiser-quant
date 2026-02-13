@@ -8,11 +8,24 @@ that enable better tracking and organization of orders across strategies.
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import UTC, datetime
 
 # Constants
 LEGACY_STRATEGY_PREFIX = "alch"  # Legacy prefix for backward compatibility
+
+# Regex for parsing client_order_id.
+# The timestamp (\d{8}T\d{6}) and lowercase-hex UUID ([a-f0-9]{8}) anchors
+# ensure the strategy prefix (which may contain hyphens) is captured correctly.
+_CLIENT_ORDER_ID_PATTERN = re.compile(
+    r"^(?P<prefix>.+)"
+    r"-(?P<symbol>[A-Z0-9_]+)"
+    r"-(?P<timestamp>\d{8}T\d{6})"
+    r"-(?P<uuid>[a-f0-9]{8})"
+    r"(?:-(?P<version>v[^-]+))?"
+    r"(?:-step-(?P<step>\d+))?$"
+)
 
 
 def generate_client_order_id(
@@ -43,7 +56,7 @@ def generate_client_order_id(
         Unique client order ID string
 
     Raises:
-        ValueError: If the generated ID exceeds Alpaca's 48-character limit.
+        ValueError: If signal_version contains hyphens.
 
     Examples:
         >>> # Basic usage with strategy_id
@@ -65,6 +78,7 @@ def generate_client_order_id(
         - The UUID suffix guarantees uniqueness even for concurrent orders
         - Signal version enables correlation with signal generation events
         - Alpaca limits client_order_id to 48 characters
+        - Long strategy_id/prefix values are auto-truncated to fit
         - Slashes in symbols (e.g., BTC/USD) are replaced with underscores
 
     """
@@ -84,10 +98,8 @@ def generate_client_order_id(
     # Generate short UUID suffix (first 8 characters)
     uuid_suffix = str(uuid.uuid4())[:8]
 
-    # Construct client order ID
-    client_order_id = f"{prefix_part}-{normalized_symbol}-{timestamp}-{uuid_suffix}"
-
-    # Add signal version if provided
+    # Calculate version suffix if provided
+    version_suffix = ""
     if signal_version is not None:
         # Validate signal version doesn't contain hyphens (would break parsing)
         if "-" in signal_version:
@@ -96,25 +108,49 @@ def generate_client_order_id(
             )
         # Normalize version to have 'v' prefix if not present
         version_str = signal_version if signal_version.startswith("v") else f"v{signal_version}"
-        client_order_id = f"{client_order_id}-{version_str}"
+        version_suffix = f"-{version_str}"
 
-    # Validate length against Alpaca's limit
+    # Calculate fixed overhead: separators + symbol + timestamp + uuid + version
+    fixed_length = (
+        1 + len(normalized_symbol) + 1 + len(timestamp) + 1 + len(uuid_suffix) + len(version_suffix)
+    )
+    max_prefix_length = MAX_CLIENT_ORDER_ID_LENGTH - fixed_length
+
+    # Guard: if symbol + timestamp + uuid + version already consumes the budget,
+    # ensure we still produce a valid (non-empty) prefix and final ID <= 48 chars.
+    if max_prefix_length <= 0:
+        raise ValueError(
+            f"Cannot build client_order_id: symbol '{normalized_symbol}' and fixed "
+            f"fields consume {fixed_length} chars, exceeding the {MAX_CLIENT_ORDER_ID_LENGTH}-char limit. "
+            f"Use a shorter symbol or omit signal_version."
+        )
+
+    # Auto-truncate prefix if it would exceed Alpaca's limit
+    if len(prefix_part) > max_prefix_length:
+        prefix_part = prefix_part[:max_prefix_length]
+
+    # Final length validation (defensive)
+    client_order_id = f"{prefix_part}-{normalized_symbol}-{timestamp}-{uuid_suffix}{version_suffix}"
     if len(client_order_id) > MAX_CLIENT_ORDER_ID_LENGTH:
         raise ValueError(
-            f"Generated client_order_id exceeds Alpaca's {MAX_CLIENT_ORDER_ID_LENGTH}-character limit: "
-            f"{len(client_order_id)} characters. Consider using shorter strategy_id/prefix, symbol, "
-            "or signal_version."
+            f"Generated client_order_id exceeds {MAX_CLIENT_ORDER_ID_LENGTH} chars: "
+            f"{len(client_order_id)} ('{client_order_id}')"
         )
 
     return client_order_id
 
 
 def parse_client_order_id(client_order_id: str) -> dict[str, str | None] | None:
-    """Parse a client order ID to extract components.
+    r"""Parse a client order ID to extract components.
 
-    Handles both legacy and new formats:
-    - Legacy: alch-SYMBOL-TIMESTAMP-UUID (4 parts)
-    - New: STRATEGY-SYMBOL-TIMESTAMP-UUID[-VERSION] (4 or 5 parts)
+    Handles both legacy and new formats, including strategy IDs with hyphens:
+    - Legacy: alch-SYMBOL-TIMESTAMP-UUID
+    - New: STRATEGY-SYMBOL-TIMESTAMP-UUID[-VERSION][-step-N]
+    - Hyphenated: 1-KMLM-AAPL-TIMESTAMP-UUID[-VERSION][-step-N]
+
+    Uses regex anchoring on the timestamp (``\d{8}T\d{6}``) and UUID
+    (``[a-f0-9]{8}``) to correctly delimit the strategy prefix even when
+    it contains hyphens.
 
     .. note::
         **Status: Ready for Integration**
@@ -132,77 +168,51 @@ def parse_client_order_id(client_order_id: str) -> dict[str, str | None] | None:
         client_order_id: Client order ID string to parse
 
     Returns:
-        Dictionary with keys: 'strategy_id', 'symbol', 'timestamp', 'uuid_suffix', 'version'
-        Returns None if the format is invalid
+        Dictionary with keys: 'strategy_id', 'symbol', 'timestamp',
+        'uuid_suffix', 'version'. Returns None if the format is invalid.
 
     Raises:
         This function does not raise exceptions.
 
     Examples:
         >>> # Legacy format
-        >>> client_order_id = "alch-AAPL-20250115T093000-a1b2c3d4"
-        >>> result = parse_client_order_id(client_order_id)
-        >>> result
-        {
-            'strategy_id': 'unknown',  # Legacy marker
-            'symbol': 'AAPL',
-            'timestamp': '20250115T093000',
-            'uuid_suffix': 'a1b2c3d4',
-            'version': None
-        }
+        >>> parse_client_order_id("alch-AAPL-20250115T093000-a1b2c3d4")
+        {'strategy_id': 'unknown', 'symbol': 'AAPL', 'timestamp': '20250115T093000', 'uuid_suffix': 'a1b2c3d4', 'version': None}
 
-        >>> # New format without version
-        >>> client_order_id = "nuclear-AAPL-20250115T093000-a1b2c3d4"
-        >>> result = parse_client_order_id(client_order_id)
-        >>> result
-        {
-            'strategy_id': 'nuclear',
-            'symbol': 'AAPL',
-            'timestamp': '20250115T093000',
-            'uuid_suffix': 'a1b2c3d4',
-            'version': None
-        }
+        >>> # Simple strategy prefix
+        >>> parse_client_order_id("nuclear-AAPL-20250115T093000-a1b2c3d4")
+        {'strategy_id': 'nuclear', 'symbol': 'AAPL', 'timestamp': '20250115T093000', 'uuid_suffix': 'a1b2c3d4', 'version': None}
 
-        >>> # New format with version
-        >>> client_order_id = "momentum-TSLA-20250115T093000-a1b2c3d4-v1"
-        >>> result = parse_client_order_id(client_order_id)
-        >>> result
-        {
-            'strategy_id': 'momentum',
-            'symbol': 'TSLA',
-            'timestamp': '20250115T093000',
-            'uuid_suffix': 'a1b2c3d4',
-            'version': 'v1'
-        }
+        >>> # Hyphenated strategy prefix (e.g. per-strategy books)
+        >>> parse_client_order_id("1-KMLM-AAPL-20250115T093000-a1b2c3d4")
+        {'strategy_id': '1-KMLM', 'symbol': 'AAPL', 'timestamp': '20250115T093000', 'uuid_suffix': 'a1b2c3d4', 'version': None}
+
+        >>> # With signal version
+        >>> parse_client_order_id("momentum-TSLA-20250115T093000-a1b2c3d4-v1")
+        {'strategy_id': 'momentum', 'symbol': 'TSLA', 'timestamp': '20250115T093000', 'uuid_suffix': 'a1b2c3d4', 'version': 'v1'}
+
+        >>> # Walk-the-book step suffix
+        >>> parse_client_order_id("1-KMLM-AAPL-20250115T093000-a1b2c3d4-step-2")
+        {'strategy_id': '1-KMLM', 'symbol': 'AAPL', 'timestamp': '20250115T093000', 'uuid_suffix': 'a1b2c3d4', 'version': None}
 
     """
     try:
-        parts = client_order_id.split("-")
-
-        # Must have at least 4 parts (strategy-symbol-timestamp-uuid)
-        # May have 5 parts if version is included
-        if len(parts) < 4 or len(parts) > 5:
+        match = _CLIENT_ORDER_ID_PATTERN.match(client_order_id)
+        if not match:
             return None
 
-        # Extract strategy_id - check if legacy prefix
-        # NOTE: We intentionally treat LEGACY_STRATEGY_PREFIX ("alch") as a legacy marker
-        # to distinguish old orders from new ones. If "alch" is needed as a strategy name
-        # going forward, use a different name like "alchemy" or "alchemiser".
-        strategy_id = parts[0]
+        strategy_id = match.group("prefix")
         if strategy_id == LEGACY_STRATEGY_PREFIX:
             strategy_id = "unknown"  # Mark as legacy/unknown strategy
 
-        # Extract version if present (5th part)
-        version = parts[4] if len(parts) == 5 else None
-
         return {
             "strategy_id": strategy_id,
-            "symbol": parts[1],
-            "timestamp": parts[2],
-            "uuid_suffix": parts[3],
-            "version": version,
+            "symbol": match.group("symbol"),
+            "timestamp": match.group("timestamp"),
+            "uuid_suffix": match.group("uuid"),
+            "version": match.group("version"),
         }
-    except (AttributeError, IndexError, ValueError):
+    except (AttributeError, TypeError, ValueError):
         return None
 
 

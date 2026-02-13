@@ -1,9 +1,9 @@
-"""Business Unit: strategy_v2 | Status: current.
+"""Business Unit: strategy | Status: current.
 
-Single-file signal generation handler for multi-node strategy execution.
+Single-file signal generation handler for per-strategy execution.
 
-This handler generates signals for a single DSL strategy file, producing
-a partial portfolio allocation that will be aggregated by the Aggregator Lambda.
+This handler evaluates a single DSL strategy file and returns the raw
+target weights for the StrategyRebalancer to execute independently.
 """
 
 from __future__ import annotations
@@ -20,9 +20,6 @@ if TYPE_CHECKING:
 from engines.dsl.engine import DslEngine
 
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.schemas.consolidated_portfolio import (
-    ConsolidatedPortfolio,
-)
 
 logger = get_logger(__name__)
 
@@ -30,16 +27,14 @@ logger = get_logger(__name__)
 class SingleFileSignalHandler:
     """Handler for generating signals from a single DSL strategy file.
 
-    Used in multi-node mode where each strategy file runs in its own
-    Lambda invocation. The allocation weight is already applied by the
-    Coordinator, so this handler produces a partial portfolio.
+    Evaluates the DSL file and returns raw target weights. Capital
+    allocation and rebalance planning are handled by the StrategyRebalancer.
     """
 
     def __init__(
         self,
         container: ApplicationContainer,
         dsl_file: str,
-        allocation: Decimal,
         *,
         debug_mode: bool = False,
     ) -> None:
@@ -48,13 +43,11 @@ class SingleFileSignalHandler:
         Args:
             container: Application container for dependency injection.
             dsl_file: DSL strategy file name (e.g., '1-KMLM.clj').
-            allocation: Weight allocation for this file (0-1).
             debug_mode: If True, enables detailed condition tracing for debugging.
 
         """
         self.container = container
         self.dsl_file = dsl_file
-        self.allocation = allocation
         self.debug_mode = debug_mode
         self.logger = logger
 
@@ -93,7 +86,6 @@ class SingleFileSignalHandler:
             "SingleFileSignalHandler initialized",
             extra={
                 "dsl_file": dsl_file,
-                "allocation": str(allocation),
                 "debug_mode": debug_mode,
             },
         )
@@ -101,14 +93,14 @@ class SingleFileSignalHandler:
     def generate_signals(self, correlation_id: str) -> dict[str, Any] | None:
         """Generate signals for the single DSL file.
 
-        Returns a partial portfolio with allocations scaled by this file's
-        weight allocation.
+        Returns the raw target weights from DSL evaluation. The caller
+        (StrategyRebalancer) handles capital allocation and rebalance planning.
 
         Args:
             correlation_id: Workflow correlation ID for tracing.
 
         Returns:
-            Dictionary with signals_data, consolidated_portfolio, and signal_count.
+            Dictionary with target_weights, data_freshness, and signal metadata.
             Returns None if signal generation fails.
 
         """
@@ -117,7 +109,6 @@ class SingleFileSignalHandler:
             extra={
                 "correlation_id": correlation_id,
                 "dsl_file": self.dsl_file,
-                "allocation": str(self.allocation),
             },
         )
 
@@ -135,54 +126,26 @@ class SingleFileSignalHandler:
                 )
                 return None
 
-            # Scale allocations by this file's weight
-            scaled_allocations: dict[str, Decimal] = {}
-            for symbol, weight in target_allocation.target_weights.items():
-                # Each symbol's allocation is scaled by the file's allocation
-                scaled_weight = Decimal(str(weight)) * self.allocation
-                if scaled_weight > Decimal("0"):
-                    scaled_allocations[symbol] = scaled_weight
+            # Return raw weights -- the rebalancer handles capital allocation
+            target_weights: dict[str, Decimal] = {
+                symbol: Decimal(str(weight))
+                for symbol, weight in target_allocation.target_weights.items()
+                if Decimal(str(weight)) > Decimal("0")
+            }
 
-            if not scaled_allocations:
+            if not target_weights:
                 self.logger.warning(
-                    f"No positive allocations after scaling for {self.dsl_file}",
+                    f"No positive weights from {self.dsl_file}",
                     extra={"correlation_id": correlation_id},
                 )
                 return None
 
-            # Build consolidated portfolio (partial - allocations < 1.0)
-            # Use is_partial=True to skip sum-to-1.0 validation for multi-node mode
-            # Track strategy contributions for P&L attribution
-            strategy_id = Path(self.dsl_file).stem
-            strategy_contributions = {strategy_id: scaled_allocations.copy()}
+            symbols = list(target_weights.keys())
+            signal_count = len(target_weights)
 
-            consolidated_portfolio = ConsolidatedPortfolio(
-                target_allocations=scaled_allocations,
-                strategy_contributions=strategy_contributions,
-                correlation_id=correlation_id,
-                timestamp=datetime.now(UTC),
-                strategy_count=1,
-                source_strategies=[self.dsl_file],
-                is_partial=True,
-            )
-
-            # Build signals data for this file
+            # Capture decision path from trace for logging
             strategy_name = Path(self.dsl_file).stem
             decision_path = trace.metadata.get("decision_path") if trace.metadata else None
-            signals_data: dict[str, Any] = {
-                strategy_name: {
-                    "symbols": list(scaled_allocations.keys()),
-                    "action": "REBALANCE",
-                    "reasoning": decision_path or f"DSL strategy {strategy_name}",
-                    "total_allocation": float(sum(scaled_allocations.values())),
-                    "raw_allocations": {
-                        k: float(v) for k, v in target_allocation.target_weights.items()
-                    },
-                    "file_weight": float(self.allocation),
-                }
-            }
-
-            signal_count = len(scaled_allocations)
 
             self.logger.info(
                 f"Generated {signal_count} signals from {self.dsl_file}",
@@ -190,17 +153,18 @@ class SingleFileSignalHandler:
                     "correlation_id": correlation_id,
                     "dsl_file": self.dsl_file,
                     "signal_count": signal_count,
-                    "symbols": list(scaled_allocations.keys()),
-                    "total_scaled_allocation": str(sum(scaled_allocations.values())),
+                    "symbols": symbols,
+                    "total_weight": str(sum(target_weights.values())),
+                    "decision_path": decision_path,
                 },
             )
 
             return {
-                "signals_data": signals_data,
-                "consolidated_portfolio": consolidated_portfolio.model_dump(mode="json"),
+                "target_weights": target_weights,
                 "signal_count": signal_count,
+                "strategy_name": strategy_name,
                 "data_freshness": self._capture_data_freshness(
-                    symbols=list(scaled_allocations.keys()),
+                    symbols=symbols,
                     correlation_id=correlation_id,
                 ),
             }

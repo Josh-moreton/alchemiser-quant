@@ -1,9 +1,12 @@
-"""Business Unit: coordinator_v2 | Status: current.
+"""Business Unit: coordinator | Status: current.
 
 Service for invoking Strategy Lambda functions asynchronously.
 
 Uses Lambda's async invocation (InvocationType='Event') to fan out
 strategy execution across multiple concurrent Lambda invocations.
+
+Each strategy worker independently evaluates DSL, calculates rebalance,
+and enqueues trades -- no aggregation step required.
 """
 
 from __future__ import annotations
@@ -51,45 +54,34 @@ class StrategyInvoker:
 
     def invoke_for_strategy(
         self,
-        session_id: str,
         correlation_id: str,
         dsl_file: str,
         allocation: Decimal,
-        strategy_number: int,
-        total_strategies: int,
     ) -> str:
         """Invoke Strategy Lambda for a single strategy file.
 
         Args:
-            session_id: Aggregation session ID.
             correlation_id: Workflow correlation ID.
             dsl_file: DSL strategy file name (e.g., '1-KMLM.clj').
             allocation: Weight allocation for this file (0-1) as Decimal.
-            strategy_number: Order index (1-based).
-            total_strategies: Total number of strategies in session.
 
         Returns:
             Lambda request ID for tracking.
 
         """
         payload = {
-            "session_id": session_id,
             "correlation_id": correlation_id,
             "dsl_file": dsl_file,
-            "allocation": float(allocation),  # Convert Decimal to float for JSON serialization
-            "strategy_number": strategy_number,
-            "total_strategies": total_strategies,
-            "mode": "single_strategy",  # Signal single-file mode
+            "allocation": str(allocation),
         }
 
         logger.info(
-            "Invoking Strategy Lambda for single file",
+            "Invoking Strategy Lambda",
             extra={
                 "function_name": self._function_name,
-                "session_id": session_id,
+                "correlation_id": correlation_id,
                 "dsl_file": dsl_file,
-                "strategy_number": strategy_number,
-                "total_strategies": total_strategies,
+                "allocation": str(allocation),
             },
         )
 
@@ -99,7 +91,6 @@ class StrategyInvoker:
             Payload=json.dumps(payload),
         )
 
-        # Response contains RequestId in headers for Event invocations
         request_id = response.get("ResponseMetadata", {}).get("RequestId", "unknown")
 
         logger.debug(
@@ -115,41 +106,34 @@ class StrategyInvoker:
 
     def invoke_all_strategies(
         self,
-        session_id: str,
         correlation_id: str,
         strategy_configs: list[tuple[str, Decimal]],
     ) -> list[str]:
         """Invoke Strategy Lambda for all strategy files in parallel.
 
         Args:
-            session_id: Aggregation session ID.
             correlation_id: Workflow correlation ID.
-            strategy_configs: List of (dsl_file, allocation) tuples with Decimal allocations.
+            strategy_configs: List of (dsl_file, allocation) tuples.
 
         Returns:
             List of Lambda request IDs for all invocations.
 
         """
         request_ids = []
-        total = len(strategy_configs)
 
-        for idx, (dsl_file, allocation) in enumerate(strategy_configs, 1):
+        for dsl_file, allocation in strategy_configs:
             request_id = self.invoke_for_strategy(
-                session_id=session_id,
                 correlation_id=correlation_id,
                 dsl_file=dsl_file,
                 allocation=allocation,
-                strategy_number=idx,
-                total_strategies=total,
             )
             request_ids.append(request_id)
 
         logger.info(
             "Invoked Strategy Lambda for all files",
             extra={
-                "session_id": session_id,
                 "correlation_id": correlation_id,
-                "total_invocations": total,
+                "total_invocations": len(strategy_configs),
                 "strategy_files": [f for f, _ in strategy_configs],
             },
         )

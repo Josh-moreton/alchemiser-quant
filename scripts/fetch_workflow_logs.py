@@ -5,7 +5,8 @@ Fetch CloudWatch logs and workflow data for a complete workflow run.
 
 This script queries all Lambda log groups for a given workflow run, filters for
 errors/warnings/failures, presents a chronological timeline of events, and also
-fetches the aggregated signal and rebalance plan from DynamoDB for analysis.
+fetches the aggregated signal and per-strategy rebalance plans from DynamoDB
+for analysis.
 
 Usage:
     # Auto-detect most recent workflow run
@@ -64,8 +65,6 @@ LAMBDA_FUNCTIONS = [
     # Core workflow
     "strategy-orchestrator",
     "strategy-worker",
-    "signal-aggregator",
-    "rebalance-planner",
     "execution",
     "trade-aggregator",
     "notifications",
@@ -584,12 +583,15 @@ def format_percentage(value: str | Decimal | float) -> str:
         return str(value)
 
 
-def get_rebalance_plan(
+def get_rebalance_plans(
     dynamodb: Any,
     correlation_id: str,
     stage: str = "dev",
-) -> dict[str, Any] | None:
-    """Query rebalance plan from DynamoDB.
+) -> list[dict[str, Any]]:
+    """Query all rebalance plans for a workflow from DynamoDB.
+
+    In the per-strategy architecture, each strategy worker produces its own
+    rebalance plan, so there may be multiple plans per workflow run.
 
     Args:
         dynamodb: boto3 DynamoDB client
@@ -597,7 +599,7 @@ def get_rebalance_plan(
         stage: Environment stage (dev or prod)
 
     Returns:
-        Rebalance plan data or None if not found
+        List of rebalance plan dicts (one per strategy), sorted by strategy_id
 
     """
     table_name = f"alchemiser-{stage}-rebalance-plans"
@@ -608,19 +610,20 @@ def get_rebalance_plan(
             IndexName="GSI1-CorrelationIndex",
             KeyConditionExpression="GSI1PK = :pk",
             ExpressionAttributeValues={":pk": {"S": f"CORR#{correlation_id}"}},
-            Limit=1,
             ScanIndexForward=False,
         )
 
-        if not response.get("Items"):
-            return None
+        plans = []
+        for item in response.get("Items", []):
+            plan_data_str = item.get("plan_data", {}).get("S", "{}")
+            plans.append(dict(json.loads(plan_data_str)))
 
-        item = response["Items"][0]
-        plan_data_str = item.get("plan_data", {}).get("S", "{}")
-        return dict(json.loads(plan_data_str))
+        # Sort by strategy_id for consistent display
+        plans.sort(key=lambda p: p.get("strategy_id") or p.get("plan_id", ""))
+        return plans
 
     except ClientError:
-        return None
+        return []
 
 
 def get_aggregated_signal(
@@ -836,13 +839,20 @@ def query_executed_trades(
 ) -> dict[str, dict[str, Any]]:
     """Query executed trades from Trade Ledger DynamoDB by correlation_id.
 
+    Returns a dict keyed by ``strategy_id::symbol`` (primary) and ``symbol``
+    (fallback for pre-migration trades without strategy_id).  When multiple
+    per-strategy plans share a symbol, the strategy-qualified key prevents
+    one plan's execution status from leaking into another.
+
     Args:
         dynamodb: boto3 DynamoDB client
         correlation_id: The workflow correlation ID
         stage: Environment stage (dev or prod)
 
     Returns:
-        Dict mapping symbol to trade data (direction, filled_qty, fill_price, etc.)
+        Dict mapping key -> trade data.  Keys are both
+        ``strategy_id::symbol`` and plain ``symbol`` (last-write wins
+        for plain symbol, kept as backward-compat fallback).
 
     """
     table_name = f"alchemiser-{stage}-trade-ledger"
@@ -855,13 +865,14 @@ def query_executed_trades(
             ExpressionAttributeValues={":pk": {"S": f"CORR#{correlation_id}"}},
         )
 
-        trades_by_symbol = {}
+        trades_by_key: dict[str, dict[str, Any]] = {}
         for item in response.get("Items", []):
             symbol = item.get("symbol", {}).get("S", "")
             if symbol:
-                # Extract trade details from DynamoDB item
+                strategy_id = item.get("strategy_id", {}).get("S", "")
                 trade_data = {
                     "symbol": symbol,
+                    "strategy_id": strategy_id,
                     "direction": item.get("direction", {}).get("S", ""),
                     "filled_qty": item.get("filled_qty", {}).get("S", "0"),
                     "fill_price": item.get("fill_price", {}).get("S", "0"),
@@ -869,9 +880,13 @@ def query_executed_trades(
                     "fill_timestamp": item.get("fill_timestamp", {}).get("S", ""),
                     "success": True,  # If it's in the ledger, it was executed
                 }
-                trades_by_symbol[symbol] = trade_data
+                # Strategy-qualified key (primary lookup for per-strategy plans)
+                if strategy_id:
+                    trades_by_key[f"{strategy_id}::{symbol}"] = trade_data
+                # Plain symbol key (backward-compat fallback)
+                trades_by_key[symbol] = trade_data
 
-        return trades_by_symbol
+        return trades_by_key
 
     except ClientError as e:
         logger.error(
@@ -882,37 +897,32 @@ def query_executed_trades(
         return {}
 
 
-def print_trades_execution_summary(
+def print_single_plan_summary(
     plan: dict[str, Any],
-    dynamodb: Any,
-    correlation_id: str,
-    stage: str = "dev",
+    executed_by_symbol: dict[str, dict[str, Any]],
+    plan_index: int,
+    total_plans: int,
 ) -> None:
-    """Print trade summary showing planned rebalance plan with execution status.
-
-    Shows the rebalance plan items and highlights which were executed successfully
-    by querying the Trade Ledger DynamoDB table.
+    """Print a single rebalance plan with execution status.
 
     Args:
         plan: The rebalance plan data
-        dynamodb: boto3 DynamoDB client
-        correlation_id: The workflow correlation ID
-        stage: Environment stage (dev or prod)
+        executed_by_symbol: Dict of symbol -> trade data from Trade Ledger
+        plan_index: 1-based index of this plan
+        total_plans: Total number of plans in this workflow
 
     """
-    print(f"\n{colour('📋 REBALANCE PLAN & EXECUTION SUMMARY', 'bold')}")
-    print("=" * 110)
-
-    metadata = plan.get("metadata", {})
+    metadata = plan.get("metadata", {}) or {}
     portfolio_value = metadata.get("portfolio_value", plan.get("total_portfolio_value", "N/A"))
     cash_balance = metadata.get("cash_balance", "N/A")
+    strategy_id = plan.get("strategy_id") or "unknown"
 
+    print(f"\n   {colour(f'--- Strategy {plan_index}/{total_plans}: {strategy_id} ---', 'bold')}")
     print(f"   Portfolio Value: {format_money(portfolio_value)}")
     print(f"   Cash Balance: {format_money(cash_balance)}")
     print(f"   Plan ID: {plan.get('plan_id', 'N/A')}")
 
     items = plan.get("items", [])
-    executed_by_symbol = query_executed_trades(dynamodb, correlation_id, stage)
 
     # Print header
     print(f"\n   {colour('PLANNED TRADES:', 'bold')}")
@@ -931,19 +941,20 @@ def print_trades_execution_summary(
         action_short = action[0:3] if len(action) >= 3 else action
 
         # Check if this trade was executed (present in Trade Ledger)
-        executed = executed_by_symbol.get(symbol)
+        # Use strategy-qualified key first, fall back to plain symbol
+        executed = (
+            executed_by_symbol.get(f"{strategy_id}::{symbol}")
+            or executed_by_symbol.get(symbol)
+        )
 
         if action == "HOLD":
-            # HOLD orders are not executed
-            status = colour("◐ HOLD", "cyan")
+            status = colour("-- HOLD", "cyan")
         elif executed:
-            # Trade found in ledger - it was executed
             filled_qty = executed.get("filled_qty", "0")
             fill_price = executed.get("fill_price", "0")
-            status = colour(f"✓ EXECUTED (qty: {filled_qty}, price: ${fill_price})", "green")
+            status = colour(f"OK EXECUTED (qty: {filled_qty}, price: ${fill_price})", "green")
         else:
-            # Not in ledger - not executed
-            status = colour("○ NOT EXECUTED", "grey")
+            status = colour("-- NOT EXECUTED", "grey")
 
         print(f"   {action_short:<4} {symbol:<8} {str(target_qty):<12} {format_money(trade_amt):<15} {status}")
 
@@ -957,9 +968,13 @@ def print_trades_execution_summary(
     total_buy = sum(Decimal(str(i.get("trade_amount", 0))) for i in buys)
     total_sell = sum(abs(Decimal(str(i.get("trade_amount", 0)))) for i in sells)
 
-    # Count execution results from Trade Ledger
-    executed_count = len(executed_by_symbol)
-    planned_trades = len(buys) + len(sells)  # Exclude HOLDs
+    # Count execution results from Trade Ledger for symbols in this plan
+    plan_symbols = {i.get("symbol") for i in items if i.get("action") in ("BUY", "SELL")}
+    executed_count = sum(
+        1 for s in plan_symbols
+        if executed_by_symbol.get(f"{strategy_id}::{s}") or executed_by_symbol.get(s)
+    )
+    planned_trades = len(buys) + len(sells)
     not_executed = planned_trades - executed_count
 
     print(f"\n   {colour('PLAN SUMMARY:', 'bold')}")
@@ -982,9 +997,70 @@ def print_trades_execution_summary(
             deployment_str = f"{float(deployment_pct):.1f}%"
             print(f"\n   {colour('DEPLOYMENT RATIO:', 'bold')} {deployment_str}")
             if deployment_pct > 100:
-                print(f"   {colour('⚠️  WARNING: Deployment exceeds 100%!', 'yellow')}")
+                print(f"   {colour('WARNING: Deployment exceeds 100%!', 'yellow')}")
     except (InvalidOperation, ValueError, TypeError):
         pass
+
+
+def print_trades_execution_summary(
+    plans: list[dict[str, Any]],
+    dynamodb: Any,
+    correlation_id: str,
+    stage: str = "dev",
+) -> None:
+    """Print trade summary showing all rebalance plans with execution status.
+
+    In the per-strategy architecture, each strategy produces its own plan.
+    This displays each plan separately for clarity.
+
+    Args:
+        plans: List of rebalance plan dicts (one per strategy)
+        dynamodb: boto3 DynamoDB client
+        correlation_id: The workflow correlation ID
+        stage: Environment stage (dev or prod)
+
+    """
+    print(f"\n{colour('REBALANCE PLANS & EXECUTION SUMMARY', 'bold')}")
+    print("=" * 110)
+    print(f"   {colour(f'Found {len(plans)} strategy rebalance plan(s)', 'cyan')}")
+
+    executed_by_symbol = query_executed_trades(dynamodb, correlation_id, stage)
+
+    all_buys = 0
+    all_sells = 0
+    all_holds = 0
+    all_executed = 0
+    all_planned = 0
+
+    for idx, plan in enumerate(plans, 1):
+        print_single_plan_summary(plan, executed_by_symbol, idx, len(plans))
+
+        items = plan.get("items", [])
+        buys = [i for i in items if i.get("action") == "BUY"]
+        sells = [i for i in items if i.get("action") == "SELL"]
+        holds = [i for i in items if i.get("action") == "HOLD"]
+        plan_strategy_id = plan.get("strategy_id") or "unknown"
+        plan_symbols = {i.get("symbol") for i in items if i.get("action") in ("BUY", "SELL")}
+
+        all_buys += len(buys)
+        all_sells += len(sells)
+        all_holds += len(holds)
+        all_planned += len(buys) + len(sells)
+        all_executed += sum(
+            1 for s in plan_symbols
+            if executed_by_symbol.get(f"{plan_strategy_id}::{s}") or executed_by_symbol.get(s)
+        )
+
+    # Cross-strategy totals
+    if len(plans) > 1:
+        print(f"\n{'=' * 110}")
+        print(f"   {colour('CROSS-STRATEGY TOTALS:', 'bold')}")
+        print(f"      Total BUY orders:  {all_buys}")
+        print(f"      Total SELL orders: {all_sells}")
+        print(f"      Total HOLD:        {all_holds}")
+        print(f"      Executed: {colour(str(all_executed), 'green')} / {all_planned}")
+        if all_planned > all_executed:
+            print(f"      Not executed: {colour(str(all_planned - all_executed), 'yellow')}")
 
 
 def print_workflow_data(correlation_id: str, stage: str, events: list[dict[str, Any]]) -> None:
@@ -1008,14 +1084,14 @@ def print_workflow_data(correlation_id: str, stage: str, events: list[dict[str, 
     else:
         print(f"   {colour('No aggregated signal found in DynamoDB', 'yellow')}")
 
-    # Get rebalance plan and execution status from Trade Ledger
-    plan = get_rebalance_plan(dynamodb, correlation_id, stage)
-    if plan:
-        print_trades_execution_summary(plan, dynamodb, correlation_id, stage)
+    # Get all rebalance plans (one per strategy) and execution status
+    plans = get_rebalance_plans(dynamodb, correlation_id, stage)
+    if plans:
+        print_trades_execution_summary(plans, dynamodb, correlation_id, stage)
     else:
-        print(f"   {colour('⚠️  No rebalance plan found in DynamoDB', 'yellow')}")
+        print(f"   {colour('No rebalance plans found in DynamoDB', 'yellow')}")
 
-    if not signal and not plan:
+    if not signal and not plans:
         print("   (Workflow data may have expired or workflow did not reach those stages)")
 
 

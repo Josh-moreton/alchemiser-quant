@@ -1,30 +1,30 @@
-"""Business Unit: strategy_v2 | Status: current.
+"""Business Unit: strategy | Status: current.
 
-Lambda handler for strategy microservice.
+Lambda handler for per-strategy execution.
 
-This is the entry point for the trading workflow. Triggered by:
-1. Coordinator Lambda (multi-node mode) - Runs single strategy file
+Each strategy worker evaluates its DSL file, calculates its own rebalance
+plan, and enqueues trades directly to SQS. No aggregation step required.
+
+Triggered by:
+1. Coordinator Lambda (per-strategy mode) - Runs single strategy file
 2. EventBridge Schedule (direct invocation for testing)
-
-Runs signal generation and publishes PartialSignalGenerated to EventBridge
-for aggregation by the Aggregator Lambda.
 """
 
 from __future__ import annotations
 
+import os
 import sys
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 from handlers.single_file_signal_handler import SingleFileSignalHandler
 from wiring import register_strategy
 
 from the_alchemiser.shared.config.container import ApplicationContainer
-from the_alchemiser.shared.events import (
-    PartialSignalGenerated,
-)
+from the_alchemiser.shared.events import WorkflowFailed
 from the_alchemiser.shared.events.eventbridge_publisher import (
     publish_to_eventbridge,
 )
@@ -41,38 +41,52 @@ configure_application_logging()
 
 logger = get_logger(__name__)
 
+MODULE_NAME = "strategy.lambda_handler"
+
 
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
-    """Handle invocation for signal generation.
+    """Handle invocation for per-strategy execution.
 
-    This handler runs a single DSL strategy file and publishes
-    PartialSignalGenerated for aggregation. Always invoked by the
-    Coordinator Lambda with session_id and dsl_file in the event.
+    Evaluates a single DSL strategy file, calculates its rebalance plan,
+    and enqueues trades directly to SQS.
 
     Args:
-        event: Lambda event containing session_id, dsl_file, allocation, etc.
-        context: Lambda context
+        event: Lambda event containing correlation_id, dsl_file, allocation.
+        context: Lambda context.
 
     Returns:
-        Response indicating success/failure
+        Response indicating success/failure with trade count.
 
     """
-    session_id = event.get("session_id", "")
-    correlation_id = event.get("correlation_id", session_id)
+    correlation_id = event.get("correlation_id", str(uuid.uuid4()))
     dsl_file = event.get("dsl_file", "")
     allocation = Decimal(str(event.get("allocation", "0")))
-    strategy_number = event.get("strategy_number", 0)
-    total_strategies = event.get("total_strategies", 1)
     debug_mode = event.get("debug_mode", False)
 
+    # Derive strategy_id from dsl_file (e.g., '1-KMLM.clj' -> '1-KMLM')
+    strategy_id = Path(dsl_file).stem if dsl_file else ""
+
     # Validate required fields
-    if not session_id or not dsl_file:
-        error_msg = "Missing required fields: session_id and dsl_file are required"
+    if not dsl_file:
+        error_msg = "Missing required field: dsl_file"
+        logger.error(error_msg, extra={"correlation_id": correlation_id})
+        return {
+            "statusCode": 400,
+            "body": {
+                "status": "error",
+                "error": error_msg,
+                "correlation_id": correlation_id,
+            },
+        }
+
+    if allocation <= Decimal("0"):
+        error_msg = f"Invalid allocation for {dsl_file}: {allocation}"
         logger.error(
             error_msg,
             extra={
-                "session_id": session_id,
+                "correlation_id": correlation_id,
                 "dsl_file": dsl_file,
+                "allocation": str(allocation),
             },
         )
         return {
@@ -80,83 +94,96 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             "body": {
                 "status": "error",
                 "error": error_msg,
+                "correlation_id": correlation_id,
             },
         }
 
     logger.info(
-        "Strategy Lambda invoked",
+        "Strategy worker invoked",
         extra={
-            "session_id": session_id,
             "correlation_id": correlation_id,
+            "strategy_id": strategy_id,
             "dsl_file": dsl_file,
             "allocation": str(allocation),
-            "strategy_number": strategy_number,
-            "total_strategies": total_strategies,
             "debug_mode": debug_mode,
         },
     )
 
     try:
-        # Create application container (minimal - no auto-wiring)
+        # Step 1: Wire dependencies
         container = ApplicationContainer()
-        # Wire strategy-specific dependencies
         register_strategy(container)
 
-        # Use single-file handler
+        # Step 2: Evaluate DSL strategy to get target weights
         handler = SingleFileSignalHandler(
             container=container,
             dsl_file=dsl_file,
-            allocation=allocation,
             debug_mode=debug_mode,
         )
 
-        # Generate signals for this single file
         result = handler.generate_signals(correlation_id)
 
         if result is None:
             raise ValueError(f"No signals generated for {dsl_file}")
 
-        # Build PartialSignalGenerated event
-        partial_signal = PartialSignalGenerated(
-            event_id=f"partial-signal-{uuid.uuid4()}",
-            correlation_id=correlation_id,
-            causation_id=session_id,
-            timestamp=datetime.now(UTC),
-            source_module="strategy_v2",
-            source_component="StrategyWorker",
-            session_id=session_id,
-            dsl_file=dsl_file,
-            allocation=allocation,
-            strategy_number=strategy_number,
-            total_strategies=total_strategies,
-            signals_data=result["signals_data"],
-            consolidated_portfolio=result["consolidated_portfolio"],
-            signal_count=result["signal_count"],
-            metadata={"single_file_mode": True},
-            data_freshness=result.get("data_freshness") or {},
-        )
-
-        # Publish to EventBridge (triggers Aggregator)
-        publish_to_eventbridge(partial_signal)
+        target_weights = result["target_weights"]
+        data_freshness = result.get("data_freshness")
 
         logger.info(
-            "Signal generation completed",
+            "DSL evaluation complete, starting rebalance",
             extra={
-                "session_id": session_id,
                 "correlation_id": correlation_id,
+                "strategy_id": strategy_id,
                 "dsl_file": dsl_file,
                 "signal_count": result["signal_count"],
+                "symbols": sorted(target_weights.keys()),
             },
         )
+
+        # Step 3: Execute per-strategy rebalance (positions -> plan -> trades)
+        rebalancer = container.strategy_rebalancer()
+        rebalance_result = rebalancer.execute(
+            strategy_id=strategy_id,
+            dsl_file=dsl_file,
+            allocation=allocation,
+            target_weights=target_weights,
+            correlation_id=correlation_id,
+            data_freshness=data_freshness,
+        )
+
+        logger.info(
+            "Strategy execution completed",
+            extra={
+                "correlation_id": correlation_id,
+                "strategy_id": strategy_id,
+                "dsl_file": dsl_file,
+                "trade_count": rebalance_result.trade_count,
+                "plan_id": rebalance_result.plan_id,
+                "strategy_capital": str(rebalance_result.strategy_capital),
+            },
+        )
+
+        # Report ALL_HOLD to notification session (no trades = nothing for
+        # TradeAggregator to pick up, so strategy worker must report directly)
+        if rebalance_result.trade_count == 0:
+            _report_strategy_completion(
+                correlation_id=correlation_id,
+                strategy_id=strategy_id,
+                dsl_file=dsl_file,
+                outcome="ALL_HOLD",
+                detail={"dsl_file": dsl_file, "trade_count": 0},
+            )
 
         return {
             "statusCode": 200,
             "body": {
                 "status": "success",
-                "session_id": session_id,
                 "correlation_id": correlation_id,
+                "strategy_id": strategy_id,
                 "dsl_file": dsl_file,
-                "signal_count": result["signal_count"],
+                "trade_count": rebalance_result.trade_count,
+                "plan_id": rebalance_result.plan_id,
+                "strategy_capital": str(rebalance_result.strategy_capital),
             },
         }
 
@@ -164,65 +191,157 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         logger.error(
             "Strategy execution failed",
             extra={
-                "session_id": session_id,
                 "correlation_id": correlation_id,
+                "strategy_id": strategy_id,
                 "dsl_file": dsl_file,
                 "error": str(e),
+                "error_type": type(e).__name__,
             },
             exc_info=True,
         )
 
-        # Publish PartialSignalGenerated with success=False to allow aggregator
-        # to proceed with partial results from other strategies
-        try:
-            failure_signal = PartialSignalGenerated(
-                event_id=f"partial-signal-{uuid.uuid4()}",
-                correlation_id=correlation_id,
-                causation_id=session_id,
-                timestamp=datetime.now(UTC),
-                source_module="strategy_v2",
-                source_component="StrategyWorker",
-                session_id=session_id,
-                dsl_file=dsl_file,
-                allocation=allocation,
-                strategy_number=strategy_number,
-                total_strategies=total_strategies,
-                success=False,
-                error_message=f"{type(e).__name__}: {e!s}",
-                signals_data={},
-                consolidated_portfolio={},
-                signal_count=0,
-                metadata={
-                    "single_file_mode": True,
-                    "failed": True,
-                    "exception_type": type(e).__name__,
-                },
-                data_freshness={},
-            )
-            publish_to_eventbridge(failure_signal)
+        # Report FAILED to notification session for consolidated email
+        _report_strategy_completion(
+            correlation_id=correlation_id,
+            strategy_id=strategy_id,
+            dsl_file=dsl_file,
+            outcome="FAILED",
+            detail={
+                "dsl_file": dsl_file,
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
+        )
 
-            logger.info(
-                "Published failure partial signal for aggregation",
-                extra={
-                    "session_id": session_id,
-                    "correlation_id": correlation_id,
-                    "dsl_file": dsl_file,
-                    "error": str(e),
-                },
-            )
-        except Exception as pub_error:
-            logger.error(
-                "Failed to publish failure PartialSignalGenerated event",
-                extra={"error": str(pub_error)},
-            )
+        # Publish WorkflowFailed so notifications can fire
+        _publish_failure_event(
+            correlation_id=correlation_id,
+            strategy_id=strategy_id,
+            dsl_file=dsl_file,
+            error=e,
+        )
 
         return {
             "statusCode": 500,
             "body": {
                 "status": "error",
-                "session_id": session_id,
                 "correlation_id": correlation_id,
+                "strategy_id": strategy_id,
                 "dsl_file": dsl_file,
                 "error": str(e),
             },
         }
+
+
+def _publish_failure_event(
+    correlation_id: str,
+    strategy_id: str,
+    dsl_file: str,
+    error: Exception,
+) -> None:
+    """Publish WorkflowFailed event to EventBridge for notification routing."""
+    try:
+        failure_event = WorkflowFailed(
+            event_id=f"workflow-failed-{uuid.uuid4()}",
+            correlation_id=correlation_id,
+            causation_id=correlation_id,
+            timestamp=datetime.now(UTC),
+            source_module="strategy",
+            source_component="StrategyWorker",
+            workflow_type="strategy_execution",
+            failure_reason=str(error),
+            failure_step="strategy_execution",
+            error_details={
+                "strategy_id": strategy_id,
+                "dsl_file": dsl_file,
+                "exception_type": type(error).__name__,
+            },
+        )
+        publish_to_eventbridge(failure_event)
+
+        logger.info(
+            "Published WorkflowFailed event",
+            extra={
+                "correlation_id": correlation_id,
+                "strategy_id": strategy_id,
+            },
+        )
+    except Exception as pub_error:
+        logger.error(
+            "Failed to publish WorkflowFailed event",
+            extra={
+                "correlation_id": correlation_id,
+                "error": str(pub_error),
+            },
+        )
+
+
+def _report_strategy_completion(
+    correlation_id: str,
+    strategy_id: str,
+    dsl_file: str,
+    outcome: str,
+    detail: dict[str, Any],
+) -> None:
+    """Report strategy completion to notification session for consolidated email.
+
+    Non-fatal: if session recording fails, per-strategy emails still work
+    as a fallback when no notification session exists.
+
+    Args:
+        correlation_id: Shared workflow correlation ID.
+        strategy_id: Strategy identifier.
+        dsl_file: DSL file name.
+        outcome: One of 'ALL_HOLD' or 'FAILED'.
+        detail: Outcome-specific detail dict.
+
+    """
+    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "")
+    if not table_name:
+        return
+
+    try:
+        from the_alchemiser.shared.services.notification_session_service import (
+            NotificationSessionService,
+            publish_all_strategies_completed,
+        )
+
+        session_service = NotificationSessionService(table_name=table_name)
+        completed, total = session_service.record_strategy_completion(
+            correlation_id=correlation_id,
+            strategy_id=strategy_id,
+            dsl_file=dsl_file,
+            outcome=outcome,
+            detail=detail,
+        )
+
+        logger.info(
+            "Reported outcome to notification session",
+            extra={
+                "correlation_id": correlation_id,
+                "strategy_id": strategy_id,
+                "outcome": outcome,
+                "completed_strategies": completed,
+                "total_strategies": total,
+            },
+        )
+
+        if completed >= total > 0:
+            publish_all_strategies_completed(
+                correlation_id,
+                completed,
+                total,
+                "StrategyWorker",
+            )
+
+    except Exception as e:
+        logger.warning(
+            "Failed to report outcome to notification session",
+            extra={
+                "correlation_id": correlation_id,
+                "strategy_id": strategy_id,
+                "outcome": outcome,
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
+        )

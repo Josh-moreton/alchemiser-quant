@@ -30,7 +30,6 @@ from .common import (
     MultiStrategyExecutionResult,
     MultiStrategySummary,
 )
-from .consolidated_portfolio import ConsolidatedPortfolio
 from .errors import (
     ErrorDetailInfo,
     ErrorNotificationData,
@@ -99,7 +98,6 @@ __all__ = [
     "AssetInfo",
     "BuyingPowerResult",
     "Configuration",
-    "ConsolidatedPortfolio",
     "EnrichedAccountSummaryView",
     "Error",
     "ErrorContextData",

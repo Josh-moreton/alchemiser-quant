@@ -121,6 +121,12 @@ def _page_options_hedging() -> None:
     options_hedging.show()
 
 
+def _page_pnl_table() -> None:
+    from pages import pnl_table
+
+    pnl_table.show()
+
+
 # ---------------------------------------------------------------------------
 # Authentication
 # ---------------------------------------------------------------------------
@@ -249,6 +255,7 @@ def show_dashboard() -> None:
     nav_pages = [
         st.Page(_page_portfolio_overview, title="Portfolio Overview", default=True),
         st.Page(_page_forward_projection, title="Forward Projection"),
+        st.Page(_page_pnl_table, title="Daily PnL Table"),
         st.Page(_page_last_run_analysis, title="Last Run Analysis"),
         st.Page(_page_trade_history, title="Trade History"),
         st.Page(_page_strategy_performance, title="Strategy Performance"),

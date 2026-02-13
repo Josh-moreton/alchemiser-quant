@@ -123,9 +123,9 @@ class DashboardSettings(BaseModel):
         default="",
         description="DynamoDB table name for account data snapshots",
     )
-    strategy_performance_table: str = Field(
+    strategy_performance_bucket: str = Field(
         default="",
-        description="DynamoDB table name for strategy performance snapshots",
+        description="S3 bucket for strategy analytics and reports",
     )
     account_id: str = Field(
         default="",
@@ -212,9 +212,9 @@ class DashboardSettings(BaseModel):
                 "ACCOUNT_DATA_TABLE",
                 f"alchemiser-{stage}-account-data",
             ),
-            strategy_performance_table=_get_secret(
-                "STRATEGY_PERFORMANCE_TABLE",
-                f"alchemiser-{stage}-strategy-performance",
+            strategy_performance_bucket=_get_secret(
+                "PERFORMANCE_REPORTS_BUCKET",
+                f"alchemiser-{stage}-reports",
             ),
             account_id=account_id,
             aws_region=region,

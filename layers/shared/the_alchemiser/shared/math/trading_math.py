@@ -14,7 +14,7 @@ The module provides the mathematical foundation for:
 - Slippage and transaction cost calculations
 - Allocation discrepancy calculations
 
-For portfolio rebalancing logic, use `portfolio_v2.core.planner.RebalancePlanCalculator`.
+For portfolio rebalancing logic, use `the_alchemiser.shared.services.rebalance_plan_calculator`.
 
 All functions follow functional programming principles with no side effects,
 ensuring predictable behavior and easy testing.

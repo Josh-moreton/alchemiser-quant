@@ -58,11 +58,8 @@ class ApplicationContainer(containers.DeclarativeContainer):
     strategy_market_data_adapter: Any = None
     strategy_orchestrator: Any = None
 
-    # Portfolio module
-    portfolio_data_adapter: Any = None
-    portfolio_state_reader: Any = None
-    portfolio_planner: Any = None
-    portfolio_service: Any = None
+    # Strategy rebalancer (per-strategy books)
+    strategy_rebalancer: Any = None
 
     @classmethod
     def create_for_environment(cls, env: str = "development") -> ApplicationContainer:
@@ -115,11 +112,9 @@ class ApplicationContainer(containers.DeclarativeContainer):
         # (e.g., Strategy Lambda doesn't need alpaca-py from Execution module)
         exec_wiring = importlib.import_module("the_alchemiser.execution_v2.wiring")
         strategy_wiring = importlib.import_module("the_alchemiser.strategy_v2.wiring")
-        portfolio_wiring = importlib.import_module("the_alchemiser.portfolio_v2.wiring")
 
         exec_wiring.register_execution(container)
         strategy_wiring.register_strategy(container)
-        portfolio_wiring.register_portfolio(container)
 
         logger.info("ApplicationContainer created successfully", extra={"environment": env})
         return container

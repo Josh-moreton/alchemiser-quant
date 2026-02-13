@@ -11,9 +11,9 @@ This module provides a clean, boundary-enforcing strategy system that:
 
 Architecture:
 - Strategy Worker Lambda (lambda_handler.py) processes single DSL files
-- Signal handlers live under `strategy_v2.handlers` and emit
-    `PartialSignalGenerated` events
-- Aggregation of partial signals is handled by the aggregator service
+- Each worker evaluates DSL, calculates its own rebalance plan,
+    and enqueues trades independently (per-strategy books)
+- No aggregation step -- each strategy operates as an independent book
 
 Note:
 - Legacy registration helpers and deprecated handler aliases have been

@@ -354,7 +354,7 @@ class NotificationService:
                 "last_successful_run_id": "N/A",
                 "last_successful_run_time_utc": "N/A",
                 "quick_actions": quick_actions,
-                "logs_url": self._build_logs_url(event.correlation_id),
+                "logs_url": self.build_logs_url(event.correlation_id),
             }
 
             html_body = render_daily_run_failure_html(context)
@@ -491,7 +491,7 @@ class NotificationService:
             "monthly_pnl": monthly_pnl,
             "yearly_pnl": yearly_pnl,
             "warnings": [],
-            "logs_url": self._build_logs_url(event.correlation_id),
+            "logs_url": self.build_logs_url(event.correlation_id),
             # Partial success specific
             "non_fractionable_skipped_symbols": non_fractionable_skipped,
             # Failure details for partial success with failures
@@ -876,7 +876,7 @@ Correlation ID: {event.correlation_id}
         """
         return [addr.strip() for addr in self.notification_email.split(",")]
 
-    def _build_logs_url(self, correlation_id: str) -> str:
+    def build_logs_url(self, correlation_id: str) -> str:
         """Build CloudWatch Logs Insights URL filtered by correlation ID.
 
         Args:

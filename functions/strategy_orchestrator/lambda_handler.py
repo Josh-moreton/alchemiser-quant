@@ -1,19 +1,19 @@
-"""Business Unit: coordinator_v2 | Status: current.
+"""Business Unit: coordinator | Status: current.
 
 Lambda handler for Strategy Coordinator microservice.
 
 The Coordinator orchestrates parallel execution of DSL strategy files by:
 1. Reading strategy configuration (DSL files and allocations)
-2. Creating an aggregation session in DynamoDB
-3. Invoking Strategy Lambda once per DSL file (async)
+2. Invoking Strategy Lambda once per DSL file (async)
 
-This enables horizontal scaling where each strategy file runs in its
-own Lambda invocation, with results aggregated by the Aggregator Lambda.
+Each strategy worker independently evaluates DSL, calculates rebalance,
+and enqueues trades. No aggregation session or planner step required.
 """
 
 from __future__ import annotations
 
 import math
+import os
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -28,9 +28,6 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
     publish_to_eventbridge,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
-from the_alchemiser.shared.services.aggregation_session_service import (
-    AggregationSessionService,
-)
 
 # Initialize logging on cold start
 configure_application_logging()
@@ -43,28 +40,25 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
     This handler:
     1. Reads DSL strategy configuration
-    2. Creates aggregation session in DynamoDB
+    2. Validates allocations sum to ~1.0
     3. Invokes Strategy Lambda once per file (async parallel)
-    4. Returns immediately (aggregation happens asynchronously)
+    4. Returns immediately (each worker executes independently)
 
     Args:
-        event: Lambda event (from EventBridge schedule)
-        context: Lambda context
+        event: Lambda event (from EventBridge schedule or direct invoke).
+        context: Lambda context.
 
     Returns:
-        Response with session_id and invocation count.
+        Response with correlation_id and invocation count.
 
     """
-    # Generate correlation ID for this workflow
     correlation_id = event.get("correlation_id") or f"workflow-{uuid.uuid4()}"
-    session_id = correlation_id  # Use correlation_id as session_id
     scheduled_by = event.get("scheduled_by", "direct")
 
     logger.info(
-        "Coordinator Lambda invoked - orchestrating parallel strategy execution",
+        "Coordinator invoked - dispatching per-strategy execution",
         extra={
             "correlation_id": correlation_id,
-            "session_id": session_id,
             "event_source": event.get("source", "schedule"),
             "scheduled_by": scheduled_by,
         },
@@ -75,15 +69,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         coordinator_settings = CoordinatorSettings.from_environment()
         app_settings = Settings()
 
-        # Validate required environment variables
-        if not coordinator_settings.aggregation_table_name:
-            raise ValueError(
-                "AGGREGATION_TABLE_NAME environment variable is required for multi-node mode"
-            )
         if not coordinator_settings.strategy_lambda_function_name:
-            raise ValueError(
-                "STRATEGY_FUNCTION_NAME environment variable is required for multi-node mode"
-            )
+            raise ValueError("STRATEGY_FUNCTION_NAME environment variable is required")
 
         # Get DSL files and allocations
         dsl_files = app_settings.strategy.dsl_files
@@ -97,8 +84,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             (dsl_file, Decimal(str(dsl_allocations.get(dsl_file, 0.0)))) for dsl_file in dsl_files
         ]
 
-        # Validate allocations sum to ~1.0 using math.isclose per coding guidelines
-        # Fail-fast: reject invalid configurations before creating sessions or invoking workers
+        # Validate allocations sum to ~1.0
         total_allocation = float(sum(alloc for _, alloc in strategy_configs))
         if not math.isclose(total_allocation, 1.0, rel_tol=0.01):
             raise ValueError(
@@ -109,40 +95,35 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         logger.info(
             "Loaded strategy configuration",
             extra={
+                "correlation_id": correlation_id,
                 "dsl_files": dsl_files,
                 "total_strategies": len(dsl_files),
                 "total_allocation": total_allocation,
             },
         )
 
-        # Create aggregation session in DynamoDB
-        session_service = AggregationSessionService(
-            table_name=coordinator_settings.aggregation_table_name
-        )
-
-        session = session_service.create_session(
-            session_id=session_id,
-            correlation_id=correlation_id,
-            strategy_configs=strategy_configs,
-            timeout_seconds=coordinator_settings.aggregation_timeout_seconds,
-        )
-
         # Invoke Strategy Lambda for each file (async parallel)
-        invoker = StrategyInvoker(function_name=coordinator_settings.strategy_lambda_function_name)
+        invoker = StrategyInvoker(
+            function_name=coordinator_settings.strategy_lambda_function_name,
+        )
 
         request_ids = invoker.invoke_all_strategies(
-            session_id=session_id,
             correlation_id=correlation_id,
             strategy_configs=strategy_configs,
+        )
+
+        # Create notification session for consolidated email
+        _create_notification_session(
+            correlation_id=correlation_id,
+            total_strategies=len(strategy_configs),
+            strategy_files=dsl_files,
         )
 
         logger.info(
             "Coordinator completed - strategies dispatched",
             extra={
-                "session_id": session_id,
                 "correlation_id": correlation_id,
                 "strategies_invoked": len(request_ids),
-                "timeout_seconds": coordinator_settings.aggregation_timeout_seconds,
             },
         )
 
@@ -150,21 +131,19 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             "statusCode": 200,
             "body": {
                 "status": "dispatched",
-                "session_id": session_id,
                 "correlation_id": correlation_id,
                 "strategies_invoked": len(request_ids),
                 "strategy_files": dsl_files,
-                "timeout_at": session["timeout_at"],
             },
         }
 
     except Exception as e:
         logger.error(
-            "Coordinator Lambda failed",
+            "Coordinator failed",
             extra={
                 "correlation_id": correlation_id,
-                "session_id": session_id,
                 "error": str(e),
+                "error_type": type(e).__name__,
             },
             exc_info=True,
         )
@@ -173,10 +152,10 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         try:
             failure_event = WorkflowFailed(
                 correlation_id=correlation_id,
-                causation_id=session_id,
+                causation_id=correlation_id,
                 event_id=f"workflow-failed-{uuid.uuid4()}",
                 timestamp=datetime.now(UTC),
-                source_module="coordinator_v2",
+                source_module="coordinator",
                 source_component="lambda_handler",
                 workflow_type="strategy_coordination",
                 failure_reason=str(e),
@@ -195,7 +174,49 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             "body": {
                 "status": "error",
                 "correlation_id": correlation_id,
-                "session_id": session_id,
                 "error": str(e),
             },
         }
+
+
+def _create_notification_session(
+    correlation_id: str,
+    total_strategies: int,
+    strategy_files: list[str],
+) -> None:
+    """Create a notification session for consolidated email delivery.
+
+    Non-fatal: if session creation fails, strategies fall back to
+    per-strategy emails (backward compatible).
+
+    Args:
+        correlation_id: Shared workflow correlation ID.
+        total_strategies: Number of strategies dispatched.
+        strategy_files: List of DSL file names.
+
+    """
+    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "")
+    if not table_name:
+        logger.debug("EXECUTION_RUNS_TABLE_NAME not set - skipping notification session")
+        return
+
+    try:
+        from the_alchemiser.shared.services.notification_session_service import (
+            NotificationSessionService,
+        )
+
+        session_service = NotificationSessionService(table_name=table_name)
+        session_service.create_session(
+            correlation_id=correlation_id,
+            total_strategies=total_strategies,
+            strategy_files=strategy_files,
+        )
+    except Exception as e:
+        logger.warning(
+            "Failed to create notification session",
+            extra={
+                "correlation_id": correlation_id,
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
+        )

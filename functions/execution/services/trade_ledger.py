@@ -85,6 +85,7 @@ class TradeLedgerService:
         quote_at_fill: QuoteModel | None = None,
         strategy_attribution: dict[str, dict[str, float]] | None = None,
         execution_quality: dict[str, Any] | None = None,
+        strategy_id: str | None = None,
     ) -> TradeLedgerEntry | None:
         """Record a filled order to the trade ledger.
 
@@ -99,7 +100,6 @@ class TradeLedgerService:
             quote_at_fill: Optional market quote at time of fill
             strategy_attribution: Optional direct strategy attribution from TradeMessage
                 metadata. Format: {symbol: {strategy_name: weight_float}}
-                Takes precedence over rebalance_plan metadata when provided.
             execution_quality: Optional dict with execution quality metrics:
                 - expected_price: Decimal - mid price at order submission
                 - slippage_bps: Decimal - slippage in basis points
@@ -108,6 +108,8 @@ class TradeLedgerService:
                 - execution_steps: int - walk-the-book steps used (1-4)
                 - time_to_fill_ms: int - milliseconds to fill
                 - quote_timestamp: datetime - when quote was captured
+            strategy_id: Strategy identifier from TradeMessage. When provided,
+                this is the definitive attribution source (per-strategy books).
 
         Returns:
             TradeLedgerEntry if order was filled and recorded, None otherwise
@@ -117,9 +119,13 @@ class TradeLedgerService:
         if not self._is_order_recordable(order_result, correlation_id):
             return None
 
-        # Extract strategy attribution (with client_order_id fallback)
+        # Extract strategy attribution
         strategy_names, strategy_weights = self._extract_strategy_attribution(
-            order_result.symbol, rebalance_plan, order_result, strategy_attribution
+            order_result.symbol,
+            rebalance_plan,
+            order_result,
+            strategy_attribution,
+            strategy_id,
         )
 
         # Extract and validate quote data
@@ -357,29 +363,73 @@ class TradeLedgerService:
         rebalance_plan: RebalancePlan | None,
         order_result: OrderResult | None = None,
         direct_attribution: dict[str, dict[str, float]] | None = None,
+        strategy_id: str | None = None,
     ) -> tuple[list[str], dict[str, Decimal] | None]:
-        """Extract strategy attribution from direct attribution, rebalance plan, or client_order_id.
+        """Extract strategy attribution for a trade.
 
-        Attempts attribution in order:
-        1. Direct attribution dict (from TradeMessage.metadata)
-        2. Rebalance plan metadata (has full multi-strategy weights)
-        3. Client order ID parsing (fallback for single-strategy attribution)
+        Per-strategy books architecture: each trade belongs to exactly one
+        strategy. The strategy_id from TradeMessage is the primary source.
+
+        Fallback chain:
+        1. strategy_id from TradeMessage (per-strategy books)
+        2. Direct attribution dict (from TradeMessage.metadata)
+        3. Client order ID parsing (safety net)
 
         Args:
-            symbol: Trading symbol
-            rebalance_plan: Optional rebalance plan with strategy metadata
-            order_result: Optional order result with client_order_id for fallback
-            direct_attribution: Optional direct strategy attribution dict from
-                TradeMessage.metadata. Format: {symbol: {strategy_name: weight_float}}
+            symbol: Trading symbol.
+            rebalance_plan: Optional rebalance plan (unused in per-strategy mode).
+            order_result: Optional order result with client_order_id for fallback.
+            direct_attribution: Optional attribution from TradeMessage.metadata.
+            strategy_id: Strategy identifier from TradeMessage.
 
         Returns:
-            Tuple of (strategy_names, strategy_weights)
+            Tuple of (strategy_names, strategy_weights).
 
         """
-        # Normalize symbol for lookup
         symbol_upper = symbol.strip().upper()
 
-        # Try direct attribution first (from TradeMessage.metadata)
+        # Primary: strategy_id from TradeMessage (per-strategy books)
+        if strategy_id:
+            # Cross-check against other attribution sources for consistency
+            if direct_attribution:
+                symbol_attr = direct_attribution.get(symbol_upper, {}) or direct_attribution.get(
+                    symbol, {}
+                )
+                if symbol_attr and strategy_id not in symbol_attr:
+                    logger.warning(
+                        "Strategy ID conflicts with direct attribution",
+                        extra={
+                            "symbol": symbol_upper,
+                            "strategy_id": strategy_id,
+                            "attribution_strategies": list(symbol_attr.keys()),
+                            "resolution": "using strategy_id (authoritative)",
+                        },
+                    )
+            if order_result and order_result.client_order_id:
+                parsed = parse_client_order_id(order_result.client_order_id)
+                if parsed:
+                    parsed_id = parsed.get("strategy_id")
+                    if parsed_id and parsed_id != "unknown" and parsed_id != strategy_id:
+                        logger.warning(
+                            "Strategy ID conflicts with client_order_id",
+                            extra={
+                                "symbol": symbol_upper,
+                                "strategy_id": strategy_id,
+                                "client_order_strategy": parsed_id,
+                                "resolution": "using strategy_id (authoritative)",
+                            },
+                        )
+            logger.debug(
+                "Strategy attribution from strategy_id",
+                extra={
+                    "symbol": symbol_upper,
+                    "strategy_id": strategy_id,
+                    "source": "trade_message",
+                },
+            )
+            return [strategy_id], {strategy_id: Decimal("1.0")}
+
+        # Fallback: direct attribution from metadata
         if direct_attribution:
             symbol_attr = direct_attribution.get(symbol_upper, {}) or direct_attribution.get(
                 symbol, {}
@@ -399,12 +449,10 @@ class TradeLedgerService:
                 )
                 return strategy_names, strategy_weights
 
-        # Try rebalance plan metadata second (has full multi-strategy weights)
+        # Fallback: rebalance plan metadata (backward-compat with aggregation flow)
         if rebalance_plan and rebalance_plan.metadata:
             strategy_attr = rebalance_plan.metadata.get("strategy_attribution", {})
-            # Try exact match and uppercase fallback
             symbol_attr = strategy_attr.get(symbol_upper, {}) or strategy_attr.get(symbol, {})
-
             if symbol_attr:
                 strategy_names = list(symbol_attr.keys())
                 strategy_weights = {
@@ -420,35 +468,25 @@ class TradeLedgerService:
                 )
                 return strategy_names, strategy_weights
 
-        # Fallback: Extract from client_order_id (single-strategy attribution)
+        # Safety net: client_order_id parsing
         if order_result and order_result.client_order_id:
             parsed = parse_client_order_id(order_result.client_order_id)
             if parsed:
-                strategy_id = parsed.get("strategy_id")
-                if strategy_id and strategy_id != "unknown":
+                parsed_id = parsed.get("strategy_id")
+                if parsed_id and parsed_id != "unknown":
                     logger.info(
                         "Strategy attribution from client_order_id fallback",
                         extra={
                             "symbol": symbol_upper,
-                            "strategy_id": strategy_id,
-                            "client_order_id": order_result.client_order_id,
+                            "strategy_id": parsed_id,
                             "source": "client_order_id",
                         },
                     )
-                    # Single strategy gets 100% weight
-                    return [strategy_id], {strategy_id: Decimal("1.0")}
+                    return [parsed_id], {parsed_id: Decimal("1.0")}
 
-        # No attribution available
         logger.debug(
             "No strategy attribution available",
-            extra={
-                "symbol": symbol_upper,
-                "has_plan": rebalance_plan is not None,
-                "has_metadata": rebalance_plan.metadata is not None if rebalance_plan else False,
-                "has_client_order_id": order_result.client_order_id is not None
-                if order_result
-                else False,
-            },
+            extra={"symbol": symbol_upper},
         )
         return [], None
 

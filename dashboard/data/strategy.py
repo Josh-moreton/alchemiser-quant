@@ -2,8 +2,8 @@
 
 Data access layer for the Strategy Performance dashboard page.
 
-Reads from two DynamoDB tables:
-- StrategyPerformanceTable: pre-computed P&L snapshots (LATEST + time-series)
+Reads from two sources:
+- S3 PerformanceReportsBucket: strategy analytics Parquet/JSON (metrics, daily returns)
 - TradeLedgerTable: strategy lots, trade links, and strategy metadata
 
 All functions are cached via st.cache_data for efficient Streamlit re-renders.
@@ -11,15 +11,21 @@ All functions are cached via st.cache_data for efficient Streamlit re-renders.
 
 from __future__ import annotations
 
+import io
+import json
 import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any
 
 import boto3
+import pandas as pd
+from botocore.exceptions import ClientError
 import streamlit as st
 from boto3.dynamodb.conditions import Attr, Key
 from settings import get_dashboard_settings
+
+from data import account as account_access
 
 logger = logging.getLogger(__name__)
 
@@ -50,13 +56,15 @@ def _get_trade_ledger_table() -> DynamoDBTable:
     return dynamodb.Table(table_name)
 
 
-def _get_strategy_performance_table() -> DynamoDBTable:
-    """Get a boto3 Table resource for strategy performance snapshots."""
+def _get_s3_client() -> Any:
+    """Get a boto3 S3 client with dashboard credentials."""
     settings = get_dashboard_settings()
-    dynamodb = boto3.resource("dynamodb", **settings.get_boto3_client_kwargs())
-    table_name = settings.strategy_performance_table
-    logger.info("Using strategy performance table: %s (stage=%s)", table_name, settings.stage)
-    return dynamodb.Table(table_name)
+    return boto3.client("s3", **settings.get_boto3_client_kwargs())
+
+
+def _get_reports_bucket() -> str:
+    """Get the performance reports S3 bucket name."""
+    return get_dashboard_settings().strategy_performance_bucket
 
 
 def _has_credentials() -> bool:
@@ -66,55 +74,67 @@ def _has_credentials() -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Strategy Performance Table (pre-computed snapshots)
+# Strategy Analytics (from S3 Parquet/JSON)
 # ---------------------------------------------------------------------------
+
+S3_ANALYTICS_PREFIX = "strategy-analytics"
+S3_REPORTS_PREFIX = "strategy-reports"
 
 
 @st.cache_data(ttl=60)
 def get_all_strategy_snapshots() -> list[dict[str, Any]]:
-    """Fetch the LATEST performance snapshot for every strategy.
+    """Fetch the latest metrics for every strategy from S3.
 
-    Queries PK=LATEST, SK begins_with STRATEGY# from the
-    StrategyPerformanceTable. Returns one dict per strategy with
-    realized_pnl, win_rate, completed_trades, etc.
+    Reads the summary.parquet written by the Strategy Analytics Lambda.
+    Returns one dict per strategy with realized_pnl, win_rate, etc.
     """
     if not _has_credentials():
         return []
 
     try:
-        table = _get_strategy_performance_table()
-        response = table.query(
-            KeyConditionExpression=(Key("PK").eq("LATEST") & Key("SK").begins_with("STRATEGY#")),
+        s3 = _get_s3_client()
+        bucket = _get_reports_bucket()
+        response = s3.get_object(
+            Bucket=bucket,
+            Key=f"{S3_ANALYTICS_PREFIX}/summary.parquet",
         )
-        items = response.get("Items", [])
+        buf = io.BytesIO(response["Body"].read())
+        df = pd.read_parquet(buf)
 
-        # Handle pagination (unlikely for LATEST but be safe)
-        while "LastEvaluatedKey" in response:
-            response = table.query(
-                KeyConditionExpression=(
-                    Key("PK").eq("LATEST") & Key("SK").begins_with("STRATEGY#")
+        if df.empty:
+            return []
+
+        snapshots = []
+        for _, row in df.iterrows():
+            snapshots.append({
+                "strategy_name": row.get("strategy_name", ""),
+                "realized_pnl": float(row.get("total_realized_pnl", 0)),
+                "current_holdings_value": float(row.get("current_holdings_value", 0)),
+                "current_holdings": int(row.get("current_holdings", 0)),
+                "completed_trades": int(row.get("total_trades", 0)),
+                "winning_trades": int(row.get("winning_trades", 0)),
+                "losing_trades": int(row.get("losing_trades", 0)),
+                "win_rate": float(row.get("win_rate", 0)),
+                "avg_profit_per_trade": float(row.get("avg_profit_per_trade", 0)),
+                "pnl_sharpe": float(row.get("pnl_sharpe", 0)),
+                "max_drawdown": float(row.get("max_drawdown", 0)),
+                "max_drawdown_pct": float(row.get("max_drawdown_pct", 0)),
+                "annualized_volatility": float(row.get("annualized_volatility", 0)),
+                "profit_factor": (
+                    float(row["profit_factor"])
+                    if row.get("profit_factor") is not None
+                    and not pd.isna(row.get("profit_factor"))
+                    else None
                 ),
-                ExclusiveStartKey=response["LastEvaluatedKey"],
-            )
-            items.extend(response.get("Items", []))
+            })
+        return snapshots
 
-        return [
-            {
-                "strategy_name": item.get("strategy_name", ""),
-                "realized_pnl": _safe_decimal(item.get("realized_pnl")),
-                "current_holdings_value": _safe_decimal(item.get("current_holdings_value")),
-                "current_holdings": int(item.get("current_holdings", 0)),
-                "completed_trades": int(item.get("completed_trades", 0)),
-                "winning_trades": int(item.get("winning_trades", 0)),
-                "losing_trades": int(item.get("losing_trades", 0)),
-                "win_rate": _safe_decimal(item.get("win_rate")),
-                "avg_profit_per_trade": _safe_decimal(item.get("avg_profit_per_trade")),
-                "snapshot_timestamp": item.get("snapshot_timestamp", ""),
-            }
-            for item in items
-            if item.get("strategy_name")
-        ]
-
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "NoSuchKey":
+            logger.info("No strategy analytics summary found yet")
+            return []
+        st.error(f"Error loading strategy snapshots: {e}")
+        return []
     except Exception as e:
         st.error(f"Error loading strategy snapshots: {e}")
         return []
@@ -122,72 +142,133 @@ def get_all_strategy_snapshots() -> list[dict[str, Any]]:
 
 @st.cache_data(ttl=60)
 def get_strategy_time_series(strategy_name: str) -> list[dict[str, Any]]:
-    """Fetch historical performance snapshots for a single strategy.
+    """Fetch historical daily returns for a single strategy from S3.
 
-    Queries PK=STRATEGY#{name} from the StrategyPerformanceTable.
-    Items have a 90-day TTL so this returns up to ~90 days of data.
+    Reads the daily_returns.parquet written by the Strategy Analytics Lambda.
+    Returns a list of dicts with ``date`` and ``realized_pnl`` (cumulative).
     """
     if not _has_credentials():
         return []
 
     try:
-        table = _get_strategy_performance_table()
-        response = table.query(
-            KeyConditionExpression=(
-                Key("PK").eq(f"STRATEGY#{strategy_name}") & Key("SK").begins_with("SNAPSHOT#")
-            ),
-            ScanIndexForward=True,  # oldest first
+        s3 = _get_s3_client()
+        bucket = _get_reports_bucket()
+        response = s3.get_object(
+            Bucket=bucket,
+            Key=f"{S3_ANALYTICS_PREFIX}/{strategy_name}/daily_returns.parquet",
         )
-        items = response.get("Items", [])
+        buf = io.BytesIO(response["Body"].read())
+        df = pd.read_parquet(buf)
 
-        while "LastEvaluatedKey" in response:
-            response = table.query(
-                KeyConditionExpression=(
-                    Key("PK").eq(f"STRATEGY#{strategy_name}") & Key("SK").begins_with("SNAPSHOT#")
-                ),
-                ScanIndexForward=True,
-                ExclusiveStartKey=response["LastEvaluatedKey"],
-            )
-            items.extend(response.get("Items", []))
+        if df.empty:
+            return []
+
+        df["date"] = pd.to_datetime(df["date"], utc=True)
+        df = df.sort_values("date")
+
+        # Build cumulative P&L for time-series display
+        cum_pnl = df["pnl"].cumsum()
 
         return [
             {
-                "snapshot_timestamp": item.get("snapshot_timestamp", ""),
-                "realized_pnl": _safe_decimal(item.get("realized_pnl")),
-                "current_holdings_value": _safe_decimal(item.get("current_holdings_value")),
-                "current_holdings": int(item.get("current_holdings", 0)),
-                "completed_trades": int(item.get("completed_trades", 0)),
-                "winning_trades": int(item.get("winning_trades", 0)),
-                "losing_trades": int(item.get("losing_trades", 0)),
-                "win_rate": _safe_decimal(item.get("win_rate")),
-                "avg_profit_per_trade": _safe_decimal(item.get("avg_profit_per_trade")),
+                "snapshot_timestamp": row["date"].isoformat(),
+                "realized_pnl": float(cum_val),
+                "daily_pnl": float(row["pnl"]),
             }
-            for item in items
+            for (_, row), cum_val in zip(df.iterrows(), cum_pnl)
         ]
 
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "NoSuchKey":
+            logger.info("No daily returns found for %s", strategy_name)
+            return []
+        st.error(f"Error loading time series for {strategy_name}: {e}")
+        return []
     except Exception as e:
         st.error(f"Error loading time series for {strategy_name}: {e}")
         return []
 
 
 @st.cache_data(ttl=60)
-def get_capital_deployed() -> float | None:
-    """Fetch the latest capital deployed percentage."""
+def get_strategy_metrics(strategy_name: str) -> dict[str, Any] | None:
+    """Fetch per-strategy risk/return metrics from S3 JSON.
+
+    Reads the metrics.json written by the Strategy Analytics Lambda.
+    """
     if not _has_credentials():
         return None
 
     try:
-        table = _get_strategy_performance_table()
-        response = table.get_item(
-            Key={"PK": "LATEST", "SK": "CAPITAL_DEPLOYED"},
+        s3 = _get_s3_client()
+        bucket = _get_reports_bucket()
+        response = s3.get_object(
+            Bucket=bucket,
+            Key=f"{S3_ANALYTICS_PREFIX}/{strategy_name}/metrics.json",
         )
-        item = response.get("Item")
-        if item:
-            return _safe_decimal(item.get("capital_deployed_pct"))
+        return json.loads(response["Body"].read().decode("utf-8"))  # type: ignore[no-any-return]
+
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "NoSuchKey":
+            return None
+        logger.warning("Failed to load metrics for %s: %s", strategy_name, e)
         return None
+    except Exception as e:
+        logger.warning("Failed to load metrics for %s: %s", strategy_name, e)
+        return None
+
+
+@st.cache_data(ttl=60)
+def get_strategy_tearsheet_url(strategy_name: str) -> str | None:
+    """Generate a presigned URL for the quantstats tearsheet HTML.
+
+    Returns a URL valid for 1 hour, or None if the report does not exist.
+    """
+    if not _has_credentials():
+        return None
+
+    try:
+        s3 = _get_s3_client()
+        bucket = _get_reports_bucket()
+        key = f"{S3_REPORTS_PREFIX}/{strategy_name}/tearsheet.html"
+
+        # Check if the object exists first
+        s3.head_object(Bucket=bucket, Key=key)
+
+        url: str = s3.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket, "Key": key},
+            ExpiresIn=3600,
+        )
+        return url
 
     except Exception:
         return None
+
+
+@st.cache_data(ttl=60)
+def get_capital_deployed() -> float | None:
+    """Compute capital deployed percentage from strategy snapshots.
+
+    Derives this from the total current holdings value relative to
+    portfolio equity. Returns None if data is unavailable.
+    """
+    snapshots = get_all_strategy_snapshots()
+    if not snapshots:
+        return None
+
+    total_holdings_value = sum(s.get("current_holdings_value", 0) for s in snapshots)
+    if total_holdings_value <= 0:
+        return None
+
+    # Get portfolio equity from account data
+    try:
+        account = account_access.get_latest_account_data()
+        if account and float(account.get("equity", 0)) > 0:
+            return (total_holdings_value / float(account["equity"])) * 100.0
+    except Exception:
+        logger.exception("Failed to compute capital deployed from account data")
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -398,6 +479,27 @@ def get_all_strategy_metadata() -> dict[str, dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Attribution Coverage / Data Quality
 # ---------------------------------------------------------------------------
+
+
+@st.cache_data(ttl=120)
+def get_current_price_map() -> dict[str, float]:
+    """Build a symbol -> current_price mapping from account positions.
+
+    Used by the open lots view to compute per-lot unrealized P&L.
+    Returns an empty dict if positions cannot be loaded.
+    """
+    try:
+        positions = account_access.get_latest_positions()
+        if not positions:
+            return {}
+        return {
+            pos.symbol: float(pos.current_price)
+            for pos in positions
+            if hasattr(pos, "symbol") and hasattr(pos, "current_price")
+        }
+    except Exception:
+        logger.warning("Failed to load current prices for unrealized P&L", exc_info=True)
+        return {}
 
 
 @st.cache_data(ttl=900)  # 15-min TTL — full table scan, call sparingly

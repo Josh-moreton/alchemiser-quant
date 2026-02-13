@@ -11,12 +11,15 @@ Trigger: EventBridge rule matching TradeExecuted events.
 
 from __future__ import annotations
 
+import calendar
 import json
+import os
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+import boto3
 from config import TradeAggregatorSettings
 from service import TradeAggregatorService
 
@@ -27,6 +30,7 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
     unwrap_eventbridge_event,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
+from the_alchemiser.shared.services.account_data_reader import AccountDataReader
 from the_alchemiser.shared.services.pnl_service import PnLService
 
 # Initialize logging on cold start
@@ -251,6 +255,15 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
         # Publish to EventBridge (triggers Notifications Lambda)
         publish_to_eventbridge(all_trades_event)
+
+        # Report TRADED strategy to notification session for consolidated email
+        _report_strategy_traded(
+            correlation_id=correlation_id,
+            run_id=run_id,
+            strategy_id=run_metadata.get("strategy_id", ""),
+            dsl_file=run_metadata.get("dsl_file", ""),
+            all_trades_detail=all_trades_event.model_dump(mode="json"),
+        )
 
         # Mark run as completed
         aggregator_service.mark_run_completed(run_id)
@@ -479,10 +492,11 @@ def _capture_capital_deployed_pct(correlation_id: str) -> Decimal | None:
 
 
 def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
-    """Fetch P&L metrics from Alpaca for email notifications.
+    """Fetch P&L metrics from DynamoDB for email notifications.
 
-    Fetches the last 3 calendar months of P&L data (e.g., November, December,
-    January MTD) for display in email notifications.
+    Reads deposit-adjusted daily P&L records written by the account_data Lambda,
+    then aggregates into the last 3 calendar months for display in emails.
+    This uses the same data source as the dashboard, ensuring consistency.
 
     Gracefully handles errors - P&L is informational and shouldn't block notifications.
 
@@ -500,43 +514,90 @@ def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
         "yearly_pnl": {},
     }
 
-    try:
-        pnl_service = PnLService(correlation_id=correlation_id)
+    table_name = os.environ.get("ACCOUNT_DATA_TABLE", "")
+    if not table_name:
+        logger.warning(
+            "ACCOUNT_DATA_TABLE not configured, skipping P&L metrics",
+            extra={"correlation_id": correlation_id},
+        )
+        return empty_pnl
 
-        # Fetch last 3 calendar months (e.g., Nov, Dec, Jan MTD)
-        months_data: list[dict[str, Any]] = []
-        try:
-            pnl_list = pnl_service.get_last_n_calendar_months_pnl(n_months=3)
-            for pnl_data in pnl_list:
-                months_data.append(
-                    {
-                        "period": pnl_data.period,
-                        "start_date": pnl_data.start_date,
-                        "end_date": pnl_data.end_date,
-                        "total_pnl": float(pnl_data.total_pnl) if pnl_data.total_pnl else None,
-                        "total_pnl_pct": (
-                            float(pnl_data.total_pnl_pct) if pnl_data.total_pnl_pct else None
-                        ),
-                    }
-                )
-        except Exception as e:
+    try:
+        dynamodb = boto3.resource("dynamodb")
+        table = dynamodb.Table(table_name)
+
+        account_id = AccountDataReader.discover_account_id(table)
+        if not account_id:
             logger.warning(
-                f"Failed to fetch calendar month P&L: {e}",
-                extra={"correlation_id": correlation_id, "error_type": type(e).__name__},
+                "No account_id found in DynamoDB registry, skipping P&L metrics",
+                extra={"correlation_id": correlation_id},
+            )
+            return empty_pnl
+
+        # Query last ~3 months of daily PnL records
+        today = datetime.now(UTC).date()
+        target_month = today.month - 2
+        target_year = today.year
+        while target_month <= 0:
+            target_month += 12
+            target_year -= 1
+        start_date = f"{target_year}-{target_month:02d}-01"
+
+        daily_records = AccountDataReader.get_pnl_history(table, account_id, start_date=start_date)
+
+        if not daily_records:
+            logger.warning(
+                "No PnL records found in DynamoDB for date range",
+                extra={"correlation_id": correlation_id, "start_date": start_date},
+            )
+            return empty_pnl
+
+        # Aggregate daily records by month
+        monthly_agg = PnLService.aggregate_by_month(daily_records)
+
+        # Convert to template-expected format: list of month dicts
+        months_data: list[dict[str, Any]] = []
+        for month_key in sorted(monthly_agg.keys()):
+            agg = monthly_agg[month_key]
+            total_pnl = agg["total_pnl"]
+            end_equity = agg["end_equity"]
+            start_equity = end_equity - total_pnl
+
+            pnl_pct = (
+                float(total_pnl / start_equity * Decimal("100")) if start_equity != 0 else None
             )
 
-        # Log summary of fetched months
+            # Human-readable period label (e.g. "January 2026" or "February 2026 (MTD)")
+            year = int(month_key[:4])
+            month_num = int(month_key[5:7])
+            month_name = calendar.month_name[month_num]
+            is_current = year == today.year and month_num == today.month
+            period = f"{month_name} {year}" + (" (MTD)" if is_current else "")
+
+            months_data.append(
+                {
+                    "period": period,
+                    "total_pnl": float(total_pnl),
+                    "total_pnl_pct": pnl_pct,
+                }
+            )
+
+        # Keep only the last 3 months
+        months_data = months_data[-3:]
+
+        # Log summary
         month_summaries = [
-            f"{m.get('period')}: {m.get('total_pnl_pct', 0):.2f}%"
+            f"{m['period']}: {m['total_pnl_pct']:.2f}%"
             for m in months_data
             if m.get("total_pnl_pct") is not None
         ]
         logger.info(
-            "📈 P&L metrics fetched successfully",
+            "P&L metrics fetched from DynamoDB",
             extra={
                 "correlation_id": correlation_id,
                 "months_count": len(months_data),
                 "months_summary": ", ".join(month_summaries) if month_summaries else "N/A",
+                "source": "dynamodb",
             },
         )
 
@@ -547,10 +608,115 @@ def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
 
     except Exception as e:
         logger.warning(
-            f"Failed to initialize PnLService: {e}",
+            f"Failed to fetch P&L from DynamoDB: {e}",
             extra={
                 "correlation_id": correlation_id,
                 "error_type": type(e).__name__,
             },
         )
         return empty_pnl
+
+
+def _derive_strategy_id(
+    strategy_id: str,
+    run_id: str,
+    all_trades_detail: dict[str, Any],
+) -> str:
+    """Derive strategy_id from plan metadata if not stored in run.
+
+    Args:
+        strategy_id: Strategy identifier (may be empty).
+        run_id: Execution run identifier for fallback.
+        all_trades_detail: Serialized AllTradesCompleted event data.
+
+    Returns:
+        Resolved strategy identifier.
+
+    """
+    if strategy_id:
+        return strategy_id
+    metadata = all_trades_detail.get("metadata", {})
+    derived = metadata.get("strategy_name", run_id[:8])
+    if not derived:
+        plan_summary = all_trades_detail.get("rebalance_plan_summary", [])
+        if plan_summary:
+            derived = f"run-{run_id[:8]}"
+    return derived or run_id[:8]
+
+
+def _report_strategy_traded(
+    correlation_id: str,
+    run_id: str,
+    strategy_id: str,
+    dsl_file: str,
+    all_trades_detail: dict[str, Any],
+) -> None:
+    """Report a TRADED strategy to the notification session for consolidated email.
+
+    Non-fatal: if session recording fails, per-strategy emails still work
+    as a fallback when no notification session exists.
+
+    Args:
+        correlation_id: Shared workflow correlation ID.
+        run_id: Execution run identifier.
+        strategy_id: Strategy identifier from run metadata.
+        dsl_file: DSL file name from plan metadata.
+        all_trades_detail: Serialized AllTradesCompleted event data.
+
+    """
+    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "")
+    if not table_name:
+        return
+
+    strategy_id = _derive_strategy_id(strategy_id, run_id, all_trades_detail)
+
+    if not dsl_file:
+        metadata = all_trades_detail.get("metadata", {})
+        dsl_file = metadata.get("dsl_file", "")
+
+    try:
+        from the_alchemiser.shared.services.notification_session_service import (
+            NotificationSessionService,
+            publish_all_strategies_completed,
+        )
+
+        session_service = NotificationSessionService(table_name=table_name)
+        detail = {**all_trades_detail, "run_id": run_id}
+
+        completed, total = session_service.record_strategy_completion(
+            correlation_id=correlation_id,
+            strategy_id=strategy_id,
+            dsl_file=dsl_file,
+            outcome="TRADED",
+            detail=detail,
+        )
+
+        logger.info(
+            "Reported TRADED to notification session",
+            extra={
+                "correlation_id": correlation_id,
+                "strategy_id": strategy_id,
+                "run_id": run_id,
+                "completed_strategies": completed,
+                "total_strategies": total,
+            },
+        )
+
+        if completed >= total > 0:
+            publish_all_strategies_completed(
+                correlation_id,
+                completed,
+                total,
+                "TradeAggregator",
+            )
+
+    except Exception as e:
+        logger.warning(
+            "Failed to report TRADED to notification session",
+            extra={
+                "correlation_id": correlation_id,
+                "run_id": run_id,
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
+        )
