@@ -74,7 +74,7 @@ class StrategyStack(cdk.Stack):
             " && unzip -q -o /tmp/awswrangler-layer.zip -d /asset-output"
             " && pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
             " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade"
-            " && pip install -q pydantic pydantic-settings structlog dependency-injector cachetools -t /asset-output/python --upgrade"
+            " && pip install -q pydantic pydantic-settings structlog dependency-injector 'cachetools>=5.5,<7' -t /asset-output/python --upgrade"
             " && rm -f /tmp/awswrangler-layer.zip"
         )
         self.strategy_layer = _lambda.LayerVersion(
