@@ -93,7 +93,7 @@ def show() -> None:
     # Display table
     st.dataframe(
         display_df,
-        use_container_width=True,
+        width="stretch",
         height=700,
         column_config={
             "Date": st.column_config.TextColumn("Date"),
