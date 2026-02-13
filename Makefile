@@ -24,7 +24,8 @@ help:
 	@echo "  strategy-check-fractionable all=1   Check all strategy files"
 	@echo ""
 	@echo "Group Cache:"
-	@echo "  backfill-groups s=<file>              Backfill group cache (45 days, sequential)"
+	@echo "  backfill-groups s=<file>              Backfill group cache (45 days, sequential, dev)"
+	@echo "  backfill-groups s=<file> stage=prod   Target production tables"
 	@echo "  backfill-groups s=<file> all=1 p=6    Full history, 6 parallel workers"
 	@echo "  backfill-groups s=<file> wipe=1       Wipe cache before backfilling"
 	@echo "  backfill-groups s=<file> level=1      Process only groups at depth 1"
@@ -251,9 +252,11 @@ backfill-groups:
 	@if [ -z "$(s)" ]; then \
 		echo "Usage: make backfill-groups s=<strategy_file.clj>"; \
 		echo "       make backfill-groups s=ftl_starburst.clj all=1 p=6"; \
+		echo "       make backfill-groups s=ftl_starburst.clj stage=prod all=1 p=6"; \
 		exit 1; \
 	fi
 	@ARGS="$(s)"; \
+	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; fi; \
 	if [ -n "$(all)" ]; then ARGS="$$ARGS --all"; fi; \
 	if [ -n "$(days)" ]; then ARGS="$$ARGS --days $(days)"; fi; \
 	if [ -n "$(p)" ]; then ARGS="$$ARGS --parallel $(p)"; fi; \

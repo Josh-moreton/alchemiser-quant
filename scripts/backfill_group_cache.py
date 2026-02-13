@@ -73,9 +73,35 @@ import pandas as pd
 # already initialised Apple networking frameworks (boto3/S3 preload).
 os.environ.setdefault("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES")
 
-os.environ.setdefault("MARKET_DATA_BUCKET", "alchemiser-dev-market-data")
 os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
-os.environ.setdefault("GROUP_HISTORY_TABLE", "alchemiser-dev-group-history")
+
+# Stage-aware defaults are applied in _apply_stage_env() after CLI parsing.
+# These dev defaults are the fallback if --stage is not specified.
+_STAGE_RESOURCE_MAP: dict[str, dict[str, str]] = {
+    "dev": {
+        "MARKET_DATA_BUCKET": "alchemiser-dev-market-data",
+        "GROUP_HISTORY_TABLE": "alchemiser-dev-group-history",
+    },
+    "prod": {
+        "MARKET_DATA_BUCKET": "alchemiser-prod-market-data",
+        "GROUP_HISTORY_TABLE": "alchemiser-prod-group-history",
+    },
+}
+
+
+def _apply_stage_env(stage: str) -> None:
+    """Set environment variables for the given deployment stage.
+
+    Only sets variables that are not already explicitly set, preserving
+    any overrides the caller may have exported.
+    """
+    resources = _STAGE_RESOURCE_MAP.get(stage)
+    if resources is None:
+        valid = ", ".join(sorted(_STAGE_RESOURCE_MAP.keys()))
+        print(f"{RED}ERROR: Unknown stage '{stage}'. Valid stages: {valid}{RESET}")
+        sys.exit(1)
+    for key, value in resources.items():
+        os.environ.setdefault(key, value)
 
 # ---------------------------------------------------------------------------
 # Path setup -- use shared _setup_imports for layer path, then add the
@@ -1722,8 +1748,19 @@ Examples:
         help="Delete all existing cache entries from DynamoDB before backfilling. "
              "Use with --all for a clean rebuild.",
     )
+    parser.add_argument(
+        "--stage",
+        type=str,
+        default="dev",
+        choices=sorted(_STAGE_RESOURCE_MAP.keys()),
+        help="Deployment stage controlling which DynamoDB tables and S3 buckets "
+             "are targeted (default: dev).",
+    )
 
     args = parser.parse_args()
+
+    # Apply stage-specific environment variables before any AWS calls
+    _apply_stage_env(args.stage)
 
     lookback_days = args.days if args.days is not None else (
         None if args.backfill_all else 45
