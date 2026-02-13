@@ -169,7 +169,7 @@ else
     EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
 
     PARAMS=(
-        "Stage=prod"
+        "Stage=production"
         "ProdAlpacaKey=$ALPACA_KEY"
         "ProdAlpacaSecret=$ALPACA_SECRET"
         "ProdAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
