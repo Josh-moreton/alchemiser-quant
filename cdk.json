@@ -1,5 +1,5 @@
 {
-  "app": ".venv/bin/python3 -m infra.app",
+  "app": "poetry run python -m infra.app",
   "watch": {
     "include": ["infra/**", "functions/**", "layers/**"]
   },

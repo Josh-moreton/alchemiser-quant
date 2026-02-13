@@ -116,9 +116,7 @@ def alchemiser_table(
         partition_key=partition_key,
         sort_key=sort_key,
         time_to_live_attribute=time_to_live_attribute,
-        point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(
-            point_in_time_recovery_enabled=point_in_time_recovery,
-        ) if point_in_time_recovery else None,
+        point_in_time_recovery=point_in_time_recovery,
         encryption=dynamodb.TableEncryption.AWS_MANAGED,
         removal_policy=removal_policy,
     )
