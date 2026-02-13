@@ -2,17 +2,17 @@
 
 Lambda handler for Strategy Reports microservice.
 
-Reads daily returns Parquet files written by the Strategy Analytics
-Lambda and generates quantstats HTML tearsheet reports per strategy.
-Reports are written to S3 under the ``strategy-reports/`` prefix.
+Placeholder for future tearsheet generation. quantstats is too large
+for the Lambda layer (>250 MB unzipped), so tearsheet generation is
+performed locally via dashboard scripts instead.
 
-Triggered daily by EventBridge schedule, running after the analytics
-Lambda has completed.
+Currently this Lambda reads the analytics manifest and writes a
+reports manifest echoing the available strategies so the dashboard
+can discover them.
 """
 
 from __future__ import annotations
 
-import io
 import json
 import os
 import uuid
@@ -20,8 +20,6 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import boto3
-import pandas as pd
-import quantstats as qs
 
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
 
@@ -51,67 +49,6 @@ def _read_manifest(s3_client: S3Client, bucket: str) -> dict[str, Any]:
         return {}
 
 
-def _read_daily_returns(
-    s3_client: S3Client,
-    bucket: str,
-    strategy_name: str,
-) -> pd.Series | None:
-    """Read daily returns Parquet for a strategy and return as a pd.Series."""
-    key = f"{S3_ANALYTICS_PREFIX}/{strategy_name}/daily_returns.parquet"
-    try:
-        response = s3_client.get_object(Bucket=bucket, Key=key)
-        buf = io.BytesIO(response["Body"].read())
-        df = pd.read_parquet(buf)
-
-        if df.empty or "pnl" not in df.columns or "date" not in df.columns:
-            return None
-
-        df["date"] = pd.to_datetime(df["date"], utc=True)
-        df = df.set_index("date").sort_index()
-
-        series: pd.Series = df["pnl"]
-        return series
-
-    except s3_client.exceptions.NoSuchKey:
-        logger.warning("No daily returns found", extra={"strategy": strategy_name})
-        return None
-    except Exception:
-        logger.exception("Failed to read daily returns", extra={"strategy": strategy_name})
-        return None
-
-
-def _generate_tearsheet_html(
-    returns: pd.Series,
-    strategy_name: str,
-) -> str | None:
-    """Generate a quantstats HTML tearsheet string from daily P&L series.
-
-    quantstats expects a returns series (percentage or dollar). We pass
-    dollar P&L as-is -- the tearsheet will show absolute metrics.
-    """
-    if returns is None or len(returns) < 5:
-        logger.info(
-            "Insufficient data for tearsheet",
-            extra={"strategy": strategy_name, "points": len(returns) if returns is not None else 0},
-        )
-        return None
-
-    try:
-        html = qs.reports.html(
-            returns,
-            title=strategy_name,
-            output=None,  # Return HTML string instead of writing file
-            download_filename=None,
-        )
-        return str(html)
-    except Exception:
-        logger.exception(
-            "quantstats tearsheet generation failed",
-            extra={"strategy": strategy_name},
-        )
-        return None
-
-
 def _validate_reports_config() -> tuple[str, str]:
     """Validate and return reports configuration from environment.
 
@@ -128,45 +65,6 @@ def _validate_reports_config() -> tuple[str, str]:
     if not bucket_name:
         raise ValueError("Missing PERFORMANCE_REPORTS_BUCKET")
     return bucket_name, stage
-
-
-def _process_strategy_report(
-    s3_client: S3Client,
-    bucket_name: str,
-    strategy_name: str,
-) -> bool:
-    """Generate and write a tearsheet report for a single strategy.
-
-    Args:
-        s3_client: Boto3 S3 client.
-        bucket_name: S3 bucket for output.
-        strategy_name: Name of the strategy.
-
-    Returns:
-        True if a report was generated, False otherwise.
-
-    """
-    returns = _read_daily_returns(s3_client, bucket_name, strategy_name)
-    if returns is None:
-        return False
-
-    html = _generate_tearsheet_html(returns, strategy_name)
-    if html is None:
-        return False
-
-    report_key = f"{S3_REPORTS_PREFIX}/{strategy_name}/tearsheet.html"
-    s3_client.put_object(
-        Bucket=bucket_name,
-        Key=report_key,
-        Body=html.encode("utf-8"),
-        ContentType="text/html",
-    )
-
-    logger.info(
-        "Tearsheet written",
-        extra={"strategy": strategy_name, "key": report_key},
-    )
-    return True
 
 
 def _write_reports_manifest(
@@ -195,18 +93,19 @@ def _write_reports_manifest(
 
 
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
-    """Generate quantstats HTML tearsheet reports for each strategy.
+    """Write a reports manifest echoing available strategies.
 
-    Reads the analytics manifest, fetches each strategy's daily returns
-    Parquet from S3, generates a quantstats tearsheet, and writes the
-    HTML report back to S3.
+    Tearsheet generation via quantstats is handled locally (the
+    library exceeds Lambda layer size limits). This handler reads
+    the analytics manifest and writes a reports manifest so the
+    dashboard can discover which strategies have data.
 
     Args:
         event: Lambda event (EventBridge schedule or direct invoke).
         context: Lambda context.
 
     Returns:
-        Response with report generation count.
+        Response with strategy count.
 
     """
     run_id = str(uuid.uuid4())[:8]
@@ -230,34 +129,27 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
     if not strategy_names:
         logger.warning("No strategies in manifest -- nothing to report")
-        return {"statusCode": 200, "body": {"reports_generated": 0}}
-
-    reports_generated = 0
-
-    for strategy_name in strategy_names:
-        try:
-            if _process_strategy_report(s3_client, bucket_name, strategy_name):
-                reports_generated += 1
-        except Exception:
-            logger.exception(
-                "Failed to generate report",
-                extra={"strategy": strategy_name},
-            )
+        return {"statusCode": 200, "body": {"strategies": 0}}
 
     _write_reports_manifest(
-        s3_client, bucket_name, run_id, run_timestamp, stage,
-        reports_generated, strategy_names,
+        s3_client,
+        bucket_name,
+        run_id,
+        run_timestamp,
+        stage,
+        len(strategy_names),
+        strategy_names,
     )
 
     logger.info(
-        "Strategy reports run complete",
-        extra={"run_id": run_id, "reports": reports_generated},
+        "Strategy reports manifest written",
+        extra={"run_id": run_id, "strategies": len(strategy_names)},
     )
 
     return {
         "statusCode": 200,
         "body": {
             "run_id": run_id,
-            "reports_generated": reports_generated,
+            "strategies": len(strategy_names),
         },
     }

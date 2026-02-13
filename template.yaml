@@ -1751,7 +1751,7 @@ Resources:
       Role: !GetAtt StrategyReportsExecutionRole.Arn
       Layers:
         - !Ref SharedCodeLayer
-        - !Ref StrategyLayer  # pandas, numpy, pyarrow, quantstats
+        - !Ref StrategyLayer  # pandas, numpy, pyarrow
       Timeout: 300
       MemorySize: 2048
       Environment:
