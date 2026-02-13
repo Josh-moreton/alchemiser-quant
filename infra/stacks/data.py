@@ -32,6 +32,7 @@ from constructs import Construct
 from infra.config import StageConfig
 from infra.constructs import (
     AlchemiserFunction,
+    LocalShellBundling,
     alchemiser_table,
     lambda_execution_role,
     scheduler_role,
@@ -98,7 +99,16 @@ class DataStack(cdk.Stack):
         )
 
         # ---- Data Layer (Makefile-built: awswrangler + alpaca-py) ----
-        # CDK BundlingOptions replicates the layers/data/Makefile logic
+        # CDK BundlingOptions replicates the layers/data/Makefile logic.
+        # LocalShellBundling runs locally first; Docker is only a fallback.
+        _data_layer_cmd = (
+            "curl -sL 'https://aws-data-wrangler-public-artifacts.s3.amazonaws.com/releases/3.10.0/awswrangler-layer-3.10.0-py3.12.zip' -o /tmp/awswrangler-layer.zip"
+            " && unzip -q -o /tmp/awswrangler-layer.zip -d /asset-output"
+            " && pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
+            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade"
+            " && pip install -q pydantic pydantic-settings structlog -t /asset-output/python --upgrade"
+            " && rm -f /tmp/awswrangler-layer.zip"
+        )
         self.data_layer = _lambda.LayerVersion(
             self,
             "DataLayer",
@@ -108,18 +118,8 @@ class DataStack(cdk.Stack):
                 "layers/data/",
                 bundling=cdk.BundlingOptions(
                     image=_lambda.Runtime.PYTHON_3_12.bundling_image,
-                    command=[
-                        "bash",
-                        "-c",
-                        (
-                            "curl -sL 'https://aws-data-wrangler-public-artifacts.s3.amazonaws.com/releases/3.10.0/awswrangler-layer-3.10.0-py3.12.zip' -o /tmp/awswrangler-layer.zip"
-                            " && unzip -q -o /tmp/awswrangler-layer.zip -d /asset-output"
-                            " && pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
-                            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade"
-                            " && pip install -q pydantic pydantic-settings structlog -t /asset-output/python --upgrade"
-                            " && rm -f /tmp/awswrangler-layer.zip"
-                        ),
-                    ],
+                    local=LocalShellBundling(_data_layer_cmd),
+                    command=["bash", "-c", _data_layer_cmd],
                 ),
             ),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],

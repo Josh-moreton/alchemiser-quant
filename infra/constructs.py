@@ -5,14 +5,17 @@ Reusable CDK constructs shared across all Alchemiser stacks.
 Provides:
 - AlchemiserFunction: Lambda function with default settings
 - alchemiser_table: DynamoDB table factory with standard settings
+- LocalShellBundling: Docker-free local bundling for Lambda layers
 - standard_tags: Tag helper matching current naming conventions
 """
 
 from __future__ import annotations
 
+import subprocess
 from typing import Any
 
 import aws_cdk as cdk
+import jsii
 from aws_cdk import (
     Duration,
     RemovalPolicy,
@@ -23,6 +26,28 @@ from aws_cdk import (
 from constructs import Construct
 
 from infra.config import StageConfig
+
+
+@jsii.implements(cdk.ILocalBundling)
+class LocalShellBundling:
+    """Run layer build commands locally, avoiding Docker dependency.
+
+    The shell command should use '/asset-output' as the output directory
+    placeholder -- it will be replaced with the actual CDK output path at
+    bundle time.
+    """
+
+    def __init__(self, command: str) -> None:
+        self._command = command
+
+    def try_bundle(self, output_dir: str, **kwargs: Any) -> bool:
+        """Execute the build command locally, return True on success."""
+        cmd = self._command.replace("/asset-output", output_dir)
+        result = subprocess.run(  # noqa: S603
+            ["bash", "-c", cmd],
+            check=False,
+        )
+        return result.returncode == 0
 
 PYTHON_RUNTIME = _lambda.Runtime.PYTHON_3_12
 X86_64 = _lambda.Architecture.X86_64
