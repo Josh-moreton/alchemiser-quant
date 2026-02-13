@@ -1626,7 +1626,7 @@ Resources:
                 - "CloudWatch Alarm State Change"
               detail:
                 alarmName:
-                  - prefix: "alchemiser-"
+                  - prefix: "alch-"
                 state:
                   value:
                     - "ALARM"

@@ -6,7 +6,7 @@ beta_features = true
 use_container = false
 
 [default.deploy.parameters]
-stack_name = "alchemiser-production"
+stack_name = "alch-production"
 region = "us-east-1"
 capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
 disable_rollback = false
@@ -16,7 +16,7 @@ resolve_s3 = true
 image_repositories = []
 
 [dev.deploy.parameters]
-stack_name = "alchemiser-dev"
+stack_name = "alch-dev"
 region = "us-east-1"
 capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
 disable_rollback = false
@@ -30,7 +30,7 @@ parameter_overrides = [
 ]
 
 [staging.deploy.parameters]
-stack_name = "alchemiser-staging"
+stack_name = "alch-staging"
 region = "us-east-1"
 capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
 disable_rollback = false
@@ -43,7 +43,7 @@ parameter_overrides = [
 ]
 
 [prod.deploy.parameters]
-stack_name = "alchemiser-production"
+stack_name = "alch-production"
 region = "us-east-1"
 capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
 disable_rollback = false
