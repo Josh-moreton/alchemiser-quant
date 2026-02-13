@@ -98,7 +98,15 @@ for alarm in $(aws cloudwatch describe-alarms --alarm-name-prefix alchemiser-pro
   aws cloudwatch delete-alarms --alarm-names "$alarm" 2>/dev/null || echo "  Failed"
 done
 
-# 10. IAM roles (created by SAM/CFn)
+# 10. CloudWatch Log Groups (Lambda creates these, CFn doesn't clean them up)
+echo ""
+echo "--- CloudWatch Log Groups ---"
+for lg in $(aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/alchemiser-prod" --query 'logGroups[].logGroupName' --output text 2>/dev/null); do
+  echo "Deleting log group: $lg"
+  aws logs delete-log-group --log-group-name "$lg" 2>/dev/null || echo "  Failed"
+done
+
+# 11. IAM roles (created by SAM/CFn)
 echo ""
 echo "--- IAM Roles ---"
 for role in $(aws iam list-roles --query 'Roles[].RoleName' --output text); do
@@ -116,7 +124,7 @@ for role in $(aws iam list-roles --query 'Roles[].RoleName' --output text); do
   fi
 done
 
-# 11. CloudFormation stacks (including DELETE_FAILED)
+# 12. CloudFormation stacks (including DELETE_FAILED)
 echo ""
 echo "--- CloudFormation Stacks ---"
 for stack in $(aws cloudformation list-stacks --query 'StackSummaries[?contains(StackName,`alchemiser-prod`) || contains(StackName,`alchemiser-shared`)].StackName' --output text 2>/dev/null); do

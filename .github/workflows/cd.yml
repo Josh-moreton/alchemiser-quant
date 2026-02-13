@@ -101,8 +101,6 @@ jobs:
           NOTIFICATION_EMAIL: ${{ vars.NOTIFICATION_EMAIL }}
           LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
           EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_DATABASE_ID: ${{ vars.NOTION_DATABASE_ID }}
         run: |
           echo "Exporting dev ALPACA_* env vars for deploy.sh"
           echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
@@ -113,9 +111,6 @@ jobs:
           # Non-secret runtime config
           if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
           if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
-          # Notion P&L Dashboard
-          if [ -n "$NOTION_TOKEN" ]; then echo "NOTION_TOKEN=$NOTION_TOKEN" >> $GITHUB_ENV; fi
-          if [ -n "$NOTION_DATABASE_ID" ]; then echo "NOTION_DATABASE_ID=$NOTION_DATABASE_ID" >> $GITHUB_ENV; fi
 
       - name: Prepare environment variables (staging)
         if: steps.target.outputs.env == 'staging'
@@ -127,8 +122,6 @@ jobs:
           NOTIFICATION_EMAIL: ${{ vars.NOTIFICATION_EMAIL }}
           LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
           EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_DATABASE_ID: ${{ vars.NOTION_DATABASE_ID }}
         run: |
           echo "Exporting staging ALPACA_* env vars for deploy.sh"
           echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
@@ -139,9 +132,6 @@ jobs:
           # Non-secret runtime config
           if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
           if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
-          # Notion P&L Dashboard
-          if [ -n "$NOTION_TOKEN" ]; then echo "NOTION_TOKEN=$NOTION_TOKEN" >> $GITHUB_ENV; fi
-          if [ -n "$NOTION_DATABASE_ID" ]; then echo "NOTION_DATABASE_ID=$NOTION_DATABASE_ID" >> $GITHUB_ENV; fi
 
       - name: Prepare environment variables (prod)
         if: steps.target.outputs.env == 'prod'
@@ -153,8 +143,6 @@ jobs:
           NOTIFICATION_EMAIL: ${{ vars.NOTIFICATION_EMAIL }}
           LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
           EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_DATABASE_ID: ${{ vars.NOTION_DATABASE_ID }}
         run: |
           echo "Exporting prod ALPACA_* env vars for deploy.sh"
           echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
@@ -165,9 +153,6 @@ jobs:
           # Non-secret runtime config
           if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
           if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
-          # Notion P&L Dashboard
-          if [ -n "$NOTION_TOKEN" ]; then echo "NOTION_TOKEN=$NOTION_TOKEN" >> $GITHUB_ENV; fi
-          if [ -n "$NOTION_DATABASE_ID" ]; then echo "NOTION_DATABASE_ID=$NOTION_DATABASE_ID" >> $GITHUB_ENV; fi
 
       - name: Deploy
         run: |
