@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups hedge-kill-switch-status hedge-kill-switch-reset tearsheets tearsheet-account tearsheet-strategy
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups hedge-kill-switch-status hedge-kill-switch-reset tearsheets tearsheet-account tearsheet-strategy dashboard
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -323,7 +323,7 @@ tearsheet-strategy:
 # Usage: make dashboard
 dashboard:
 	@echo "Starting trading dashboard..."
-	cd dashboard && poetry run streamlit run app.py
+	cd dashboard && SKIP_AUTH=true poetry run streamlit run app.py
 
 # Recalculate strategy weights using Calmar-tilt formula
 # Usage: make rebalance-weights                    # Use latest CSV, update config, deploy to prod
