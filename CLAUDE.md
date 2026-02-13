@@ -144,8 +144,9 @@ Rebalance Planner Lambda
 | `TradingNotificationsTopic` | SNS | Email notification delivery |
 | `DLQAlertTopic` | SNS | DLQ monitoring alerts |
 | `TradeLedgerTable` | DynamoDB | Trade history persistence |
-| `StrategyPerformanceTable` | DynamoDB | Per-strategy performance metrics snapshots |
-| `PerformanceReportsBucket` | S3 | CSV performance reports |
+| `StrategyAnalyticsFunction` | Lambda | Daily strategy metrics computation (S3 Parquet) |
+| `StrategyReportsFunction` | Lambda | Reports manifest (tearsheets generated locally) |
+| `PerformanceReportsBucket` | S3 | Strategy analytics (Parquet/JSON) and reports (HTML tearsheets) |
 
 ## Code Style & Guardrails
 
@@ -417,6 +418,8 @@ logger.info(
 |---------|----------|
 | Strategy Orchestrator handler | `functions/strategy_orchestrator/lambda_handler.py` |
 | Strategy Worker handler | `functions/strategy_worker/lambda_handler.py` |
+| Strategy Analytics handler | `functions/strategy_analytics/lambda_handler.py` |
+| Strategy Reports handler | `functions/strategy_reports/lambda_handler.py` |
 | Execution Lambda handler | `functions/execution/lambda_handler.py` |
 | Notifications Lambda handler | `functions/notifications/lambda_handler.py` |
 | Event schemas | `layers/shared/the_alchemiser/shared/events/schemas.py` |
@@ -427,6 +430,7 @@ logger.info(
 | Strategy engines | `functions/strategy_worker/engines/` |
 | Infrastructure (SAM) | `template.yaml` |
 | Script import helper | `scripts/_setup_imports.py` |
+| Tearsheet generator | `scripts/generate_tearsheets.py` |
 
 ## Pre-Commit Checklist
 

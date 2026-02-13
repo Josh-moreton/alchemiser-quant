@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups hedge-kill-switch-status hedge-kill-switch-reset
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups hedge-kill-switch-status hedge-kill-switch-reset tearsheets tearsheet-account tearsheet-strategy
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -99,7 +99,7 @@ type-check:
 	MYPYPATH="layers/shared" poetry run mypy layers/shared/the_alchemiser/ --config-file=pyproject.toml
 	@# Check each Lambda function with its own MYPYPATH context
 	@echo "  → Checking Lambda functions..."
-	@for func in execution portfolio strategy_worker strategy_orchestrator trade_aggregator notifications data strategy_performance account_data hedge_evaluator hedge_executor hedge_roll_manager schedule_manager; do \
+	@for func in execution portfolio strategy_worker strategy_orchestrator trade_aggregator notifications data strategy_analytics strategy_reports account_data hedge_evaluator hedge_executor hedge_roll_manager schedule_manager; do \
 		if [ -d "functions/$$func" ]; then \
 			echo "    → functions/$$func"; \
 			MYPYPATH="functions/$$func:layers/shared" poetry run mypy "functions/$$func/" --config-file=pyproject.toml 2>&1 | grep -v "^Success" || true; \
@@ -282,6 +282,38 @@ validate-strategy:
 	if [ "$(no-browser)" = "1" ]; then ARGS="$$ARGS --no-browser"; fi; \
 	if [ -n "$(tolerance)" ]; then ARGS="$$ARGS --tolerance $(tolerance)"; fi; \
 	poetry run python scripts/validation/validate_single_strategy.py $$ARGS
+
+# ============================================================================
+# TEARSHEETS (quantstats -- runs locally, uploads to S3)
+# ============================================================================
+
+# Generate tearsheets for all strategies
+# Usage: make tearsheets                        # All strategies, dev
+#        make tearsheets stage=prod             # All strategies, prod
+tearsheets:
+	@echo "Generating strategy tearsheets..."
+	@STAGE=$${stage:-dev}; \
+	poetry run python scripts/generate_tearsheets.py --stage $$STAGE
+
+# Generate a whole-account tearsheet from DynamoDB PnL history
+# Usage: make tearsheet-account                 # Account tearsheet, dev
+#        make tearsheet-account stage=prod      # Account tearsheet, prod
+tearsheet-account:
+	@echo "Generating account tearsheet..."
+	@STAGE=$${stage:-dev}; \
+	poetry run python scripts/generate_tearsheets.py --account --stage $$STAGE
+
+# Generate tearsheet for a single strategy
+# Usage: make tearsheet-strategy s=momentum_v2              # Dev
+#        make tearsheet-strategy s=momentum_v2 stage=prod   # Prod
+tearsheet-strategy:
+	@if [ -z "$(s)" ]; then \
+		echo "Usage: make tearsheet-strategy s=<strategy_name>"; \
+		echo "       make tearsheet-strategy s=<name> stage=prod"; \
+		exit 1; \
+	fi
+	@STAGE=$${stage:-dev}; \
+	poetry run python scripts/generate_tearsheets.py --strategy $(s) --stage $$STAGE
 
 # ============================================================================
 # DASHBOARD & PORTFOLIO

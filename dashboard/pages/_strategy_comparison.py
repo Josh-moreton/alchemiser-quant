@@ -16,7 +16,6 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from data import strategy as sda
-from data.risk import calculate_risk_metrics
 from components.ui import section_header, styled_dataframe
 
 _ACCENT_COLORS = [
@@ -125,7 +124,7 @@ def _build_comparison_chart(
         )
 
         snap = next((s for s in snapshots if s["strategy_name"] == name), None)
-        risk = calculate_risk_metrics(ts)
+        risk = sda.get_strategy_metrics(name) or {}
         if snap:
             comparison_rows.append(
                 {
@@ -133,11 +132,11 @@ def _build_comparison_chart(
                     "Realized P&L": snap["realized_pnl"],
                     "Win Rate (%)": snap["win_rate"],
                     "Trades": snap["completed_trades"],
-                    "P&L Sharpe": risk["pnl_sharpe"],
-                    "Max DD": risk["max_drawdown"],
+                    "P&L Sharpe": risk.get("pnl_sharpe", 0.0),
+                    "Max DD": risk.get("max_drawdown", 0.0),
                     "Profit Factor": (
                         risk["profit_factor"]
-                        if risk["profit_factor"] is not None
+                        if risk.get("profit_factor") is not None
                         else float("nan")
                     ),
                 }
