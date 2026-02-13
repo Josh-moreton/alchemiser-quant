@@ -48,7 +48,7 @@ class LocalShellBundling:
     def __init__(self, command: str) -> None:
         self._command = command
 
-    def try_bundle(self, output_dir: str, **kwargs: Any) -> bool:
+    def try_bundle(self, output_dir: str, options: Any = None) -> bool:
         """Execute the build command locally, return True on success."""
         cmd = self._command.replace("/asset-output", output_dir)
         # Replace bare 'pip install' with venv pip so it works without
