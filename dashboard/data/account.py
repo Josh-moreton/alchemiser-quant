@@ -156,17 +156,21 @@ def _get_account_id() -> str:
         return _cached_account_id
 
     # 2. DynamoDB registry (written by account_data Lambda)
-    _cached_account_id = _discover_account_id_via_dynamodb()
-    if _cached_account_id:
+    discovered = _discover_account_id_via_dynamodb()
+    if discovered:
+        _cached_account_id = discovered
         return _cached_account_id
 
     # 3. Legacy fallback -- Alpaca REST API
-    _cached_account_id = _discover_account_id_via_alpaca()
+    discovered = _discover_account_id_via_alpaca()
 
-    if not _cached_account_id:
-        logger.warning("No account data found in %s", settings.account_data_table)
+    if discovered:
+        _cached_account_id = discovered
+        return _cached_account_id
 
-    return _cached_account_id
+    # Don't cache failure -- leave as None so next call retries discovery
+    logger.warning("No account data found in %s", settings.account_data_table)
+    return ""
 
 
 def get_latest_account_data() -> dict[str, Any] | None:
