@@ -245,7 +245,7 @@ class DashboardSettings(BaseModel):
 
 # Singleton instance loaded once per process
 _settings: DashboardSettings | None = None
-_stage_override: str = "dev"
+_stage_override: str = "prod"
 
 
 def set_stage(stage: str) -> None:

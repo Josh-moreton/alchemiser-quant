@@ -95,15 +95,57 @@ jobs:
           ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
           NOTIFICATION_EMAIL: ${{ vars.NOTIFICATION_EMAIL }}
           EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
-          ALCHEMISER_LOG_LEVEL: ${{ vars.ALCHEMISER_LOG_LEVEL }}
         run: |
           echo "Exporting env vars for CDK deploy..."
           echo "ALPACA__KEY=$ALPACA_KEY" >> $GITHUB_ENV
           echo "ALPACA__SECRET=$ALPACA_SECRET" >> $GITHUB_ENV
           if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA__ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
           if [ -n "$NOTIFICATION_EMAIL" ]; then echo "NOTIFICATION_EMAIL=$NOTIFICATION_EMAIL" >> $GITHUB_ENV; fi
-          if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "ALPACA__EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
-          if [ -n "$ALCHEMISER_LOG_LEVEL" ]; then echo "ALCHEMISER_LOG_LEVEL=$ALCHEMISER_LOG_LEVEL" >> $GITHUB_ENV; fi
+          # Non-secret runtime config
+          if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
+          if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
+
+      - name: Prepare environment variables (staging)
+        if: steps.target.outputs.env == 'staging'
+        env:
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+          ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
+          EMAIL__PASSWORD: ${{ secrets.EMAIL__PASSWORD }}
+          NOTIFICATION_EMAIL: ${{ vars.NOTIFICATION_EMAIL }}
+          LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
+          EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
+        run: |
+          echo "Exporting staging ALPACA_* env vars for deploy.sh"
+          echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
+          echo "ALPACA_SECRET=$ALPACA_SECRET" >> $GITHUB_ENV
+          if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA_ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
+          if [ -n "$EMAIL__PASSWORD" ]; then echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" >> $GITHUB_ENV; fi
+          if [ -n "$NOTIFICATION_EMAIL" ]; then echo "NOTIFICATION_EMAIL=$NOTIFICATION_EMAIL" >> $GITHUB_ENV; fi
+          # Non-secret runtime config
+          if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
+          if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
+
+      - name: Prepare environment variables (prod)
+        if: steps.target.outputs.env == 'prod'
+        env:
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+          ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
+          EMAIL__PASSWORD: ${{ secrets.EMAIL__PASSWORD }}
+          NOTIFICATION_EMAIL: ${{ vars.NOTIFICATION_EMAIL }}
+          LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
+          EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
+        run: |
+          echo "Exporting prod ALPACA_* env vars for deploy.sh"
+          echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
+          echo "ALPACA_SECRET=$ALPACA_SECRET" >> $GITHUB_ENV
+          if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA_ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
+          if [ -n "$EMAIL__PASSWORD" ]; then echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" >> $GITHUB_ENV; fi
+          if [ -n "$NOTIFICATION_EMAIL" ]; then echo "NOTIFICATION_EMAIL=$NOTIFICATION_EMAIL" >> $GITHUB_ENV; fi
+          # Non-secret runtime config
+          if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
+          if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
 
       - name: Deploy
         run: |

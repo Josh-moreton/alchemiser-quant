@@ -111,7 +111,7 @@ Parameters:
   # Daily data refresh: midnight ET (post-close bars) + noon ET (intraday catch-up)
   DataRefreshScheduleExpr:
     Type: String
-    Default: "cron(0 0,12 ? * TUE-SAT *)"
+    Default: "cron(0 12 ? * MON-SAT *)"
     Description: Daily market data refresh (midnight & noon ET, Tue-Sat for Mon-Fri trading days)
 
   FetchCooldownMinutes:
@@ -1706,9 +1706,10 @@ Resources:
         DailySchedule:
           Type: ScheduleV2
           Properties:
+            Name: !Sub "alchemiser-${Stage}-strategy-analytics-daily"
             ScheduleExpression: "cron(0 21 ? * MON-FRI *)"
             ScheduleExpressionTimezone: "America/New_York"
-            Description: "Run strategy analytics daily at 9 PM ET (after market close)"
+            Description: !Sub "Run strategy analytics daily at 9 PM ET (${Stage})"
             State: ENABLED
     Metadata:
       BuildMethod: python3.12
@@ -1764,9 +1765,10 @@ Resources:
         DailySchedule:
           Type: ScheduleV2
           Properties:
+            Name: !Sub "alchemiser-${Stage}-strategy-reports-daily"
             ScheduleExpression: "cron(15 21 ? * MON-FRI *)"
             ScheduleExpressionTimezone: "America/New_York"
-            Description: "Run strategy reports daily at 9:15 PM ET (after analytics Lambda)"
+            Description: !Sub "Run strategy reports daily at 9:15 PM ET (${Stage})"
             State: ENABLED
     Metadata:
       BuildMethod: python3.12

@@ -68,9 +68,17 @@ def _get_reports_bucket() -> str:
 
 
 def _has_credentials() -> bool:
-    """Check if AWS credentials are configured."""
+    """Check if AWS credentials are available (explicit or default chain)."""
     settings = get_dashboard_settings()
-    return settings.has_aws_credentials()
+    if settings.has_aws_credentials():
+        return True
+    # Fall back: check if the default credential chain can resolve credentials
+    try:
+        session = boto3.Session(**settings.get_boto3_client_kwargs())
+        creds = session.get_credentials()
+        return creds is not None
+    except Exception:
+        return False
 
 
 # ---------------------------------------------------------------------------

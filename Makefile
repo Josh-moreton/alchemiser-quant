@@ -328,7 +328,7 @@ tearsheet-strategy:
 # Usage: make dashboard
 dashboard:
 	@echo "Starting trading dashboard..."
-	cd dashboard && poetry run streamlit run app.py
+	cd dashboard && SKIP_AUTH=true poetry run streamlit run app.py
 
 # Recalculate strategy weights using Calmar-tilt formula
 # Usage: make rebalance-weights                    # Use latest CSV, update config, deploy to prod

@@ -14,6 +14,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+import streamlit.components.v1 as components
+
 from components.ui import (
     hero_metric,
     metric_card,
@@ -24,6 +26,7 @@ from components.ui import (
 from components.styles import format_currency, format_percent, inject_styles
 
 from data import account as data_access
+from data import strategy as strategy_data
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
@@ -469,6 +472,83 @@ def show() -> None:
         showlegend=False,
     )
     st.plotly_chart(fig_cum, use_container_width=True)
+
+    # =========================================================================
+    # TEARSHEETS (collapsible)
+    # =========================================================================
+    with st.expander("Tearsheets", expanded=False):
+        available = strategy_data.get_available_tearsheets()
+        if not available:
+            st.info(
+                "No tearsheets found in S3. Generate with:\n\n"
+                "```\npython scripts/generate_tearsheets.py --stage prod\n"
+                "python scripts/generate_tearsheets.py --stage prod --account\n```"
+            )
+        else:
+            has_account = "_account" in available
+            strategy_names = [n for n in available if n != "_account"]
+
+            mode_options: list[str] = []
+            if has_account:
+                mode_options.append("Account")
+            if strategy_names:
+                mode_options.append("Strategy")
+
+            selected_name: str | None = None
+            if len(mode_options) > 1:
+                mode = st.radio("Tearsheet type", mode_options, horizontal=True)
+            elif mode_options:
+                mode = mode_options[0]
+            else:
+                mode = None
+
+            if mode == "Account":
+                selected_name = "_account"
+            elif mode == "Strategy" and strategy_names:
+                metadata = strategy_data.get_all_strategy_metadata()
+                display_map = {
+                    name: metadata.get(name, {}).get("display_name", name)
+                    for name in strategy_names
+                }
+                selected_name = st.selectbox(
+                    "Select strategy",
+                    options=strategy_names,
+                    format_func=lambda x: display_map.get(x, x),
+                )
+
+            if selected_name:
+                with st.spinner("Loading tearsheet..."):
+                    html = strategy_data.get_tearsheet_html(selected_name)
+                if html:
+                    components.html(html, height=800, scrolling=True)
+                else:
+                    st.warning(f"No tearsheet found for '{selected_name}'.")
+
+    # =========================================================================
+    # DAILY PnL TABLE (collapsible)
+    # =========================================================================
+    with st.expander("Daily PnL Table", expanded=False):
+        pnl_table_df = df[["Date", "Equity", "P&L ($)", "P&L (%)", "Deposits"]].copy()
+        pnl_table_df = pnl_table_df.sort_values("Date", ascending=False).reset_index(drop=True)
+        st.dataframe(
+            pnl_table_df,
+            width="stretch",
+            height=500,
+            column_config={
+                "Date": st.column_config.DateColumn("Date"),
+                "Equity": st.column_config.NumberColumn("Equity", format="$%.2f"),
+                "P&L ($)": st.column_config.NumberColumn("P&L ($)", format="$%.2f"),
+                "P&L (%)": st.column_config.NumberColumn("P&L (%)", format="%.4f%%"),
+                "Deposits": st.column_config.NumberColumn("Deposits", format="$%.2f"),
+            },
+        )
+        csv = pnl_table_df.to_csv(index=False)
+        st.download_button(
+            label="Download CSV",
+            data=csv,
+            file_name="daily_pnl_records.csv",
+            mime="text/csv",
+        )
 
     # =========================================================================
     # MONTHLY SUMMARY (collapsible)
