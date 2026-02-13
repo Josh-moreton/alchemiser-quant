@@ -58,10 +58,10 @@ class StageConfig:
 
     @property
     def prefix(self) -> str:
-        """Resource naming prefix: 'alchemiser-<stage>' or custom stack name."""
+        """Resource naming prefix: 'alch-<stage>' or custom stack name."""
         if self.use_stack_name and self.stack_name_override:
             return self.stack_name_override
-        return f"alchemiser-{self.stage}"
+        return f"alch-{self.stage}"
 
     @property
     def app_stage_value(self) -> str:

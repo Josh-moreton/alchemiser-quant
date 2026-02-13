@@ -112,7 +112,7 @@ class StrategyStack(cdk.Stack):
             bucket_name=(
                 f"{config.stack_name_override}-performance-reports"
                 if config.stack_name_override
-                else f"alchemiser-{config.stage}-reports"
+                else f"alch-{config.stage}-reports"
             ),
             lifecycle_rules=[
                 s3.LifecycleRule(id="DeleteOldReports", expiration=Duration.days(30), enabled=True),
@@ -328,7 +328,7 @@ class StrategyStack(cdk.Stack):
         analytics_fn = AlchemiserFunction(
             self, "StrategyAnalyticsFunction",
             config=config,
-            function_name=f"alchemiser-{config.stage}-strategy-analytics",
+            function_name=f"alch-{config.stage}-strategy-analytics",
             code_uri="functions/strategy_analytics/",
             handler="lambda_handler.lambda_handler",
             layers=[shared_code_layer, self.strategy_layer],
@@ -344,7 +344,7 @@ class StrategyStack(cdk.Stack):
         # ScheduleV2: daily at 9 PM ET
         scheduler.CfnSchedule(
             self, "StrategyAnalyticsSchedule",
-            name=f"alchemiser-{config.stage}-strategy-analytics",
+            name=f"alch-{config.stage}-strategy-analytics",
             schedule_expression="cron(0 21 ? * MON-FRI *)",
             schedule_expression_timezone="America/New_York",
             description="Run strategy analytics daily at 9 PM ET (after market close)",
@@ -375,7 +375,7 @@ class StrategyStack(cdk.Stack):
         reports_fn = AlchemiserFunction(
             self, "StrategyReportsFunction",
             config=config,
-            function_name=f"alchemiser-{config.stage}-strategy-reports",
+            function_name=f"alch-{config.stage}-strategy-reports",
             code_uri="functions/strategy_reports/",
             handler="lambda_handler.lambda_handler",
             layers=[shared_code_layer, self.strategy_layer],
@@ -390,7 +390,7 @@ class StrategyStack(cdk.Stack):
         # ScheduleV2: daily at 9:15 PM ET
         scheduler.CfnSchedule(
             self, "StrategyReportsSchedule",
-            name=f"alchemiser-{config.stage}-strategy-reports",
+            name=f"alch-{config.stage}-strategy-reports",
             schedule_expression="cron(15 21 ? * MON-FRI *)",
             schedule_expression_timezone="America/New_York",
             description="Run strategy reports daily at 9:15 PM ET (after analytics Lambda)",

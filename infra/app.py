@@ -8,7 +8,7 @@ Python references (no CfnImport / CfnExport required between stacks).
 Usage:
     cdk synth -c stage=dev
     cdk synth -c stage=prod
-    cdk synth -c stage=ephemeral -c stack_name=alchemiser-ephem-xyz
+    cdk synth -c stage=ephemeral -c stack_name=alch-ephem-xyz
 """
 
 from __future__ import annotations

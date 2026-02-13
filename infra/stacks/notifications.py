@@ -193,7 +193,7 @@ class NotificationsStack(cdk.Stack):
                 source=["aws.cloudwatch"],
                 detail_type=["CloudWatch Alarm State Change"],
                 detail={
-                    "alarmName": [{"prefix": "alchemiser-"}],
+                    "alarmName": [{"prefix": "alch-"}],
                     "state": {"value": ["ALARM"]},
                 },
             ),
