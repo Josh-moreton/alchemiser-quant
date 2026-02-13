@@ -127,6 +127,12 @@ def _page_pnl_table() -> None:
     pnl_table.show()
 
 
+def _page_tearsheets() -> None:
+    from pages import tearsheets
+
+    tearsheets.show()
+
+
 # ---------------------------------------------------------------------------
 # Authentication
 # ---------------------------------------------------------------------------
@@ -259,6 +265,7 @@ def show_dashboard() -> None:
         st.Page(_page_last_run_analysis, title="Last Run Analysis"),
         st.Page(_page_trade_history, title="Trade History"),
         st.Page(_page_strategy_performance, title="Strategy Performance"),
+        st.Page(_page_tearsheets, title="Tearsheets"),
         st.Page(_page_execution_quality, title="Execution Quality"),
         st.Page(_page_symbol_analytics, title="Symbol Analytics"),
         st.Page(_page_options_hedging, title="Options Hedging"),

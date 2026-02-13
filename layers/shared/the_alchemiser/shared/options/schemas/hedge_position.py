@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -19,7 +19,7 @@ from ...utils.timezone_utils import ensure_timezone_aware
 from .option_contract import OptionType
 
 
-class RollState(str, Enum):
+class RollState(StrEnum):
     """Hedge roll state enumeration."""
 
     HOLDING = "holding"  # Hedge active, no action needed
@@ -29,7 +29,7 @@ class RollState(str, Enum):
     CLOSED = "closed"  # Position closed
 
 
-class HedgePositionState(str, Enum):
+class HedgePositionState(StrEnum):
     """Hedge position state enumeration."""
 
     ACTIVE = "active"

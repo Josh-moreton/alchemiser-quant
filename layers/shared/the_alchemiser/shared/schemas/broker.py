@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from the_alchemiser.shared.schemas.base import Result
 
 
-class WebSocketStatus(str, Enum):
+class WebSocketStatus(StrEnum):
     """WebSocket operation status enumeration."""
 
     COMPLETED = "completed"

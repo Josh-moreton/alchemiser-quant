@@ -17,7 +17,7 @@ import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING, TypedDict
 
 from the_alchemiser.shared.logging import get_logger
@@ -61,7 +61,7 @@ class OrderStatusResult(TypedDict):
     status: str | None
 
 
-class OrderStatus(str, Enum):
+class OrderStatus(StrEnum):
     """Status of an order in the walk-the-book progression."""
 
     PENDING = "pending"  # Order submitted, waiting for fill

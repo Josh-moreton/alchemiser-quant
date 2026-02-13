@@ -9,12 +9,12 @@ This module contains Pydantic models for trading notifications.
 from __future__ import annotations
 
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class OrderSide(str, Enum):
+class OrderSide(StrEnum):
     """Order side enumeration for buy/sell operations."""
 
     BUY = "BUY"

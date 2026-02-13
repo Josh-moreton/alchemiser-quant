@@ -9,11 +9,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 
-class OrderSide(str, Enum):
+class OrderSide(StrEnum):
     """Order side: BUY or SELL."""
 
     BUY = "BUY"
@@ -24,7 +24,7 @@ class OrderSide(str, Enum):
         return self.value.lower()  # type: ignore[return-value]
 
 
-class CloseType(str, Enum):
+class CloseType(StrEnum):
     """Type of position close operation."""
 
     NONE = "NONE"  # Not a close operation (regular buy or partial sell)
@@ -36,7 +36,7 @@ class CloseType(str, Enum):
         return self in (CloseType.PARTIAL, CloseType.FULL)
 
 
-class Urgency(str, Enum):
+class Urgency(StrEnum):
     """Order urgency level affecting execution strategy."""
 
     LOW = "LOW"  # Use full walk-the-book strategy for best price

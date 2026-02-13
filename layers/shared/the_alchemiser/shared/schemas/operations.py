@@ -16,14 +16,14 @@ Key Features:
 from __future__ import annotations
 
 import warnings
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import ConfigDict, field_validator
 
 from the_alchemiser.shared.schemas.base import Result
 
 
-class TerminalOrderError(str, Enum):
+class TerminalOrderError(StrEnum):
     """Error types indicating an order is already in a terminal state.
 
     These are not actual errors - they indicate the order has completed
