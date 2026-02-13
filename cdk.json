@@ -1,0 +1,10 @@
+{
+  "app": ".venv/bin/python3 -m infra.app",
+  "watch": {
+    "include": ["infra/**", "functions/**", "layers/**"]
+  },
+  "context": {
+    "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
+    "@aws-cdk/core:stackRelativeExports": true
+  }
+}

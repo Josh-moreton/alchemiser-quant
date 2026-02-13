@@ -68,6 +68,7 @@ build/
 dist/
 *.egg-info/
 .aws-sam/
+cdk.out/
 
 # Data outputs
 data/*
