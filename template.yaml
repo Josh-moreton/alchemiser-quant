@@ -181,7 +181,7 @@ Resources:
       TableName: !If 
         - UseStackNameForResources
         - !Sub "${StackName}-trade-ledger"
-        - !Sub "alchemiser-${Stage}-trade-ledger"
+        - !Sub "alch-${Stage}-trade-ledger"
       BillingMode: PAY_PER_REQUEST
       
       AttributeDefinitions:
@@ -290,7 +290,7 @@ Resources:
       TableName: !If 
         - UseStackNameForResources
         - !Sub "${StackName}-execution-runs"
-        - !Sub "alchemiser-${Stage}-execution-runs"
+        - !Sub "alch-${Stage}-execution-runs"
       BillingMode: PAY_PER_REQUEST
       
       AttributeDefinitions:
@@ -327,7 +327,7 @@ Resources:
       TableName: !If 
         - UseStackNameForResources
         - !Sub "${StackName}-rebalance-plans"
-        - !Sub "alchemiser-${Stage}-rebalance-plans"
+        - !Sub "alch-${Stage}-rebalance-plans"
       BillingMode: PAY_PER_REQUEST
       
       AttributeDefinitions:
@@ -382,7 +382,7 @@ Resources:
       TableName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-market-data-fetch-requests"
-        - !Sub "alchemiser-${Stage}-market-data-fetch-requests"
+        - !Sub "alch-${Stage}-market-data-fetch-requests"
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
@@ -415,7 +415,7 @@ Resources:
       TableName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-bad-data-markers"
-        - !Sub "alchemiser-${Stage}-bad-data-markers"
+        - !Sub "alch-${Stage}-bad-data-markers"
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
@@ -452,7 +452,7 @@ Resources:
       TableName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-hedge-positions"
-        - !Sub "alchemiser-${Stage}-hedge-positions"
+        - !Sub "alch-${Stage}-hedge-positions"
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
@@ -504,7 +504,7 @@ Resources:
       TableName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-hedge-history"
-        - !Sub "alchemiser-${Stage}-hedge-history"
+        - !Sub "alch-${Stage}-hedge-history"
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
@@ -538,7 +538,7 @@ Resources:
       TableName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-hedge-kill-switch"
-        - !Sub "alchemiser-${Stage}-hedge-kill-switch"
+        - !Sub "alch-${Stage}-hedge-kill-switch"
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
@@ -566,7 +566,7 @@ Resources:
       TableName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-iv-history"
-        - !Sub "alchemiser-${Stage}-iv-history"
+        - !Sub "alch-${Stage}-iv-history"
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
@@ -603,7 +603,7 @@ Resources:
       TableName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-group-history"
-        - !Sub "alchemiser-${Stage}-group-history"
+        - !Sub "alch-${Stage}-group-history"
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
@@ -641,7 +641,7 @@ Resources:
       TableName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-account-data"
-        - !Sub "alchemiser-${Stage}-account-data"
+        - !Sub "alch-${Stage}-account-data"
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
@@ -684,7 +684,7 @@ Resources:
       LayerName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-strategy-deps"
-        - !Sub "alchemiser-${Stage}-strategy-deps"
+        - !Sub "alch-${Stage}-strategy-deps"
       Description: awswrangler 3.10.0 + alpaca-py (pandas, numpy, pyarrow included)
       ContentUri: layers/strategy/
       CompatibleRuntimes:
@@ -702,7 +702,7 @@ Resources:
       LayerName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-portfolio-deps"
-        - !Sub "alchemiser-${Stage}-portfolio-deps"
+        - !Sub "alch-${Stage}-portfolio-deps"
       Description: Portfolio Lambda dependencies (alpaca-py, pydantic)
       ContentUri: layers/portfolio/
       CompatibleRuntimes:
@@ -718,7 +718,7 @@ Resources:
       LayerName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-execution-deps"
-        - !Sub "alchemiser-${Stage}-execution-deps"
+        - !Sub "alch-${Stage}-execution-deps"
       Description: Execution Lambda dependencies (alpaca-py, pydantic)
       ContentUri: layers/execution/
       CompatibleRuntimes:
@@ -734,7 +734,7 @@ Resources:
       LayerName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-notifications-deps"
-        - !Sub "alchemiser-${Stage}-notifications-deps"
+        - !Sub "alch-${Stage}-notifications-deps"
       Description: Notifications Lambda dependencies (pydantic, structlog, alpaca-py)
       ContentUri: layers/notifications/
       CompatibleRuntimes:
@@ -752,7 +752,7 @@ Resources:
       LayerName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-data-deps"
-        - !Sub "alchemiser-${Stage}-data-deps"
+        - !Sub "alch-${Stage}-data-deps"
       Description: awswrangler 3.10.0 + alpaca-py (pandas, numpy, pyarrow included)
       ContentUri: layers/data/
       CompatibleRuntimes:
@@ -771,7 +771,7 @@ Resources:
       LayerName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-shared-code"
-        - !Sub "alchemiser-${Stage}-shared-code"
+        - !Sub "alch-${Stage}-shared-code"
       Description: Shared business logic (the_alchemiser.shared module)
       ContentUri: layers/shared/
       CompatibleRuntimes:
@@ -793,7 +793,7 @@ Resources:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-events"
-        - !Sub "alchemiser-${Stage}-events"
+        - !Sub "alch-${Stage}-events"
 
   # SQS Queue for reliable trade execution with DLQ
   ExecutionQueue:
@@ -802,7 +802,7 @@ Resources:
       QueueName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-execution-queue"
-        - !Sub "alchemiser-${Stage}-execution-queue"
+        - !Sub "alch-${Stage}-execution-queue"
       VisibilityTimeout: 900  # 15 mins for execution
       MessageRetentionPeriod: 345600  # 4 days
       RedrivePolicy:
@@ -815,7 +815,7 @@ Resources:
       QueueName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-execution-dlq"
-        - !Sub "alchemiser-${Stage}-execution-dlq"
+        - !Sub "alch-${Stage}-execution-dlq"
       MessageRetentionPeriod: 1209600  # 14 days
 
   # SQS FIFO Queue for parallel per-trade execution with exactly-once processing
@@ -829,7 +829,7 @@ Resources:
       QueueName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-execution.fifo"
-        - !Sub "alchemiser-${Stage}-execution.fifo"
+        - !Sub "alch-${Stage}-execution.fifo"
       FifoQueue: true
       ContentBasedDeduplication: false  # Use explicit MessageDeduplicationId
       DeduplicationScope: messageGroup  # Dedup only within same symbol
@@ -846,7 +846,7 @@ Resources:
       QueueName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-execution-dlq.fifo"
-        - !Sub "alchemiser-${Stage}-execution-dlq.fifo"
+        - !Sub "alch-${Stage}-execution-dlq.fifo"
       FifoQueue: true
       MessageRetentionPeriod: 1209600  # 14 days
 
@@ -858,7 +858,7 @@ Resources:
       QueueName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-hedge-execution-queue"
-        - !Sub "alchemiser-${Stage}-hedge-execution-queue"
+        - !Sub "alch-${Stage}-hedge-execution-queue"
       VisibilityTimeout: 900  # 15 mins for execution
       MessageRetentionPeriod: 345600  # 4 days
       RedrivePolicy:
@@ -871,7 +871,7 @@ Resources:
       QueueName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-hedge-execution-dlq"
-        - !Sub "alchemiser-${Stage}-hedge-execution-dlq"
+        - !Sub "alch-${Stage}-hedge-execution-dlq"
       MessageRetentionPeriod: 1209600  # 14 days
 
   # SNS Topic for DLQ alerts (very low cost: ~$0.50/million messages)
@@ -881,7 +881,7 @@ Resources:
       TopicName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-dlq-alerts"
-        - !Sub "alchemiser-${Stage}-dlq-alerts"
+        - !Sub "alch-${Stage}-dlq-alerts"
       DisplayName: "Alchemiser DLQ Alert"
 
   # Email subscription for DLQ alerts
@@ -903,7 +903,7 @@ Resources:
       BucketName: !If
         - HasStackName
         - !Sub "${StackName}-performance-reports"
-        - !Sub "alchemiser-${Stage}-reports"
+        - !Sub "alch-${Stage}-reports"
       LifecycleConfiguration:
         Rules:
           - Id: DeleteOldReports
@@ -935,7 +935,7 @@ Resources:
       BucketName: !If
         - HasStackName
         - !Sub "${StackName}-market-data"
-        - !Sub "alchemiser-${Stage}-market-data"
+        - !Sub "alch-${Stage}-market-data"
       VersioningConfiguration:
         Status: Enabled
       PublicAccessBlockConfiguration:
@@ -968,7 +968,7 @@ Resources:
       AlarmName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-dlq-messages"
-        - !Sub "alchemiser-${Stage}-dlq-messages"
+        - !Sub "alch-${Stage}-dlq-messages"
       AlarmDescription: "Alert when messages land in the execution DLQ after 3 failed attempts"
       MetricName: ApproximateNumberOfMessagesVisible
       Namespace: AWS/SQS
@@ -991,7 +991,7 @@ Resources:
       AlarmName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-parallel-dlq-messages"
-        - !Sub "alchemiser-${Stage}-parallel-dlq-messages"
+        - !Sub "alch-${Stage}-parallel-dlq-messages"
       AlarmDescription: "Alert when per-trade execution messages hit parallel DLQ after 3 retries"
       MetricName: ApproximateNumberOfMessagesVisible
       Namespace: AWS/SQS
@@ -1013,7 +1013,7 @@ Resources:
       AlarmName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-stuck-execution-runs"
-        - !Sub "alchemiser-${Stage}-stuck-execution-runs"
+        - !Sub "alch-${Stage}-stuck-execution-runs"
       AlarmDescription: "Alert when execution runs are stuck in RUNNING state for >30 minutes"
       MetricName: StuckRuns
       Namespace: Alchemiser/Execution
@@ -1041,7 +1041,7 @@ Resources:
       AlarmName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-orchestrator-errors"
-        - !Sub "alchemiser-${Stage}-orchestrator-errors"
+        - !Sub "alch-${Stage}-orchestrator-errors"
       AlarmDescription: "Alert when Strategy Orchestrator Lambda has errors (timeouts, crashes)"
       MetricName: Errors
       Namespace: AWS/Lambda
@@ -1062,7 +1062,7 @@ Resources:
       AlarmName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-strategy-worker-errors"
-        - !Sub "alchemiser-${Stage}-strategy-worker-errors"
+        - !Sub "alch-${Stage}-strategy-worker-errors"
       AlarmDescription: "Alert when Strategy Worker Lambda has errors (timeouts, crashes)"
       MetricName: Errors
       Namespace: AWS/Lambda
@@ -1085,7 +1085,7 @@ Resources:
       AlarmName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-notifications-errors"
-        - !Sub "alchemiser-${Stage}-notifications-errors"
+        - !Sub "alch-${Stage}-notifications-errors"
       AlarmDescription: "CRITICAL: Alert when Notifications Lambda fails (notifications won't be sent)"
       MetricName: Errors
       Namespace: AWS/Lambda
@@ -1137,7 +1137,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-strategy-worker"
-        - !Sub "alchemiser-${Stage}-strategy-worker"
+        - !Sub "alch-${Stage}-strategy-worker"
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -1279,7 +1279,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-strategy-orchestrator"
-        - !Sub "alchemiser-${Stage}-strategy-orchestrator"
+        - !Sub "alch-${Stage}-strategy-orchestrator"
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -1334,7 +1334,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-execution"
-        - !Sub "alchemiser-${Stage}-execution"
+        - !Sub "alch-${Stage}-execution"
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -1433,7 +1433,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-trade-aggregator"
-        - !Sub "alchemiser-${Stage}-trade-aggregator"
+        - !Sub "alch-${Stage}-trade-aggregator"
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -1504,7 +1504,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-notifications"
-        - !Sub "alchemiser-${Stage}-notifications"
+        - !Sub "alch-${Stage}-notifications"
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -1525,7 +1525,7 @@ Resources:
           STACK_NAME: !If
             - UseStackNameForResources
             - !Ref StackName
-            - !Sub "alchemiser-${Stage}"
+            - !Sub "alch-${Stage}"
           # SES Configuration
           SES_FROM_ADDRESS: noreply@mail.octarine.capital
           SES_FROM_NAME: "Octarine Capital"
@@ -1684,7 +1684,7 @@ Resources:
   StrategyAnalyticsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "alchemiser-${Stage}-strategy-analytics"
+      FunctionName: !Sub "alch-${Stage}-strategy-analytics"
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -1743,7 +1743,7 @@ Resources:
   StrategyReportsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "alchemiser-${Stage}-strategy-reports"
+      FunctionName: !Sub "alch-${Stage}-strategy-reports"
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -1799,7 +1799,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-hedge-evaluator"
-        - !Sub "alchemiser-${Stage}-hedge-evaluator"
+        - !Sub "alch-${Stage}-hedge-evaluator"
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -1901,7 +1901,7 @@ Resources:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-trades-completed-to-hedge"
-        - !Sub "alchemiser-${Stage}-trades-completed-to-hedge"
+        - !Sub "alch-${Stage}-trades-completed-to-hedge"
       EventBusName: !Ref AlchemiserEventBus
       EventPattern:
         source:
@@ -1928,7 +1928,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-hedge-executor"
-        - !Sub "alchemiser-${Stage}-hedge-executor"
+        - !Sub "alch-${Stage}-hedge-executor"
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -2014,7 +2014,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-hedge-roll-manager"
-        - !Sub "alchemiser-${Stage}-hedge-roll-manager"
+        - !Sub "alch-${Stage}-hedge-roll-manager"
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -2091,7 +2091,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-data"
-        - !Sub "alchemiser-${Stage}-data"
+        - !Sub "alch-${Stage}-data"
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -2219,7 +2219,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-schedule-manager"
-        - !Sub "alchemiser-${Stage}-schedule-manager"
+        - !Sub "alch-${Stage}-schedule-manager"
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -2282,7 +2282,7 @@ Resources:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-schedule-manager"
-        - !Sub "alchemiser-${Stage}-schedule-manager"
+        - !Sub "alch-${Stage}-schedule-manager"
       Description: "Run Schedule Manager at 9:00 AM ET to set up today's trading schedule"
       ScheduleExpression: "cron(0 9 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
@@ -2315,7 +2315,7 @@ Resources:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-data-refresh"
-        - !Sub "alchemiser-${Stage}-data-refresh"
+        - !Sub "alch-${Stage}-data-refresh"
       Description: !Sub "Daily market data refresh for ${Stage} (midnight & noon ET, Tue-Sat)"
       ScheduleExpression: !Ref DataRefreshScheduleExpr
       ScheduleExpressionTimezone: "America/New_York"
@@ -2350,7 +2350,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-account-data"
-        - !Sub "alchemiser-${Stage}-account-data"
+        - !Sub "alch-${Stage}-account-data"
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -2396,7 +2396,7 @@ Resources:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-account-data"
-        - !Sub "alchemiser-${Stage}-account-data"
+        - !Sub "alch-${Stage}-account-data"
       Description: "Fetch account data from Alpaca every 6 hours (4 AM, 10 AM, 4 PM, 10 PM ET)"
       ScheduleExpression: "cron(0 4,10,16,22 * * ? *)"
       ScheduleExpressionTimezone: "America/New_York"
@@ -2441,7 +2441,7 @@ Outputs:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-TradeLedgerTable"
-        - !Sub "alchemiser-${Stage}-TradeLedgerTable"
+        - !Sub "alch-${Stage}-TradeLedgerTable"
 
 
   ExecutionRunsTableName:
@@ -2451,7 +2451,7 @@ Outputs:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-ExecutionRunsTable"
-        - !Sub "alchemiser-${Stage}-ExecutionRunsTable"
+        - !Sub "alch-${Stage}-ExecutionRunsTable"
 
   RebalancePlanTableName:
     Description: "DynamoDB table for rebalance plan auditability (90-day TTL)"
@@ -2460,7 +2460,7 @@ Outputs:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-RebalancePlanTable"
-        - !Sub "alchemiser-${Stage}-RebalancePlanTable"
+        - !Sub "alch-${Stage}-RebalancePlanTable"
 
   ExecutionFifoQueueUrl:
     Description: "SQS Standard queue for parallel per-trade execution"
@@ -2469,7 +2469,7 @@ Outputs:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-ExecutionFifoQueue"
-        - !Sub "alchemiser-${Stage}-ExecutionFifoQueue"
+        - !Sub "alch-${Stage}-ExecutionFifoQueue"
 
   PerformanceReportsBucketName:
     Description: "S3 bucket for strategy performance CSV reports"
@@ -2478,7 +2478,7 @@ Outputs:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-PerformanceReportsBucket"
-        - !Sub "alchemiser-${Stage}-PerformanceReportsBucket"
+        - !Sub "alch-${Stage}-PerformanceReportsBucket"
 
   MarketDataBucketName:
     Description: "Per-stage S3 bucket for historical market data (Parquet files)"
@@ -2487,7 +2487,7 @@ Outputs:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-MarketDataBucket"
-        - !Sub "alchemiser-${Stage}-MarketDataBucket"
+        - !Sub "alch-${Stage}-MarketDataBucket"
 
   MarketDataFetchRequestsTableName:
     Description: "DynamoDB table for fetch request deduplication"
@@ -2496,7 +2496,7 @@ Outputs:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-MarketDataFetchRequestsTable"
-        - !Sub "alchemiser-${Stage}-MarketDataFetchRequestsTable"
+        - !Sub "alch-${Stage}-MarketDataFetchRequestsTable"
 
   BadDataMarkersTableName:
     Description: "DynamoDB table for bad data markers"
@@ -2505,7 +2505,7 @@ Outputs:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-BadDataMarkersTable"
-        - !Sub "alchemiser-${Stage}-BadDataMarkersTable"
+        - !Sub "alch-${Stage}-BadDataMarkersTable"
 
   GroupHistoricalSelectionsTableName:
     Description: "DynamoDB table for group historical selections cache"
@@ -2514,7 +2514,7 @@ Outputs:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-GroupHistoricalSelectionsTable"
-        - !Sub "alchemiser-${Stage}-GroupHistoricalSelectionsTable"
+        - !Sub "alch-${Stage}-GroupHistoricalSelectionsTable"
 
   AccountDataTableName:
     Description: "DynamoDB table for account data snapshots (dashboard data source)"
@@ -2523,7 +2523,7 @@ Outputs:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-AccountDataTable"
-        - !Sub "alchemiser-${Stage}-AccountDataTable"
+        - !Sub "alch-${Stage}-AccountDataTable"
 
   DataFunctionArn:
     Description: "ARN of per-stage data function"
@@ -2532,7 +2532,7 @@ Outputs:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-DataFunction"
-        - !Sub "alchemiser-${Stage}-DataFunction"
+        - !Sub "alch-${Stage}-DataFunction"
 
   DeploymentStage:
     Description: "Deployed stage"
@@ -2540,7 +2540,7 @@ Outputs:
   
   StackNameUsed:
     Description: "Stack name used for resource naming"
-    Value: !If [ HasStackName, !Ref StackName, !Sub "alchemiser-${Stage}" ]
+    Value: !If [ HasStackName, !Ref StackName, !Sub "alch-${Stage}" ]
 
   LogsInsightsURL:
     Description: "CloudWatch Logs Insights for querying logs across all Lambdas"
