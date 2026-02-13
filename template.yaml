@@ -14,10 +14,9 @@ Parameters:
     AllowedValues:
       - dev
       - staging
-      - prod
       - production
       - ephemeral
-    Description: Deployment stage (dev, staging, prod, or ephemeral)
+    Description: Deployment stage (dev, staging, production, or ephemeral)
   
   StackName:
     Type: String
@@ -926,7 +925,7 @@ Resources:
           Value: performance-reports
 
   # ========== MARKET DATA S3 BUCKET (PER-STAGE) ==========
-  # Per-stage S3 buckets for market data isolation (dev, staging, prod each get own bucket)
+  # Per-stage S3 buckets for market data isolation (dev, staging, production each get own bucket)
   # Replaces previous shared bucket architecture (alchemiser-shared-market-data)
   MarketDataBucket:
     Type: AWS::S3::Bucket
@@ -1537,7 +1536,7 @@ Resources:
             - HasNotificationEmail
             - !Ref NotificationEmail
             - "notifications@rwxt.org"
-          # Safety: non-prod environments must explicitly enable real emails
+          # Safety: non-production environments must explicitly enable real emails
           ALLOW_REAL_EMAILS: !If [ IsProduction, "true", "false" ]
           EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
       Events:
@@ -2184,7 +2183,7 @@ Resources:
 
   # REMOVED: Production fallback schedule (was at 3:50 PM ET Mon-Fri)
   # The fallback schedule was causing double runs when the dynamic schedule succeeded.
-  # All environments (dev/staging/prod) now rely solely on the Schedule Manager for dynamic scheduling.
+  # All environments (dev/staging/production) now rely solely on the Schedule Manager for dynamic scheduling.
   # The Schedule Manager creates one-time schedules at 15 minutes before market close (accounting for early close days).
   # If the Schedule Manager fails, we will be notified through normal WorkflowFailed event channels.
   # Historical note: The fallback was intended as a "safety net" but added unnecessary complexity.
