@@ -1705,9 +1705,10 @@ Resources:
         DailySchedule:
           Type: ScheduleV2
           Properties:
+            Name: !Sub "alchemiser-${Stage}-strategy-analytics-daily"
             ScheduleExpression: "cron(0 21 ? * MON-FRI *)"
             ScheduleExpressionTimezone: "America/New_York"
-            Description: "Run strategy analytics daily at 9 PM ET (after market close)"
+            Description: !Sub "Run strategy analytics daily at 9 PM ET (${Stage})"
             State: ENABLED
     Metadata:
       BuildMethod: python3.12
@@ -1763,9 +1764,10 @@ Resources:
         DailySchedule:
           Type: ScheduleV2
           Properties:
+            Name: !Sub "alchemiser-${Stage}-strategy-reports-daily"
             ScheduleExpression: "cron(15 21 ? * MON-FRI *)"
             ScheduleExpressionTimezone: "America/New_York"
-            Description: "Run strategy reports daily at 9:15 PM ET (after analytics Lambda)"
+            Description: !Sub "Run strategy reports daily at 9:15 PM ET (${Stage})"
             State: ENABLED
     Metadata:
       BuildMethod: python3.12
