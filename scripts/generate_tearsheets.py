@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import os
 import sys
 from decimal import Decimal
 from typing import Any
@@ -78,8 +79,15 @@ def _read_daily_returns(s3_client: object, bucket: str, strategy_name: str) -> p
 
 def _generate_tearsheet_html(daily_returns: pd.Series) -> str:
     """Use quantstats to render a full tearsheet as an HTML string."""
+    import tempfile
+
     qs.extend_pandas()
-    html: str = qs.reports.html(daily_returns, output="", download_filename="tearsheet.html")
+    with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w") as tmp:
+        tmp_path = tmp.name
+    qs.reports.html(daily_returns, output=tmp_path, download_filename="tearsheet.html")
+    with open(tmp_path, encoding="utf-8") as f:
+        html = f.read()
+    os.remove(tmp_path)
     return html
 
 

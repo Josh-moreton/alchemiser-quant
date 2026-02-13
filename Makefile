@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups hedge-kill-switch-status hedge-kill-switch-reset
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups hedge-kill-switch-status hedge-kill-switch-reset tearsheets tearsheet-account tearsheet-strategy
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -282,6 +282,38 @@ validate-strategy:
 	if [ "$(no-browser)" = "1" ]; then ARGS="$$ARGS --no-browser"; fi; \
 	if [ -n "$(tolerance)" ]; then ARGS="$$ARGS --tolerance $(tolerance)"; fi; \
 	poetry run python scripts/validation/validate_single_strategy.py $$ARGS
+
+# ============================================================================
+# TEARSHEETS (quantstats -- runs locally, uploads to S3)
+# ============================================================================
+
+# Generate tearsheets for all strategies
+# Usage: make tearsheets                        # All strategies, dev
+#        make tearsheets stage=prod             # All strategies, prod
+tearsheets:
+	@echo "Generating strategy tearsheets..."
+	@STAGE=$${stage:-dev}; \
+	poetry run python scripts/generate_tearsheets.py --stage $$STAGE
+
+# Generate a whole-account tearsheet from DynamoDB PnL history
+# Usage: make tearsheet-account                 # Account tearsheet, dev
+#        make tearsheet-account stage=prod      # Account tearsheet, prod
+tearsheet-account:
+	@echo "Generating account tearsheet..."
+	@STAGE=$${stage:-dev}; \
+	poetry run python scripts/generate_tearsheets.py --account --stage $$STAGE
+
+# Generate tearsheet for a single strategy
+# Usage: make tearsheet-strategy s=momentum_v2              # Dev
+#        make tearsheet-strategy s=momentum_v2 stage=prod   # Prod
+tearsheet-strategy:
+	@if [ -z "$(s)" ]; then \
+		echo "Usage: make tearsheet-strategy s=<strategy_name>"; \
+		echo "       make tearsheet-strategy s=<name> stage=prod"; \
+		exit 1; \
+	fi
+	@STAGE=$${stage:-dev}; \
+	poetry run python scripts/generate_tearsheets.py --strategy $(s) --stage $$STAGE
 
 # ============================================================================
 # DASHBOARD & PORTFOLIO
