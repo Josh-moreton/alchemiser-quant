@@ -85,91 +85,27 @@ jobs:
       - name: Install dependencies
         run: poetry install --no-interaction
 
-      - name: Install SAM CLI
-        uses: aws-actions/setup-sam@v2
+      - name: Install CDK CLI
+        run: npm install -g aws-cdk
 
-      - name: Build (matching target env)
-        run: sam build --parallel --config-env "${{ steps.target.outputs.env }}"
-
-      - name: Prepare environment variables (dev)
-        if: steps.target.outputs.env == 'dev'
+      - name: Prepare environment variables
         env:
           ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
           ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
           ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
-          EMAIL__PASSWORD: ${{ secrets.EMAIL__PASSWORD }}
           NOTIFICATION_EMAIL: ${{ vars.NOTIFICATION_EMAIL }}
-          LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
           EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_DATABASE_ID: ${{ vars.NOTION_DATABASE_ID }}
+          ALCHEMISER_LOG_LEVEL: ${{ vars.ALCHEMISER_LOG_LEVEL }}
         run: |
-          echo "Exporting dev ALPACA_* env vars for deploy.sh"
-          echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
-          echo "ALPACA_SECRET=$ALPACA_SECRET" >> $GITHUB_ENV
-          if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA_ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
-          if [ -n "$EMAIL__PASSWORD" ]; then echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" >> $GITHUB_ENV; fi
+          echo "Exporting env vars for CDK deploy..."
+          echo "ALPACA__KEY=$ALPACA_KEY" >> $GITHUB_ENV
+          echo "ALPACA__SECRET=$ALPACA_SECRET" >> $GITHUB_ENV
+          if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA__ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
           if [ -n "$NOTIFICATION_EMAIL" ]; then echo "NOTIFICATION_EMAIL=$NOTIFICATION_EMAIL" >> $GITHUB_ENV; fi
-          # Non-secret runtime config
-          if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
-          if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
-          # Notion P&L Dashboard
-          if [ -n "$NOTION_TOKEN" ]; then echo "NOTION_TOKEN=$NOTION_TOKEN" >> $GITHUB_ENV; fi
-          if [ -n "$NOTION_DATABASE_ID" ]; then echo "NOTION_DATABASE_ID=$NOTION_DATABASE_ID" >> $GITHUB_ENV; fi
-
-      - name: Prepare environment variables (staging)
-        if: steps.target.outputs.env == 'staging'
-        env:
-          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
-          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
-          ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
-          EMAIL__PASSWORD: ${{ secrets.EMAIL__PASSWORD }}
-          NOTIFICATION_EMAIL: ${{ vars.NOTIFICATION_EMAIL }}
-          LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
-          EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_DATABASE_ID: ${{ vars.NOTION_DATABASE_ID }}
-        run: |
-          echo "Exporting staging ALPACA_* env vars for deploy.sh"
-          echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
-          echo "ALPACA_SECRET=$ALPACA_SECRET" >> $GITHUB_ENV
-          if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA_ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
-          if [ -n "$EMAIL__PASSWORD" ]; then echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" >> $GITHUB_ENV; fi
-          if [ -n "$NOTIFICATION_EMAIL" ]; then echo "NOTIFICATION_EMAIL=$NOTIFICATION_EMAIL" >> $GITHUB_ENV; fi
-          # Non-secret runtime config
-          if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
-          if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
-          # Notion P&L Dashboard
-          if [ -n "$NOTION_TOKEN" ]; then echo "NOTION_TOKEN=$NOTION_TOKEN" >> $GITHUB_ENV; fi
-          if [ -n "$NOTION_DATABASE_ID" ]; then echo "NOTION_DATABASE_ID=$NOTION_DATABASE_ID" >> $GITHUB_ENV; fi
-
-      - name: Prepare environment variables (prod)
-        if: steps.target.outputs.env == 'prod'
-        env:
-          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
-          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
-          ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
-          EMAIL__PASSWORD: ${{ secrets.EMAIL__PASSWORD }}
-          NOTIFICATION_EMAIL: ${{ vars.NOTIFICATION_EMAIL }}
-          LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
-          EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_DATABASE_ID: ${{ vars.NOTION_DATABASE_ID }}
-        run: |
-          echo "Exporting prod ALPACA_* env vars for deploy.sh"
-          echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
-          echo "ALPACA_SECRET=$ALPACA_SECRET" >> $GITHUB_ENV
-          if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA_ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
-          if [ -n "$EMAIL__PASSWORD" ]; then echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" >> $GITHUB_ENV; fi
-          if [ -n "$NOTIFICATION_EMAIL" ]; then echo "NOTIFICATION_EMAIL=$NOTIFICATION_EMAIL" >> $GITHUB_ENV; fi
-          # Non-secret runtime config
-          if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
-          if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
-          # Notion P&L Dashboard
-          if [ -n "$NOTION_TOKEN" ]; then echo "NOTION_TOKEN=$NOTION_TOKEN" >> $GITHUB_ENV; fi
-          if [ -n "$NOTION_DATABASE_ID" ]; then echo "NOTION_DATABASE_ID=$NOTION_DATABASE_ID" >> $GITHUB_ENV; fi
+          if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "ALPACA__EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
+          if [ -n "$ALCHEMISER_LOG_LEVEL" ]; then echo "ALCHEMISER_LOG_LEVEL=$ALCHEMISER_LOG_LEVEL" >> $GITHUB_ENV; fi
 
       - name: Deploy
         run: |
-          chmod +x scripts/deploy.sh
-          ./scripts/deploy.sh "${{ steps.target.outputs.env }}"
+          chmod +x scripts/cdk_deploy.sh
+          ./scripts/cdk_deploy.sh "${{ steps.target.outputs.env }}"

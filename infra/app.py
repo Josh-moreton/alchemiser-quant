@@ -44,10 +44,13 @@ alpaca = AlpacaConfig(
     equity_deployment_pct=os.environ.get("ALPACA__EQUITY_DEPLOYMENT_PCT", "1.0"),
 )
 
+log_level: str = os.environ.get("ALCHEMISER_LOG_LEVEL", "INFO")
+
 config = StageConfig(
     stage=stage,
     stack_name_override=stack_name_override,
     notification_email=notification_email,
+    log_level=log_level,
     alpaca=alpaca,
 )
 

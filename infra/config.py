@@ -29,6 +29,7 @@ class StageConfig:
     stage: str
     stack_name_override: str = ""
     notification_email: str = ""
+    log_level: str = "INFO"
     data_refresh_schedule_expr: str = "cron(0 0,12 ? * TUE-SAT *)"
     fetch_cooldown_minutes: int = 15
 
@@ -89,6 +90,7 @@ class StageConfig:
         """Environment variables applied to every Lambda (replaces SAM Globals)."""
         return {
             "APP__STAGE": self.app_stage_value,
+            "ALCHEMISER_LOG_LEVEL": self.log_level,
             "ALPACA__KEY": self.alpaca.key,
             "ALPACA__SECRET": self.alpaca.secret,
             "ALPACA__ENDPOINT": self.alpaca.endpoint,

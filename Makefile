@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups hedge-kill-switch-status hedge-kill-switch-reset tearsheets tearsheet-account tearsheet-strategy
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups hedge-kill-switch-status hedge-kill-switch-reset tearsheets tearsheet-account tearsheet-strategy cdk-synth cdk-diff cdk-deploy-dev
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -70,6 +70,11 @@ help:
 	@echo "  deploy-staging  Deploy to STAGING (creates staging tag, triggers CI/CD)"
 	@echo "  deploy-prod     Deploy to PROD (creates release tag, triggers CI/CD)"
 	@echo "  deploy-prod v=x.y.z  Deploy specific version to PROD"
+	@echo ""
+	@echo "CDK (local):"
+	@echo "  cdk-synth       Synthesize all CDK stacks (dev)"
+	@echo "  cdk-diff        Preview CDK changes vs deployed (dev)"
+	@echo "  cdk-deploy-dev  Deploy all CDK stacks to dev locally"
 	@echo ""
 	@echo "Version Management:"
 	@echo "  bump-patch      Bump patch version (x.y.z -> x.y.z+1)"
@@ -444,6 +449,32 @@ hedge-kill-switch-reset:
 		--expression-attribute-values '{":false": {"BOOL": false}, ":zero": {"N": "0"}, ":null": {"NULL": true}, ":now": {"S": "'"$$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"'"}}' \
 		--no-cli-pager; \
 	echo "Kill switch deactivated."
+
+# ============================================================================
+# CDK (local)
+# ============================================================================
+
+# Synthesize all CDK stacks for dev
+# Usage: make cdk-synth
+#        make cdk-synth stage=prod
+cdk-synth:
+	@STAGE=$${stage:-dev}; \
+	echo "Synthesizing CDK stacks ($$STAGE)..."; \
+	npx cdk synth -c stage=$$STAGE --quiet
+
+# Preview changes vs deployed infrastructure
+# Usage: make cdk-diff
+#        make cdk-diff stage=prod
+cdk-diff:
+	@STAGE=$${stage:-dev}; \
+	echo "Diffing CDK stacks ($$STAGE)..."; \
+	npx cdk diff --all -c stage=$$STAGE
+
+# Deploy all CDK stacks to dev locally
+# Usage: make cdk-deploy-dev
+cdk-deploy-dev:
+	@echo "Deploying CDK stacks to dev..."
+	./scripts/cdk_deploy.sh dev
 
 # ============================================================================
 # DEPLOYMENT (via GitHub Actions CI/CD)
