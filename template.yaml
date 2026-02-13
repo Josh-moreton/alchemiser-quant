@@ -15,6 +15,7 @@ Parameters:
       - dev
       - staging
       - prod
+      - production
       - ephemeral
     Description: Deployment stage (dev, staging, prod, or ephemeral)
   
@@ -29,7 +30,7 @@ Parameters:
     AllowedValues:
       - dev
       - staging
-      - prod
+      - production
       - ephemeral
     Description: Environment type for resource configuration
   
@@ -42,18 +43,18 @@ Parameters:
     Type: String
     Default: ""
     NoEcho: true
-    Description: Alpaca API Key (used only in dev; leave blank for prod)
+    Description: Alpaca API Key (used only in dev; leave blank for production)
 
   AlpacaSecret:
     Type: String
     Default: ""
     NoEcho: true
-    Description: Alpaca API Secret (used only in dev; leave blank for prod)
+    Description: Alpaca API Secret (used only in dev; leave blank for production)
 
   AlpacaEndpoint:
     Type: String
     Default: https://paper-api.alpaca.markets/v2
-    Description: Alpaca API endpoint; defaults to paper for dev, live is used for prod
+    Description: Alpaca API endpoint; defaults to paper for dev, live is used for production
 
   # Margin/Leverage configuration
   EquityDeploymentPct:
@@ -89,18 +90,18 @@ Parameters:
     Default: "1.0"
     Description: Equity deployment percentage for staging
 
-  # Production-only parameters (only used when Stage=prod)
+  # Production-only parameters (only used when Stage=production)
   ProdAlpacaKey:
     Type: String
     Default: ""
     NoEcho: true
-    Description: Alpaca API Key for production (required when Stage=prod)
+    Description: Alpaca API Key for production (required when Stage=production)
 
   ProdAlpacaSecret:
     Type: String
     Default: ""
     NoEcho: true
-    Description: Alpaca API Secret for production (required when Stage=prod)
+    Description: Alpaca API Secret for production (required when Stage=production)
 
   ProdAlpacaEndpoint:
     Type: String
@@ -133,14 +134,14 @@ Mappings:
       TitleCase: "Dev"
     staging:
       TitleCase: "Staging"
-    prod:
+    production:
       TitleCase: "Production"
     ephemeral:
       TitleCase: "Ephemeral"
 
 Conditions:
   IsStaging: !Equals [ !Ref Stage, staging ]
-  IsProduction: !Equals [ !Ref Stage, prod ]
+  IsProduction: !Equals [ !Ref Stage, production ]
   IsEphemeral: !Equals [ !Ref Stage, ephemeral ]
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
