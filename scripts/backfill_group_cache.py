@@ -21,7 +21,7 @@ Performance optimisations:
 
 Usage:
     poetry run python scripts/backfill_group_cache.py \\
-        layers/shared/the_alchemiser/shared/strategies/ftl_starburst.clj
+        layers/shared/python/the_alchemiser/shared/strategies/ftl_starburst.clj
 
     # Custom lookback (default 45 calendar days):
     poetry run python scripts/backfill_group_cache.py \\

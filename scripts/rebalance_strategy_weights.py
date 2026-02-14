@@ -299,7 +299,7 @@ def load_calmar_ratios(csv_path: Path) -> dict[str, Decimal]:
         print("\nOptions to fix:")
         print("  1. Run 'make strategy-add' to add csv_name_prefix to the ledger (recommended)")
         print("  2. Manually add mappings to CSV_TO_FILENAME in scripts/rebalance_strategy_weights.py")
-        print("\nAvailable .clj files: layers/shared/the_alchemiser/shared/strategies/")
+        print("\nAvailable .clj files: layers/shared/python/the_alchemiser/shared/strategies/")
         sys.exit(1)
 
     return calmar_by_filename

@@ -111,7 +111,7 @@ COLOURS = {
 
 def get_log_groups(stage: str) -> list[str]:
     """Get CloudWatch log group names for the given stage."""
-    return [f"/aws/lambda/alchemiser-{stage}-{fn}" for fn in LAMBDA_FUNCTIONS]
+    return [f"/aws/lambda/alch-{stage}-{fn}" for fn in LAMBDA_FUNCTIONS]
 
 
 def colour(text: str, colour_name: str) -> str:
@@ -135,7 +135,7 @@ def find_most_recent_workflow(
         Tuple of (correlation_id, timestamp) of the most recent workflow, or None if not found
 
     """
-    orchestrator_log_group = f"/aws/lambda/alchemiser-{stage}-strategy-orchestrator"
+    orchestrator_log_group = f"/aws/lambda/alch-{stage}-strategy-orchestrator"
 
     end_time = datetime.now(UTC)
     # Start with a narrow window (last 2 hours) to find recent workflows faster
@@ -242,7 +242,7 @@ def detect_workflow_time_range(
         Tuple of (start_time, end_time) for the workflow
 
     """
-    orchestrator_log_group = f"/aws/lambda/alchemiser-{stage}-strategy-orchestrator"
+    orchestrator_log_group = f"/aws/lambda/alch-{stage}-strategy-orchestrator"
 
     end_time = datetime.now(UTC)
     search_start = end_time - timedelta(hours=hours_back)
@@ -468,7 +468,7 @@ def format_event(event: dict[str, Any], show_extra: bool = True) -> str:
     # Build output
     parts = [
         colour(f"[{ts_str}]", "grey"),
-        colour(f"[{lambda_name.replace('alchemiser-dev-', '')}]", "cyan"),
+        colour(f"[{lambda_name.replace('alch-dev-', '')}]", "cyan"),
         colour(f"[{level:7}]", level_colour),
     ]
 
@@ -515,8 +515,8 @@ def print_summary(events: list[dict[str, Any]]) -> None:
     for event in events:
         lambda_name = event.get("_lambda_name", "unknown")
         # Shorten name for display
-        short_name = lambda_name.replace("alchemiser-dev-", "").replace(
-            "alchemiser-prod-", ""
+        short_name = lambda_name.replace("alch-dev-", "").replace(
+            "alch-prod-", ""
         )
         lambda_counts[short_name] = lambda_counts.get(short_name, 0) + 1
 

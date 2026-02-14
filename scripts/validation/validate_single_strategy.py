@@ -41,14 +41,14 @@ from pathlib import Path
 from typing import Any
 
 # Set environment variables for S3 market data access and DynamoDB group cache
-os.environ.setdefault("MARKET_DATA_BUCKET", "alchemiser-dev-market-data")
+os.environ.setdefault("MARKET_DATA_BUCKET", "alch-dev-market-data")
 os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
-os.environ.setdefault("GROUP_HISTORY_TABLE", "alchemiser-dev-group-history")
+os.environ.setdefault("GROUP_HISTORY_TABLE", "alch-dev-group-history")
 
 # Project paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 STRATEGY_WORKER_PATH = PROJECT_ROOT / "functions" / "strategy_worker"
-SHARED_LAYER_PATH = PROJECT_ROOT / "layers" / "shared"
+SHARED_LAYER_PATH = PROJECT_ROOT / "layers" / "shared" / "python"
 STRATEGIES_PATH = SHARED_LAYER_PATH / "the_alchemiser" / "shared" / "strategies"
 LEDGER_PATH = STRATEGIES_PATH / "strategy_ledger.yaml"
 VALIDATION_DIR = PROJECT_ROOT / "validation_results"
