@@ -103,7 +103,16 @@ class AlchemiserFunction(Construct):
             function_name=function_name,
             runtime=PYTHON_RUNTIME,
             architecture=X86_64,
-            code=_lambda.Code.from_asset(code_uri),
+            code=_lambda.Code.from_asset(
+                code_uri,
+                exclude=[
+                    ".mypy_cache",
+                    "__pycache__",
+                    "*.pyc",
+                    ".pytest_cache",
+                    "*.egg-info",
+                ],
+            ),
             handler=handler,
             role=role,
             layers=layers,
