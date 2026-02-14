@@ -26,7 +26,7 @@ from aws_cdk import (
 from constructs import Construct
 
 from infra.config import StageConfig
-from infra.constructs import alchemiser_table
+from infra.constructs import LocalShellBundling, alchemiser_table
 
 
 class FoundationStack(cdk.Stack):
@@ -65,24 +65,82 @@ class FoundationStack(cdk.Stack):
         )
 
         # ---- Notifications Layer (shared: used by Orchestrator, ScheduleManager, TradeAggregator) ----
+        # Packages with native extensions (pydantic-core Rust, dependency-injector C)
+        # must be installed with --platform manylinux2014_x86_64 for Lambda.
+        _notifications_layer_cmd = (
+            "pip install -q"
+            " pydantic pydantic-settings"
+            " -t /asset-output/python --upgrade"
+            " --platform manylinux2014_x86_64 --only-binary=:all:"
+            " --python-version 3.12 --implementation cp"
+            " && pip install -q"
+            " dependency-injector"
+            " -t /asset-output/python --upgrade"
+            " --platform manylinux2014_x86_64 --only-binary=:all:"
+            " --python-version 3.12 --implementation cp"
+            " && pip install -q"
+            " alpaca-py==0.43.0 --no-deps"
+            " -t /asset-output/python --upgrade"
+            " && pip install -q"
+            " structlog 'cachetools>=5.5,<7' pyyaml"
+            " msgpack sseclient-py websockets"
+            " httpx requests"
+            " -t /asset-output/python --upgrade"
+        )
         self.notifications_layer = _lambda.LayerVersion(
             self,
             "NotificationsLayer",
             layer_version_name=config.resource_name("notifications-deps"),
             description="Notifications Lambda dependencies (pydantic, structlog, alpaca-py)",
-            code=_lambda.Code.from_asset("layers/notifications/"),
+            code=_lambda.Code.from_asset(
+                "layers/notifications/",
+                bundling=cdk.BundlingOptions(
+                    image=_lambda.Runtime.PYTHON_3_12.bundling_image,
+                    local=LocalShellBundling(_notifications_layer_cmd),
+                    command=["bash", "-c", _notifications_layer_cmd],
+                ),
+            ),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
+            compatible_architectures=[_lambda.Architecture.X86_64],
             removal_policy=RemovalPolicy.RETAIN,
         )
 
         # ---- Portfolio Layer (shared: used by Hedging, Dashboard, AccountData) ----
+        _portfolio_layer_cmd = (
+            "pip install -q"
+            " pydantic pydantic-settings"
+            " -t /asset-output/python --upgrade"
+            " --platform manylinux2014_x86_64 --only-binary=:all:"
+            " --python-version 3.12 --implementation cp"
+            " && pip install -q"
+            " dependency-injector"
+            " -t /asset-output/python --upgrade"
+            " --platform manylinux2014_x86_64 --only-binary=:all:"
+            " --python-version 3.12 --implementation cp"
+            " && pip install -q"
+            " alpaca-py==0.43.0 --no-deps"
+            " -t /asset-output/python --upgrade"
+            " && pip install -q"
+            " structlog 'cachetools>=5.5,<7' pyyaml"
+            " msgpack sseclient-py websockets"
+            " httpx requests"
+            " -t /asset-output/python --upgrade"
+        )
         self.portfolio_layer = _lambda.LayerVersion(
             self,
             "PortfolioLayer",
             layer_version_name=config.resource_name("portfolio-deps"),
             description="Portfolio Lambda dependencies (alpaca-py, pydantic)",
-            code=_lambda.Code.from_asset("layers/portfolio/"),
+            code=_lambda.Code.from_asset(
+                "layers/portfolio/",
+                bundling=cdk.BundlingOptions(
+                    image=_lambda.Runtime.PYTHON_3_12.bundling_image,
+                    local=LocalShellBundling(_portfolio_layer_cmd),
+                    command=["bash", "-c", _portfolio_layer_cmd],
+                ),
+            ),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
+            compatible_architectures=[_lambda.Architecture.X86_64],
             removal_policy=RemovalPolicy.RETAIN,
         )
 
