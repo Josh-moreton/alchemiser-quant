@@ -74,7 +74,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--stage",
         type=str,
-        default="prod",
+        default="dev",
         choices=["dev", "staging", "prod"],
         help="Target stage (default: prod).",
     )
