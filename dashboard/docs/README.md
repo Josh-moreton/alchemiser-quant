@@ -212,7 +212,7 @@ ls -la .env
 
 ### Import Errors
 - Run `poetry install` to ensure all dependencies are installed
-- The dashboard uses `_setup_imports.py` to add `layers/shared` to sys.path
+- The dashboard uses `_setup_imports.py` to add `shared_layer/python` to sys.path
 
 ## License
 

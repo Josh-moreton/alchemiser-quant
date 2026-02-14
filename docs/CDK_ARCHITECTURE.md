@@ -37,7 +37,7 @@ Shared resources consumed by every other stack.
 | Resource | Type | Details |
 |----------|------|---------|
 | AlchemiserEventBus | EventBridge Bus | Custom event bus for all domain events |
-| SharedCodeLayer | Lambda Layer | `layers/shared/` -- `the_alchemiser.shared` module |
+| SharedCodeLayer | Lambda Layer | `shared_layer/` -- `the_alchemiser.shared` module |
 | NotificationsLayer | Lambda Layer | `layers/notifications/` -- pydantic, structlog, alpaca-py |
 | PortfolioLayer | Lambda Layer | `layers/portfolio/` -- alpaca-py, pydantic |
 | TradeLedgerTable | DynamoDB | PK/SK, 5 GSIs (Correlation, Symbol, Strategy, CorrelationSnapshot, StrategyLots), PITR enabled |

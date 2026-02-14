@@ -8,7 +8,7 @@ This guide explains how we evaluate Composer-style strategies, convert them into
 
 Every afternoon at 3:05 PM ET the platform runs 16 strategies in parallel (one AWS Lambda per strategy). Each strategy reads cached market data from S3 (refreshed nightly from Alpaca) and outputs target weights. The signal aggregator merges those weights into a single consolidated portfolio, the planner turns the deltas into individual trade messages, and execution runs in two phases: sells first, then buys, with settlement checks between phases. Every fill is written to the trade ledger with the context you need to debug or audit later (decision path, market conditions, and strategy attribution).
 
-Note: The repository is organized so each Lambda ships its own code from `functions/<name>/` (SAM `CodeUri`). Common runtime/business code is provided by `layers/shared/` (deployed as `SharedCodeLayer`) and should not be copied into each function.
+Note: The repository is organized so each Lambda ships its own code from `functions/<name>/` (SAM `CodeUri`). Common runtime/business code is provided by `shared_layer/` (deployed as `SharedCodeLayer`) and should not be copied into each function.
 
 ---
 

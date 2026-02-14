@@ -7,7 +7,7 @@
 
 ### 1. New Modules Created
 
-#### `layers/shared/the_alchemiser/shared/options/tenor_selector.py`
+#### `shared_layer/python/the_alchemiser/shared/options/tenor_selector.py`
 - **Purpose**: Dynamic DTE (tenor) selection based on market conditions
 - **Key Features**:
   - VIX-based selection: High VIX (>35) → longer tenors (120-180 DTE)
@@ -18,7 +18,7 @@
   - `TenorRecommendation`: Data class for tenor recommendations
   - `TenorSelector`: Main selector with configurable ranges
 
-#### `layers/shared/the_alchemiser/shared/options/convexity_selector.py`
+#### `shared_layer/python/the_alchemiser/shared/options/convexity_selector.py`
 - **Purpose**: Strike selection based on convexity and scenario payoffs
 - **Key Features**:
   - Convexity per dollar: `gamma / (mid_price * 100)`
@@ -31,7 +31,7 @@
 
 ### 2. Enhanced Configuration
 
-#### `layers/shared/the_alchemiser/shared/options/constants/hedge_config.py`
+#### `shared_layer/python/the_alchemiser/shared/options/constants/hedge_config.py`
 **Updated `LiquidityFilters` dataclass:**
 ```python
 @dataclass(frozen=True)
@@ -70,7 +70,7 @@ class LiquidityFilters:
 - Extracts `current_vix` from recommendation
 - Passes VIX to `select_hedge_contract()` for dynamic selection
 
-#### `layers/shared/the_alchemiser/shared/events/schemas.py`
+#### `shared_layer/python/the_alchemiser/shared/events/schemas.py`
 **Schema Update:**
 - Added `current_vix: Decimal | None` to `HedgeEvaluationCompleted` event
 - Enables VIX to flow from evaluator to executor
@@ -162,8 +162,8 @@ class LiquidityFilters:
 
 ```
 New Files:
-+ layers/shared/the_alchemiser/shared/options/tenor_selector.py
-+ layers/shared/the_alchemiser/shared/options/convexity_selector.py
++ shared_layer/python/the_alchemiser/shared/options/tenor_selector.py
++ shared_layer/python/the_alchemiser/shared/options/convexity_selector.py
 + docs/DYNAMIC_CONTRACT_SELECTION.md
 + scripts/test_dynamic_contract_selection.py
 
@@ -171,8 +171,8 @@ Modified Files:
 ~ functions/hedge_executor/core/option_selector.py
 ~ functions/hedge_evaluator/handlers/hedge_evaluation_handler.py
 ~ functions/hedge_executor/handlers/hedge_execution_handler.py
-~ layers/shared/the_alchemiser/shared/options/constants/hedge_config.py
-~ layers/shared/the_alchemiser/shared/events/schemas.py
+~ shared_layer/python/the_alchemiser/shared/options/constants/hedge_config.py
+~ shared_layer/python/the_alchemiser/shared/events/schemas.py
 ~ docs/OPTIONS_HEDGING.md
 ```
 

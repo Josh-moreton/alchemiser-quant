@@ -186,7 +186,7 @@ Template selection metadata is included in `HedgeEvaluationCompleted` events:
 Run unit tests with pytest:
 
 ```bash
-poetry run pytest layers/shared/the_alchemiser/shared/options/tests/test_template_chooser.py -v
+poetry run pytest shared_layer/python/the_alchemiser/shared/options/tests/test_template_chooser.py -v
 ```
 
 **Coverage:**
@@ -214,7 +214,7 @@ poetry run python scripts/test_regime_template_chooser.py
 
 ### Module Location
 ```
-layers/shared/the_alchemiser/shared/options/
+shared_layer/python/the_alchemiser/shared/options/
 ├── template_chooser.py          # Core implementation
 ├── tests/
 │   └── test_template_chooser.py # Unit tests
@@ -228,7 +228,7 @@ layers/shared/the_alchemiser/shared/options/
    - Calls `choose_template()` before creating `HedgeSizer`
    - Logs rationale and publishes in event
 
-2. **HedgeEvaluationCompleted Event** (`layers/shared/the_alchemiser/shared/events/schemas.py`)
+2. **HedgeEvaluationCompleted Event** (`shared_layer/python/the_alchemiser/shared/events/schemas.py`)
    - Includes `template_selected`, `template_regime`, `template_selection_reason` fields
 
 3. **HedgeSizer** (`functions/hedge_evaluator/core/hedge_sizer.py`)
@@ -246,6 +246,6 @@ layers/shared/the_alchemiser/shared/options/
 ## References
 
 - Issue: [Options Hedging] Regime/template chooser - honest and testable
-- Implementation: `layers/shared/the_alchemiser/shared/options/template_chooser.py`
-- Tests: `layers/shared/the_alchemiser/shared/options/tests/test_template_chooser.py`
+- Implementation: `shared_layer/python/the_alchemiser/shared/options/template_chooser.py`
+- Tests: `shared_layer/python/the_alchemiser/shared/options/tests/test_template_chooser.py`
 - Validation: `scripts/test_regime_template_chooser.py`

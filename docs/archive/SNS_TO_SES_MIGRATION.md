@@ -17,7 +17,7 @@ This document summarizes the comprehensive migration from AWS SNS to AWS SES for
 - ✅ Added DynamoDB permissions for dedup table access
 - ✅ Added CloudFormation output for NotificationDedupTable
 
-### 2. Core Modules (layers/shared/the_alchemiser/shared/notifications/)
+### 2. Core Modules (shared_layer/python/the_alchemiser/shared/notifications/)
 
 #### ses_publisher.py (SESEmailPublisher)
 - ✅ Send HTML + plain text emails via Amazon SES

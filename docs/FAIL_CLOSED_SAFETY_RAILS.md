@@ -381,8 +381,8 @@ A: No. Expected skips (low exposure, existing hedges, etc.) are logged as `statu
 
 ## References
 
-- Exception definitions: `layers/shared/the_alchemiser/shared/errors/exceptions.py`
-- Kill switch service: `layers/shared/the_alchemiser/shared/options/kill_switch_service.py`
+- Exception definitions: `shared_layer/python/the_alchemiser/shared/errors/exceptions.py`
+- Kill switch service: `shared_layer/python/the_alchemiser/shared/options/kill_switch_service.py`
 - Evaluation handler: `functions/hedge_evaluator/handlers/hedge_evaluation_handler.py`
 - Execution handler: `functions/hedge_executor/handlers/hedge_execution_handler.py`
 - Option selector: `functions/hedge_executor/core/option_selector.py`

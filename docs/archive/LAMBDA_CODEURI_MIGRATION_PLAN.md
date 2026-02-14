@@ -16,7 +16,7 @@ This document outlines the plan to migrate each Lambda function from the current
 After migration, the repository uses per-function CodeUri paths and a shared layer for common runtime code:
 
 - Function code: `functions/<name>/` (each Lambda's SAM `CodeUri` points here)
-- Shared runtime/business code: `layers/shared/` (published as `SharedCodeLayer` and referenced by each Lambda via `!Ref SharedCodeLayer`)
+- Shared runtime/business code: `shared_layer/` (published as `SharedCodeLayer` and referenced by each Lambda via `!Ref SharedCodeLayer`)
 - Handler convention: function-level `lambda_handler.lambda_handler` (function code flattened under `functions/<name>/`)
 
 Do NOT copy `the_alchemiser/shared/` into each function's CodeUri; use the shared layer instead.
@@ -41,7 +41,7 @@ Do NOT copy `the_alchemiser/shared/` into each function's CodeUri; use the share
 
 All Lambdas currently use:
 ```yaml
-CodeUri: ./   # legacy (before migration). Final pattern: CodeUri: functions/<name>/ and use layers/shared/ for shared code
+CodeUri: ./   # legacy (before migration). Final pattern: CodeUri: functions/<name>/ and use shared_layer/ for shared code
 Metadata:
   BuildMethod: python3.12
   BuildProperties:
@@ -118,7 +118,7 @@ SharedCodeLayer:
   Type: AWS::Serverless::LayerVersion
   Properties:
     LayerName: !Sub "${StackName}-shared-code"
-    ContentUri: layers/shared/
+    ContentUri: shared_layer/
     CompatibleRuntimes:
       - python3.12
   Metadata:
@@ -253,7 +253,7 @@ version = "x.y.z"
      Properties:
        LayerName: !Sub "alchemiser-${Stage}-shared-code"
        Description: Shared business logic and utilities
-       ContentUri: layers/shared/
+       ContentUri: shared_layer/
        CompatibleRuntimes:
          - python3.12
      Metadata:
@@ -263,10 +263,10 @@ version = "x.y.z"
 3. Update Makefile to sync shared code to layer:
    ```makefile
    sync-shared-layer:
-       rm -rf layers/shared/python/the_alchemiser/shared
-       mkdir -p layers/shared/python/the_alchemiser
-       cp the_alchemiser/__init__.py layers/shared/python/the_alchemiser/
-       cp -r the_alchemiser/shared layers/shared/python/the_alchemiser/
+       rm -rf shared_layer/python/the_alchemiser/shared
+       mkdir -p shared_layer/python/the_alchemiser
+       cp the_alchemiser/__init__.py shared_layer/python/the_alchemiser/
+       cp -r the_alchemiser/shared shared_layer/python/the_alchemiser/
    ```
 
 #### Phase 2: Create Per-Lambda Function Directories
@@ -430,7 +430,7 @@ This works because:
 - [ ] Set up feature branch for migration
 
 ### Phase 1: Shared Layer
-- [ ] Create `layers/shared/` directory structure
+- [ ] Create `shared_layer/` directory structure
 - [ ] Copy shared code to layer location
 - [ ] Add SharedCodeLayer to template.yaml
 - [ ] Test layer builds correctly

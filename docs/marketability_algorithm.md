@@ -42,7 +42,7 @@ All execution results now include:
 ## Implementation Details
 
 ### Core Module
-`layers/shared/the_alchemiser/shared/options/marketability_pricing.py`
+`shared_layer/python/the_alchemiser/shared/options/marketability_pricing.py`
 
 Key classes:
 - `MarketabilityPricer`: Calculates adaptive limit prices
@@ -51,7 +51,7 @@ Key classes:
 - `MarketCondition`: Enum for CALM vs HIGH_IV markets
 
 ### Configuration
-`layers/shared/the_alchemiser/shared/options/constants/hedge_config.py`
+`shared_layer/python/the_alchemiser/shared/options/constants/hedge_config.py`
 
 New constants:
 ```python
@@ -103,7 +103,7 @@ All tests use recorded market snapshots (bid/ask) for reproducibility.
 
 ### Running Tests
 ```bash
-export PYTHONPATH="layers/shared:$PYTHONPATH"
+export PYTHONPATH="shared_layer/python:$PYTHONPATH"
 python3 -m pytest tests/test_marketability_pricing.py -v
 ```
 
@@ -229,6 +229,6 @@ logger.warning("EXPLICIT NO FILL - Max pricing attempts reached",
 ## References
 
 - Issue: `[Options Hedging] Execution - make fills real, not aspirational`
-- Module: `layers/shared/the_alchemiser/shared/options/marketability_pricing.py`
+- Module: `shared_layer/python/the_alchemiser/shared/options/marketability_pricing.py`
 - Tests: `tests/test_marketability_pricing.py`
-- Constants: `layers/shared/the_alchemiser/shared/options/constants/hedge_config.py`
+- Constants: `shared_layer/python/the_alchemiser/shared/options/constants/hedge_config.py`

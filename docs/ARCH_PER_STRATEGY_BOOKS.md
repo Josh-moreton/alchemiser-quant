@@ -202,9 +202,9 @@ strategy_allocations = {
    - Fields: strategy_id, symbol, qty, avg_cost, market_value
 
 **Affected Files:**
-- `layers/shared/the_alchemiser/shared/events/schemas.py`
-- `layers/shared/the_alchemiser/shared/schemas/trade_ledger.py`
-- `layers/shared/the_alchemiser/shared/schemas/` (new file: `strategy_position.py`)
+- `shared_layer/python/the_alchemiser/shared/events/schemas.py`
+- `shared_layer/python/the_alchemiser/shared/schemas/trade_ledger.py`
+- `shared_layer/python/the_alchemiser/shared/schemas/` (new file: `strategy_position.py`)
 
 ### Phase 2: Strategy Worker Enhancement
 
@@ -256,7 +256,7 @@ strategy_allocations = {
 **Affected Files:**
 - `functions/execution/lambda_handler.py`
 - `functions/execution/handlers/single_trade_handler.py`
-- `layers/shared/the_alchemiser/shared/repositories/dynamodb_trade_ledger_repository.py`
+- `shared_layer/python/the_alchemiser/shared/repositories/dynamodb_trade_ledger_repository.py`
 
 ### Phase 4: Infrastructure Changes (template.yaml)
 
@@ -319,8 +319,8 @@ strategy_allocations = {
 **Affected Files:**
 - Delete: `functions/strategy_aggregator/`
 - Delete: `functions/portfolio/` (conditional)
-- Update: `layers/shared/the_alchemiser/shared/events/schemas.py`
-- Update: `layers/shared/the_alchemiser/shared/schemas/consolidated_portfolio.py` (mark deprecated)
+- Update: `shared_layer/python/the_alchemiser/shared/events/schemas.py`
+- Update: `shared_layer/python/the_alchemiser/shared/schemas/consolidated_portfolio.py` (mark deprecated)
 - Update: `docs/`, `CLAUDE.md`, `README.md`
 
 ### Phase 6: Testing and Validation
@@ -613,7 +613,7 @@ The gradual migration approach minimizes risk while allowing us to validate the 
 ## References
 
 - Current architecture: `CLAUDE.md`, `README.md`
-- Event schemas: `layers/shared/the_alchemiser/shared/events/schemas.py`
+- Event schemas: `shared_layer/python/the_alchemiser/shared/events/schemas.py`
 - Portfolio logic: `functions/portfolio/core/planner.py`
-- Trade ledger: `layers/shared/the_alchemiser/shared/repositories/dynamodb_trade_ledger_repository.py`
+- Trade ledger: `shared_layer/python/the_alchemiser/shared/repositories/dynamodb_trade_ledger_repository.py`
 - SAM template: `template.yaml`

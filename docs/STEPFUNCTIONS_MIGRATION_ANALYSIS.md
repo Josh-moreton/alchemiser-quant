@@ -518,7 +518,7 @@ Step Functions would add unnecessary complexity. Keep as-is.
 
 ### Shared Code Changes
 
-- [ ] `layers/shared/the_alchemiser/shared/services/aggregation_session_service.py`: Mark as deprecated
+- [ ] `shared_layer/python/the_alchemiser/shared/services/aggregation_session_service.py`: Mark as deprecated
 - [ ] Update container/wiring to not instantiate AggregationSessionService in SF mode
 
 ### Tests

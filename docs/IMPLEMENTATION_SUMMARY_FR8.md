@@ -61,7 +61,7 @@ Three comprehensive operational runbooks were created:
 
 ### 2. Code Enhancements
 
-#### A. Configuration Constants (`layers/shared/the_alchemiser/shared/options/constants/hedge_config.py`)
+#### A. Configuration Constants (`shared_layer/python/the_alchemiser/shared/options/constants/hedge_config.py`)
 
 Added new roll trigger thresholds:
 
@@ -78,7 +78,7 @@ SPREAD_LONG_DELTA_THRESHOLD = Decimal("0.50")  # 50-delta warning
 SPREAD_SHORT_DELTA_THRESHOLD = Decimal("0.20")  # 20-delta early warning
 ```
 
-#### B. Schema Enhancements (`layers/shared/the_alchemiser/shared/options/schemas/hedge_history_record.py`)
+#### B. Schema Enhancements (`shared_layer/python/the_alchemiser/shared/options/schemas/hedge_history_record.py`)
 
 Added new `HedgeAction` enum values for assignment handling:
 

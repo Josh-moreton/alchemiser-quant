@@ -18,7 +18,7 @@ Note: For packaging or migration documentation changes (like CodeUri/layer updat
 
 Alchemiser is a **multi-strategy quantitative trading system** deployed as **multiple AWS Lambda microservices**. It uses an **event-driven architecture** where Lambdas communicate via EventBridge, SQS, and SNS.
 
-Note: Each Lambda's source is packaged from `functions/<name>/` (SAM `CodeUri`) and shared runtime/business code is provided by `layers/shared/` (the `SharedCodeLayer`). Avoid copying `the_alchemiser/shared/` into each function; prefer the shared layer.
+Note: Each Lambda's source is packaged from `functions/<name>/` (SAM `CodeUri`) and shared runtime/business code is provided by `shared_layer/` (the `SharedCodeLayer`). Avoid copying `the_alchemiser/shared/` into each function; prefer the shared layer.
 
 ### Tech Stack
 - **Language**: Python 3.12+
@@ -422,11 +422,11 @@ logger.info(
 | Strategy Reports handler | `functions/strategy_reports/lambda_handler.py` |
 | Execution Lambda handler | `functions/execution/lambda_handler.py` |
 | Notifications Lambda handler | `functions/notifications/lambda_handler.py` |
-| Event schemas | `layers/shared/the_alchemiser/shared/events/schemas.py` |
-| EventBridge publisher | `layers/shared/the_alchemiser/shared/events/eventbridge_publisher.py` |
-| SES email publisher | `layers/shared/the_alchemiser/shared/notifications/ses_publisher.py` |
-| DTOs | `layers/shared/the_alchemiser/shared/schemas/` |
-| DI Container | `layers/shared/the_alchemiser/shared/config/container.py` |
+| Event schemas | `shared_layer/python/the_alchemiser/shared/events/schemas.py` |
+| EventBridge publisher | `shared_layer/python/the_alchemiser/shared/events/eventbridge_publisher.py` |
+| SES email publisher | `shared_layer/python/the_alchemiser/shared/notifications/ses_publisher.py` |
+| DTOs | `shared_layer/python/the_alchemiser/shared/schemas/` |
+| DI Container | `shared_layer/python/the_alchemiser/shared/config/container.py` |
 | Strategy engines | `functions/strategy_worker/engines/` |
 | Infrastructure (SAM) | `template.yaml` |
 | Script import helper | `scripts/_setup_imports.py` |

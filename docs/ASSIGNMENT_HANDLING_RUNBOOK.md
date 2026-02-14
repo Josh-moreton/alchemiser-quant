@@ -228,7 +228,7 @@ Halt all hedging operations if:
 
 ### Halt Implementation
 
-**Location**: `layers/shared/the_alchemiser/shared/options/kill_switch_service.py`
+**Location**: `shared_layer/python/the_alchemiser/shared/options/kill_switch_service.py`
 
 **Steps**:
 

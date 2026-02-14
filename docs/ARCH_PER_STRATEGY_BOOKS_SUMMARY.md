@@ -19,7 +19,7 @@ This proposal addresses the issue request to "explore this idea in depth, and cr
 - Success criteria and timeline estimate (4-6 weeks)
 
 ### 2. Proof-of-Concept Event Schema
-**Location**: `layers/shared/the_alchemiser/shared/events/schemas.py`
+**Location**: `shared_layer/python/the_alchemiser/shared/events/schemas.py`
 
 **Added**: `StrategyExecutionRequested` event class
 - Demonstrates feasibility of proposed architecture
@@ -143,7 +143,7 @@ Notifications
 ## References
 
 - **Architecture Document**: `docs/ARCH_PER_STRATEGY_BOOKS.md`
-- **POC Event Schema**: `layers/shared/the_alchemiser/shared/events/schemas.py` (line 1100+)
+- **POC Event Schema**: `shared_layer/python/the_alchemiser/shared/events/schemas.py` (line 1100+)
 - **Current Architecture**: `CLAUDE.md`, `README.md`
 - **Template**: `template.yaml`
 
