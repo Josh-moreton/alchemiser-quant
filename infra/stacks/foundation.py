@@ -62,7 +62,7 @@ class FoundationStack(cdk.Stack):
             code=_lambda.Code.from_asset("shared_layer/"),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
             compatible_architectures=[_lambda.Architecture.X86_64],
-            removal_policy=RemovalPolicy.RETAIN,
+            removal_policy=RemovalPolicy.DESTROY,
         )
 
         # ---- Notifications Layer (shared: used by Orchestrator, ScheduleManager, TradeAggregator) ----
@@ -78,7 +78,7 @@ class FoundationStack(cdk.Stack):
             description="Notifications Lambda dependencies (pydantic, structlog, alpaca-py)",
             code=_lambda.Code.from_asset("layers/notifications/"),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
-            removal_policy=RemovalPolicy.RETAIN,
+            removal_policy=RemovalPolicy.DESTROY,
         )
 
         # ---- Portfolio Layer (shared: used by Hedging, Dashboard, AccountData) ----
@@ -93,7 +93,7 @@ class FoundationStack(cdk.Stack):
             description="Portfolio Lambda dependencies (alpaca-py, pydantic)",
             code=_lambda.Code.from_asset("layers/portfolio/"),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
-            removal_policy=RemovalPolicy.RETAIN,
+            removal_policy=RemovalPolicy.DESTROY,
         )
 
         # ---- SSM Parameters for cross-stack layer references ----

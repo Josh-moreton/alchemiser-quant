@@ -71,7 +71,7 @@ class ExecutionStack(cdk.Stack):
             description="Execution Lambda dependencies (alpaca-py, pydantic)",
             code=_lambda.Code.from_asset(execution_layer_code_path),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
-            removal_policy=cdk.RemovalPolicy.RETAIN,
+            removal_policy=cdk.RemovalPolicy.DESTROY,
         )
 
         # Publish execution layer ARN to SSM so hedging stack can look it up

@@ -98,7 +98,7 @@ class StrategyStack(cdk.Stack):
             ),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
             compatible_architectures=[_lambda.Architecture.X86_64],
-            removal_policy=RemovalPolicy.RETAIN,
+            removal_policy=RemovalPolicy.DESTROY,
         )
 
         # ---- Group Historical Selections Table ----
@@ -120,11 +120,14 @@ class StrategyStack(cdk.Stack):
                 if config.stack_name_override
                 else f"alch-{config.stage}-reports"
             ),
+            versioned=False,
             lifecycle_rules=[
                 s3.LifecycleRule(id="DeleteOldReports", expiration=Duration.days(30), enabled=True),
             ],
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             encryption=s3.BucketEncryption.S3_MANAGED,
+            removal_policy=RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
         )
         cdk.Tags.of(self.performance_reports_bucket).add("Environment", config.stage)
         cdk.Tags.of(self.performance_reports_bucket).add("Service", "performance-reports")

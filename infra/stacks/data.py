@@ -64,9 +64,9 @@ class DataStack(cdk.Stack):
             self,
             "MarketDataBucket",
             bucket_name=config.resource_name("market-data"),
-            versioned=True,
-            removal_policy=RemovalPolicy.RETAIN,
-            auto_delete_objects=False,
+            versioned=False,
+            removal_policy=RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             encryption=s3.BucketEncryption.S3_MANAGED,
             lifecycle_rules=[
@@ -130,7 +130,7 @@ class DataStack(cdk.Stack):
             ),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
             compatible_architectures=[_lambda.Architecture.X86_64],
-            removal_policy=RemovalPolicy.RETAIN,
+            removal_policy=RemovalPolicy.DESTROY,
         )
 
         # ---- Data Execution Role ----

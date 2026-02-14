@@ -144,7 +144,7 @@ def alchemiser_table(
     sort_key: dynamodb.Attribute | None = None,
     time_to_live_attribute: str | None = None,
     point_in_time_recovery: bool = False,
-    removal_policy: RemovalPolicy = RemovalPolicy.RETAIN,
+    removal_policy: RemovalPolicy = RemovalPolicy.DESTROY,
     service_tag: str = "",
     global_secondary_indexes: list[dict[str, Any]] | None = None,
 ) -> dynamodb.Table:
