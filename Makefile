@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups hedge-kill-switch-status hedge-kill-switch-reset tearsheets tearsheet-account tearsheet-strategy cdk-synth cdk-diff cdk-deploy-dev dashboard
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups hedge-kill-switch-status hedge-kill-switch-reset tearsheets tearsheet-account tearsheet-strategy cdk-synth cdk-diff cdk-deploy-dev dashboard reset-environment
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -59,6 +59,14 @@ help:
 	@echo "  logs stage=prod            Fetch logs from most recent workflow (prod)"
 	@echo "  logs id=<correlation-id>   Fetch logs for specific workflow"
 	@echo "  logs id=<id> all=1         Fetch all logs for a workflow"
+	@echo ""
+	@echo "DANGEROUS - Environment Reset:"
+	@echo "  reset-environment                    !!! WIPES ALL DATA !!! Liquidates all Alpaca"
+	@echo "                                       positions, clears trade ledger, execution runs,"
+	@echo "                                       rebalance plans, and S3 performance reports."
+	@echo "                                       Targets dev by default. IRREVERSIBLE."
+	@echo "  reset-environment stage=prod         Target production (requires --confirm + 'RESET')"
+	@echo "  reset-environment dry-run=1          Preview what would be destroyed (safe to run)"
 	@echo ""
 	@echo "Development:"
 	@echo "  format          Format code with Ruff (style, whitespace, auto-fixes)"
@@ -629,3 +637,20 @@ deploy-prod:
 		--notes "Production release $$TAG"; \
 	echo "✅ Production release $$TAG created and pushed!"; \
 	echo "🚀 Production deployment will start automatically via GitHub Actions"
+
+# ============================================================================
+# ENVIRONMENT RESET (DESTRUCTIVE)
+# ============================================================================
+
+# Liquidate all positions, wipe trade ledger, execution runs, rebalance plans, and S3 reports.
+# Usage: make reset-environment                    # Dry-run against dev (safe preview)
+#        make reset-environment dry-run=1          # Explicit dry-run
+#        make reset-environment confirm=1          # Live reset against dev
+#        make reset-environment stage=prod confirm=1  # Live reset against prod
+reset-environment:
+	@STAGE=$${stage:-dev}; \
+	ARGS="--stage $$STAGE"; \
+	if [ -n "$(dry-run)" ]; then ARGS="$$ARGS --dry-run"; fi; \
+	if [ -n "$(confirm)" ]; then ARGS="$$ARGS --confirm"; fi; \
+	if [ -n "$(yes)" ]; then ARGS="$$ARGS --yes"; fi; \
+	poetry run python scripts/prep_production_reset.py $$ARGS
