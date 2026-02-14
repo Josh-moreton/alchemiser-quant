@@ -133,7 +133,6 @@ strategy = StrategyStack(
     execution_fifo_queue=execution.execution_fifo_queue,
     execution_runs_table=execution.execution_runs_table,
     rebalance_plan_table=execution.rebalance_plan_table,
-    notifications_layer=foundation.notifications_layer,
     env=env,
 )
 strategy.add_dependency(foundation)

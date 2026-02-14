@@ -62,7 +62,6 @@ class StrategyStack(cdk.Stack):
         execution_fifo_queue: sqs.IQueue,
         execution_runs_table: dynamodb.ITable,
         rebalance_plan_table: dynamodb.ITable,
-        notifications_layer: _lambda.ILayerVersion,
         **kwargs: object,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -229,7 +228,7 @@ class StrategyStack(cdk.Stack):
             function_name=config.resource_name("strategy-orchestrator"),
             code_uri="functions/strategy_orchestrator/",
             handler="lambda_handler.lambda_handler",
-            layers=[shared_code_layer, notifications_layer],
+            layers=[shared_code_layer, self.strategy_layer],
             role=orchestrator_role,
             timeout_seconds=60,
             memory_size=512,
@@ -279,7 +278,7 @@ class StrategyStack(cdk.Stack):
             function_name=config.resource_name("schedule-manager"),
             code_uri="functions/schedule_manager/",
             handler="lambda_handler.lambda_handler",
-            layers=[shared_code_layer, notifications_layer],
+            layers=[shared_code_layer, self.strategy_layer],
             role=schedule_mgr_role,
             timeout_seconds=60,
             memory_size=256,
