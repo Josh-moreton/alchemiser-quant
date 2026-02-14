@@ -51,6 +51,8 @@ class FoundationStack(cdk.Stack):
         )
 
         # ---- Shared Code Layer ----
+        # Directory must contain python/the_alchemiser/ so Lambda finds
+        # the module at /opt/python/the_alchemiser/ at runtime.
         self.shared_code_layer = _lambda.LayerVersion(
             self,
             "SharedCodeLayer",
