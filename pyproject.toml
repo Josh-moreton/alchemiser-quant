@@ -22,7 +22,7 @@ extend-exclude = [ ".git", ".mypy_cache", ".ruff_cache", ".venv", "__pycache__",
 python_version = "3.12"
 strict = true
 plugins = [ "pydantic.mypy",]
-files = [ "functions/", "layers/shared/",]
+files = [ "functions/", "shared_layer/",]
 explicit_package_bases = true
 show_error_codes = true
 pretty = true
@@ -44,11 +44,11 @@ unmatched_ignore_imports_alerting = "warn"
 # ARCHITECTURE: AWS Lambda Microservices with Shared Layer
 # =============================================================================
 # Each Lambda function in functions/ is self-contained and deployed independently.
-# Shared code in layers/shared/the_alchemiser/shared/ must not import from
+# Shared code in shared_layer/python/the_alchemiser/shared/ must not import from
 # function-specific code.
 #
 # Lambda Functions: functions/*
-# Shared Layer: layers/shared/the_alchemiser/shared/
+# Shared Layer: shared_layer/python/the_alchemiser/shared/
 # =============================================================================
 
 # Note: Import linter currently disabled as it's designed for monolithic packages.

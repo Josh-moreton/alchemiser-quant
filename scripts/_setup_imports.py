@@ -12,7 +12,7 @@ Production (AWS Lambda):
   - Function code: /var/task/
 
 Local Development (Scripts):
-  - Shared layer: layers/shared/python/the_alchemiser/shared/
+  - Shared layer: shared_layer/python/the_alchemiser/shared/
   - Function code: functions/*/
 
 Usage:
@@ -34,7 +34,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 
 # Add shared layer to path (contains the_alchemiser.shared.*)
 # Note: the Lambda layer convention places Python packages under python/
-SHARED_LAYER_PATH = PROJECT_ROOT / "layers" / "shared" / "python"
+SHARED_LAYER_PATH = PROJECT_ROOT / "shared_layer" / "python"
 
 if SHARED_LAYER_PATH.exists():
     sys.path.insert(0, str(SHARED_LAYER_PATH))

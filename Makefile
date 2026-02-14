@@ -4,7 +4,7 @@
 .PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups hedge-kill-switch-status hedge-kill-switch-reset tearsheets tearsheet-account tearsheet-strategy cdk-synth cdk-diff cdk-deploy-dev dashboard reset-environment
 
 # Python path setup for scripts (mirrors Lambda layer structure)
-export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
+export PYTHONPATH := $(shell pwd)/shared_layer/python:$(PYTHONPATH)
 
 # Default target
 help:
@@ -102,21 +102,21 @@ help:
 format:
 	@echo "🎨 Formatting code (Ruff formatter + auto-fix lint)..."
 	@echo "  → Running Ruff formatter (handles whitespace, line endings, style)..."
-	poetry run ruff format functions/ layers/shared/the_alchemiser/
+	poetry run ruff format functions/ shared_layer/python/the_alchemiser/
 	@echo "  → Running Ruff auto-fix (safe fixes for lints)..."
-	poetry run ruff check --fix functions/ layers/shared/the_alchemiser/
+	poetry run ruff check --fix functions/ shared_layer/python/the_alchemiser/
 
 type-check:
 	@echo "🔍 Running MyPy type checking..."
 	@# Check shared layer with correct module path
 	@echo "  → Checking shared layer..."
-	MYPYPATH="layers/shared" poetry run mypy layers/shared/the_alchemiser/ --config-file=pyproject.toml
+	MYPYPATH="shared_layer/python" poetry run mypy shared_layer/python/the_alchemiser/ --config-file=pyproject.toml
 	@# Check each Lambda function with its own MYPYPATH context
 	@echo "  → Checking Lambda functions..."
 	@for func in execution portfolio strategy_worker strategy_orchestrator trade_aggregator notifications data strategy_analytics strategy_reports account_data hedge_evaluator hedge_executor hedge_roll_manager schedule_manager; do \
 		if [ -d "functions/$$func" ]; then \
 			echo "    → functions/$$func"; \
-			MYPYPATH="functions/$$func:layers/shared" poetry run mypy "functions/$$func/" --config-file=pyproject.toml 2>&1 | grep -v "^Success" || true; \
+			MYPYPATH="functions/$$func:shared_layer/python" poetry run mypy "functions/$$func/" --config-file=pyproject.toml 2>&1 | grep -v "^Success" || true; \
 		fi; \
 	done
 	@echo "✅ Type checking complete"
@@ -366,7 +366,7 @@ rebalance-weights:
 		echo "🚀 Strategy weights updated successfully!"; \
 		echo "📦 Bumping version and deploying to production..."; \
 		echo ""; \
-		git add layers/shared/the_alchemiser/shared/config/strategy.prod.json; \
+		git add shared_layer/python/the_alchemiser/shared/config/strategy.prod.json; \
 		$(MAKE) bump-patch && $(MAKE) deploy-prod; \
 	elif [ $$? -eq 0 ] && [ -z "$(dry-run)" ] && [ "$$STAGE" != "prod" ]; then \
 		echo ""; \

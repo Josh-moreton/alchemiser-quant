@@ -58,7 +58,7 @@ class FoundationStack(cdk.Stack):
             "SharedCodeLayer",
             layer_version_name=config.resource_name("shared-code"),
             description="Shared business logic (the_alchemiser.shared module)",
-            code=_lambda.Code.from_asset("layers/shared/"),
+            code=_lambda.Code.from_asset("shared_layer/"),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
             compatible_architectures=[_lambda.Architecture.X86_64],
             removal_policy=RemovalPolicy.RETAIN,

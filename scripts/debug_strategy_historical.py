@@ -31,8 +31,8 @@ os.environ.setdefault("GROUP_HISTORY_TABLE", "alch-dev-group-history")
 strategy_worker_path = Path(__file__).parent.parent / "functions" / "strategy_worker"
 sys.path.insert(0, str(strategy_worker_path))
 
-# Add layers/shared/python to path for shared imports (Lambda layer convention)
-shared_layer_path = Path(__file__).parent.parent / "layers" / "shared" / "python"
+# Add shared_layer/python to path for shared imports (Lambda layer convention)
+shared_layer_path = Path(__file__).parent.parent / "shared_layer" / "python"
 sys.path.insert(0, str(shared_layer_path))
 
 if TYPE_CHECKING:

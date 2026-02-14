@@ -1,7 +1,7 @@
 {
   "app": "poetry run python -m infra.app",
   "watch": {
-    "include": ["infra/**", "functions/**", "layers/**"]
+    "include": ["infra/**", "functions/**", "layers/**", "shared_layer/**"]
   },
   "context": {
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
