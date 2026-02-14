@@ -12,17 +12,6 @@
 
 set -e
 
-# Load environment variables from .env if it exists
-if [ -f ".env" ]; then
-    echo "Loading environment variables from .env..."
-    set -a
-    source .env
-    set +a
-fi
-
-echo "Deploying The Alchemiser (CDK)"
-echo "================================================"
-
 # Usage: ./scripts/cdk_deploy.sh [dev|staging|prod] [--diff]
 ENVIRONMENT="${1:-prod}"
 DIFF_MODE=false
@@ -35,6 +24,28 @@ if [ "$ENVIRONMENT" != "dev" ] && [ "$ENVIRONMENT" != "staging" ] && [ "$ENVIRON
     echo "Invalid environment: $ENVIRONMENT (use 'dev', 'staging', or 'prod')" >&2
     exit 1
 fi
+
+# Load environment variables: base .env first, then environment-specific overrides.
+# .env.dev / .env.staging / .env.prod overlay on top of .env so that the correct
+# Alpaca keys (paper vs live) are used per environment.
+if [ -f ".env" ]; then
+    echo "Loading base environment variables from .env..."
+    set -a
+    source .env
+    set +a
+fi
+
+ENV_FILE=".env.${ENVIRONMENT}"
+if [ -f "$ENV_FILE" ]; then
+    echo "Loading environment overrides from ${ENV_FILE}..."
+    set -a
+    source "$ENV_FILE"
+    set +a
+fi
+
+echo ""
+echo "Deploying The Alchemiser (CDK)"
+echo "================================================"
 echo "Environment: $ENVIRONMENT"
 
 # Check we're in the project root
@@ -51,7 +62,7 @@ fi
 
 # Validate required credentials
 if [ -z "${ALPACA__KEY:-}" ] || [ -z "${ALPACA__SECRET:-}" ]; then
-    # Try legacy env var names from CD workflow
+    # Try legacy env var names from .env / CD workflow
     if [ -n "${ALPACA_KEY:-}" ]; then
         export ALPACA__KEY="$ALPACA_KEY"
         export ALPACA__SECRET="$ALPACA_SECRET"
@@ -59,6 +70,11 @@ if [ -z "${ALPACA__KEY:-}" ] || [ -z "${ALPACA__SECRET:-}" ]; then
         echo "Error: ALPACA__KEY and ALPACA__SECRET must be set." >&2
         exit 1
     fi
+fi
+
+# Bridge legacy ALPACA_ENDPOINT -> ALPACA__ENDPOINT
+if [ -z "${ALPACA__ENDPOINT:-}" ] && [ -n "${ALPACA_ENDPOINT:-}" ]; then
+    export ALPACA__ENDPOINT="$ALPACA_ENDPOINT"
 fi
 
 # Set endpoint defaults per environment
@@ -94,6 +110,23 @@ export STAGE="$ENVIRONMENT"
 echo "  Stage:    $ENVIRONMENT"
 echo "  Endpoint: $ALPACA__ENDPOINT"
 echo "  Log level: $ALCHEMISER_LOG_LEVEL"
+
+# Safety check: warn if deploying non-prod with live keys
+if [ "$ENVIRONMENT" != "prod" ]; then
+    if echo "$ALPACA__ENDPOINT" | grep -qv "paper"; then
+        echo ""
+        echo "  WARNING: Deploying to $ENVIRONMENT with a live (non-paper) endpoint!"
+        echo "  Endpoint: $ALPACA__ENDPOINT"
+        echo "  Consider creating .env.${ENVIRONMENT} with paper keys."
+    fi
+    if echo "${ALPACA__KEY:-}" | grep -q "^AK"; then
+        echo ""
+        echo "  WARNING: ALPACA__KEY starts with 'AK' (live key pattern)."
+        echo "  Dev/staging should use paper keys (start with 'PK')."
+        echo "  Create .env.${ENVIRONMENT} with paper credentials to fix this."
+    fi
+fi
+
 echo ""
 
 # Build CDK context args
