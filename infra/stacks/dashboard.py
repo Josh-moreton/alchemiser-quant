@@ -25,6 +25,7 @@ from infra.constructs import (
     AlchemiserFunction,
     alchemiser_table,
     lambda_execution_role,
+    layer_from_ssm,
     scheduler_role,
 )
 
@@ -38,11 +39,17 @@ class DashboardStack(cdk.Stack):
         construct_id: str,
         *,
         config: StageConfig,
-        shared_code_layer: _lambda.ILayerVersion,
-        portfolio_layer: _lambda.ILayerVersion,
         **kwargs: object,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # ---- Shared layers (looked up from SSM to avoid cross-stack export lock) ----
+        shared_code_layer = layer_from_ssm(
+            self, "SharedCodeLayer", config=config, ssm_suffix="shared-code-arn",
+        )
+        portfolio_layer = layer_from_ssm(
+            self, "PortfolioLayer", config=config, ssm_suffix="portfolio-deps-arn",
+        )
 
         # ---- DynamoDB Table ----
         self.account_data_table = alchemiser_table(

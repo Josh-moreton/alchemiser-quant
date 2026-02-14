@@ -34,6 +34,7 @@ from infra.constructs import (
     AlchemiserFunction,
     alchemiser_table,
     lambda_execution_role,
+    layer_from_ssm,
 )
 
 
@@ -47,14 +48,20 @@ class ExecutionStack(cdk.Stack):
         *,
         config: StageConfig,
         event_bus: events.IEventBus,
-        shared_code_layer: _lambda.ILayerVersion,
         trade_ledger_table: dynamodb.ITable,
         account_data_table: dynamodb.ITable,
         execution_layer_code_path: str = "layers/execution/",
-        notifications_layer: _lambda.ILayerVersion,
         **kwargs: object,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # ---- Shared layers (looked up from SSM to avoid cross-stack export lock) ----
+        shared_code_layer = layer_from_ssm(
+            self, "SharedCodeLayer", config=config, ssm_suffix="shared-code-arn",
+        )
+        notifications_layer = layer_from_ssm(
+            self, "NotificationsLayer", config=config, ssm_suffix="notifications-deps-arn",
+        )
 
         # ---- Execution Layer ----
         self.execution_layer = _lambda.LayerVersion(
@@ -65,6 +72,18 @@ class ExecutionStack(cdk.Stack):
             code=_lambda.Code.from_asset(execution_layer_code_path),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
             removal_policy=cdk.RemovalPolicy.RETAIN,
+        )
+
+        # Publish execution layer ARN to SSM so hedging stack can look it up
+        # without a CloudFormation cross-stack export.
+        from aws_cdk import aws_ssm as ssm
+
+        ssm.StringParameter(
+            self,
+            "ExecutionLayerArnParam",
+            parameter_name=f"/{config.prefix}/layer/execution-deps-arn",
+            string_value=self.execution_layer.layer_version_arn,
+            description="ARN of the ExecutionLayer (latest version)",
         )
 
         # ---- SQS Queues ----

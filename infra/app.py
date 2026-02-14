@@ -2,8 +2,11 @@
 
 CDK application entry point.
 
-Instantiates all stacks with cross-stack dependencies wired via
-Python references (no CfnImport / CfnExport required between stacks).
+Instantiates all stacks with cross-stack dependencies. Lambda layer ARNs
+are shared via SSM Parameter Store (not CloudFormation Exports) to avoid
+the "export in use" lock that blocks deployments when layer code changes.
+Other resources (tables, queues, buckets) are still wired via Python
+references since their physical IDs are stable.
 
 Usage:
     cdk synth -c stage=dev
@@ -92,7 +95,6 @@ data = DataStack(
     app, f"{stack_prefix}-data",
     config=config,
     event_bus=foundation.event_bus,
-    shared_code_layer=foundation.shared_code_layer,
     env=env,
 )
 data.add_dependency(foundation)
@@ -101,8 +103,6 @@ data.add_dependency(foundation)
 dashboard = DashboardStack(
     app, f"{stack_prefix}-dashboard",
     config=config,
-    shared_code_layer=foundation.shared_code_layer,
-    portfolio_layer=foundation.portfolio_layer,
     env=env,
 )
 dashboard.add_dependency(foundation)
@@ -112,10 +112,8 @@ execution = ExecutionStack(
     app, f"{stack_prefix}-execution",
     config=config,
     event_bus=foundation.event_bus,
-    shared_code_layer=foundation.shared_code_layer,
     trade_ledger_table=foundation.trade_ledger_table,
     account_data_table=dashboard.account_data_table,
-    notifications_layer=foundation.notifications_layer,
     env=env,
 )
 execution.add_dependency(foundation)
@@ -126,7 +124,6 @@ strategy = StrategyStack(
     app, f"{stack_prefix}-strategy",
     config=config,
     event_bus=foundation.event_bus,
-    shared_code_layer=foundation.shared_code_layer,
     trade_ledger_table=foundation.trade_ledger_table,
     data_function=data.data_function,
     market_data_bucket=data.market_data_bucket,
@@ -144,9 +141,6 @@ hedging = HedgingStack(
     app, f"{stack_prefix}-hedging",
     config=config,
     event_bus=foundation.event_bus,
-    shared_code_layer=foundation.shared_code_layer,
-    portfolio_layer=foundation.portfolio_layer,
-    execution_layer=execution.execution_layer,
     env=env,
 )
 hedging.add_dependency(foundation)
@@ -157,8 +151,6 @@ notifications = NotificationsStack(
     app, f"{stack_prefix}-notifications",
     config=config,
     event_bus=foundation.event_bus,
-    shared_code_layer=foundation.shared_code_layer,
-    notifications_layer=foundation.notifications_layer,
     trade_ledger_table=foundation.trade_ledger_table,
     execution_runs_table=execution.execution_runs_table,
     performance_reports_bucket=strategy.performance_reports_bucket,

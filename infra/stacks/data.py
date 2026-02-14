@@ -35,6 +35,7 @@ from infra.constructs import (
     LocalShellBundling,
     alchemiser_table,
     lambda_execution_role,
+    layer_from_ssm,
     scheduler_role,
 )
 
@@ -49,10 +50,14 @@ class DataStack(cdk.Stack):
         *,
         config: StageConfig,
         event_bus: events.IEventBus,
-        shared_code_layer: _lambda.ILayerVersion,
         **kwargs: object,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # ---- Shared layer (looked up from SSM to avoid cross-stack export lock) ----
+        shared_code_layer = layer_from_ssm(
+            self, "SharedCodeLayer", config=config, ssm_suffix="shared-code-arn",
+        )
 
         # ---- Market Data S3 Bucket ----
         self.market_data_bucket = s3.Bucket(

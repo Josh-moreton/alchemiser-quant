@@ -34,6 +34,7 @@ from infra.constructs import (
     AlchemiserFunction,
     alchemiser_table,
     lambda_execution_role,
+    layer_from_ssm,
 )
 
 
@@ -47,12 +48,20 @@ class HedgingStack(cdk.Stack):
         *,
         config: StageConfig,
         event_bus: events.IEventBus,
-        shared_code_layer: _lambda.ILayerVersion,
-        portfolio_layer: _lambda.ILayerVersion,
-        execution_layer: _lambda.ILayerVersion,
         **kwargs: object,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # ---- Shared layers (looked up from SSM to avoid cross-stack export lock) ----
+        shared_code_layer = layer_from_ssm(
+            self, "SharedCodeLayer", config=config, ssm_suffix="shared-code-arn",
+        )
+        portfolio_layer = layer_from_ssm(
+            self, "PortfolioLayer", config=config, ssm_suffix="portfolio-deps-arn",
+        )
+        execution_layer = layer_from_ssm(
+            self, "ExecutionLayer", config=config, ssm_suffix="execution-deps-arn",
+        )
 
         # ---- DynamoDB Tables ----
         self.hedge_positions_table = alchemiser_table(

@@ -23,7 +23,7 @@ from aws_cdk import (
 from constructs import Construct
 
 from infra.config import StageConfig
-from infra.constructs import AlchemiserFunction, lambda_execution_role
+from infra.constructs import AlchemiserFunction, lambda_execution_role, layer_from_ssm
 
 
 class NotificationsStack(cdk.Stack):
@@ -36,14 +36,20 @@ class NotificationsStack(cdk.Stack):
         *,
         config: StageConfig,
         event_bus: events.IEventBus,
-        shared_code_layer: _lambda.ILayerVersion,
-        notifications_layer: _lambda.ILayerVersion,
         trade_ledger_table: dynamodb.ITable,
         execution_runs_table: dynamodb.ITable,
         performance_reports_bucket: s3.IBucket,
         **kwargs: object,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # ---- Shared layers (looked up from SSM to avoid cross-stack export lock) ----
+        shared_code_layer = layer_from_ssm(
+            self, "SharedCodeLayer", config=config, ssm_suffix="shared-code-arn",
+        )
+        notifications_layer = layer_from_ssm(
+            self, "NotificationsLayer", config=config, ssm_suffix="notifications-deps-arn",
+        )
 
         # ---- IAM Role ----
         notifications_role = lambda_execution_role(

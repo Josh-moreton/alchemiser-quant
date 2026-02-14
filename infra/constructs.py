@@ -25,6 +25,7 @@ from aws_cdk import (
     aws_dynamodb as dynamodb,
     aws_iam as iam,
     aws_lambda as _lambda,
+    aws_ssm as ssm,
 )
 from constructs import Construct
 
@@ -162,7 +163,9 @@ def alchemiser_table(
         partition_key=partition_key,
         sort_key=sort_key,
         time_to_live_attribute=time_to_live_attribute,
-        point_in_time_recovery=point_in_time_recovery,
+        point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(
+            point_in_time_recovery_enabled=point_in_time_recovery,
+        ),
         encryption=dynamodb.TableEncryption.AWS_MANAGED,
         removal_policy=removal_policy,
     )
@@ -237,3 +240,38 @@ def scheduler_role(
         )
     )
     return role
+
+
+def layer_from_ssm(
+    scope: Construct,
+    construct_id: str,
+    *,
+    config: StageConfig,
+    ssm_suffix: str,
+) -> _lambda.ILayerVersion:
+    """Look up a Lambda layer ARN from SSM Parameter Store.
+
+    This avoids CloudFormation cross-stack Export/ImportValue references
+    which block deployments whenever a layer's physical resource (ARN)
+    changes (i.e. on every code update).
+
+    The foundation stack writes layer ARNs to SSM parameters. Consuming
+    stacks read them via CloudFormation dynamic references which are
+    resolved at deploy time, after the foundation stack has already been
+    updated (ensured by add_dependency ordering).
+
+    Args:
+        scope: CDK scope (typically ``self``).
+        construct_id: Unique construct ID within the scope.
+        config: Stage configuration for prefix resolution.
+        ssm_suffix: SSM parameter name suffix (e.g. ``"shared-code-arn"``).
+
+    Returns:
+        An ``ILayerVersion`` reference usable in Lambda ``layers=[...]``.
+
+    """
+    param_name = f"/{config.prefix}/layer/{ssm_suffix}"
+    layer_arn = ssm.StringParameter.value_for_string_parameter(scope, param_name)
+    return _lambda.LayerVersion.from_layer_version_arn(
+        scope, construct_id, layer_arn,
+    )

@@ -22,6 +22,7 @@ from aws_cdk import (
     aws_lambda as _lambda,
     aws_sns as sns,
     aws_sns_subscriptions as sns_subs,
+    aws_ssm as ssm,
 )
 from constructs import Construct
 
@@ -93,6 +94,39 @@ class FoundationStack(cdk.Stack):
             code=_lambda.Code.from_asset("layers/portfolio/"),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
             removal_policy=RemovalPolicy.RETAIN,
+        )
+
+        # ---- SSM Parameters for cross-stack layer references ----
+        # Lambda layers create a NEW physical resource (ARN) on every code
+        # change. CDK auto-generates CloudFormation Exports when a construct
+        # is referenced from another stack, and CloudFormation refuses to
+        # update an export that is still imported elsewhere. This blocks
+        # every deploy where shared layer code changes.
+        #
+        # By publishing layer ARNs to SSM and having consuming stacks read
+        # them via dynamic references, we break the CloudFormation export
+        # dependency. add_dependency ordering ensures this stack deploys
+        # first, so the SSM parameter is always up-to-date.
+        ssm.StringParameter(
+            self,
+            "SharedCodeLayerArnParam",
+            parameter_name=f"/{config.prefix}/layer/shared-code-arn",
+            string_value=self.shared_code_layer.layer_version_arn,
+            description="ARN of the SharedCodeLayer (latest version)",
+        )
+        ssm.StringParameter(
+            self,
+            "NotificationsLayerArnParam",
+            parameter_name=f"/{config.prefix}/layer/notifications-deps-arn",
+            string_value=self.notifications_layer.layer_version_arn,
+            description="ARN of the NotificationsLayer (latest version)",
+        )
+        ssm.StringParameter(
+            self,
+            "PortfolioLayerArnParam",
+            parameter_name=f"/{config.prefix}/layer/portfolio-deps-arn",
+            string_value=self.portfolio_layer.layer_version_arn,
+            description="ARN of the PortfolioLayer (latest version)",
         )
 
         # ---- Trade Ledger Table (5 GSIs) ----

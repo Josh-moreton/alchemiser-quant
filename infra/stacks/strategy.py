@@ -41,6 +41,7 @@ from infra.constructs import (
     LocalShellBundling,
     alchemiser_table,
     lambda_execution_role,
+    layer_from_ssm,
     scheduler_role,
 )
 
@@ -55,7 +56,6 @@ class StrategyStack(cdk.Stack):
         *,
         config: StageConfig,
         event_bus: events.IEventBus,
-        shared_code_layer: _lambda.ILayerVersion,
         trade_ledger_table: dynamodb.ITable,
         data_function: _lambda.IFunction,
         market_data_bucket: s3.IBucket,
@@ -65,6 +65,11 @@ class StrategyStack(cdk.Stack):
         **kwargs: object,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # ---- Shared layer (looked up from SSM to avoid cross-stack export lock) ----
+        shared_code_layer = layer_from_ssm(
+            self, "SharedCodeLayer", config=config, ssm_suffix="shared-code-arn",
+        )
 
         # ---- Strategy Layer (Makefile-built: awswrangler + alpaca-py) ----
         # LocalShellBundling runs locally first; Docker is only a fallback.

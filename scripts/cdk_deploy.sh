@@ -107,6 +107,9 @@ fi
 # Export STAGE for infra/app.py
 export STAGE="$ENVIRONMENT"
 
+# Silence JSII warning about untested Node.js versions
+export JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION=1
+
 echo "  Stage:    $ENVIRONMENT"
 echo "  Endpoint: $ALPACA__ENDPOINT"
 echo "  Log level: $ALCHEMISER_LOG_LEVEL"
