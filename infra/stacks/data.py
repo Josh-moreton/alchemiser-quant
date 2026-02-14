@@ -26,6 +26,7 @@ from aws_cdk import (
     aws_lambda as _lambda,
     aws_s3 as s3,
     aws_scheduler as scheduler,
+    aws_ssm as ssm,
 )
 from constructs import Construct
 
@@ -38,6 +39,8 @@ from infra.constructs import (
     layer_from_ssm,
     scheduler_role,
 )
+
+_SSM_DATA_LAYER_SUFFIX = "data-deps-arn"
 
 
 class DataStack(cdk.Stack):
@@ -159,6 +162,15 @@ class DataStack(cdk.Stack):
                     resources=[event_bus.event_bus_arn],
                 ),
             ],
+        )
+
+        # ---- SSM: publish data layer ARN for cross-stack consumption ----
+        ssm.StringParameter(
+            self,
+            "DataLayerArnParam",
+            parameter_name=f"/{config.prefix}/layer/{_SSM_DATA_LAYER_SUFFIX}",
+            string_value=self.data_layer.layer_version_arn,
+            description="ARN of the DataLayer (awswrangler + numpy/pandas)",
         )
 
         # ---- Data Lambda Function ----

@@ -106,6 +106,7 @@ dashboard = DashboardStack(
     env=env,
 )
 dashboard.add_dependency(foundation)
+dashboard.add_dependency(data)
 
 # ---------- 4. Execution ----------
 execution = ExecutionStack(

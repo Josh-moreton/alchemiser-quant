@@ -50,6 +50,9 @@ class DashboardStack(cdk.Stack):
         portfolio_layer = layer_from_ssm(
             self, "PortfolioLayer", config=config, ssm_suffix="portfolio-deps-arn",
         )
+        data_layer = layer_from_ssm(
+            self, "DataLayer", config=config, ssm_suffix="data-deps-arn",
+        )
 
         # ---- DynamoDB Table ----
         self.account_data_table = alchemiser_table(
@@ -85,7 +88,7 @@ class DashboardStack(cdk.Stack):
             function_name=config.resource_name("account-data"),
             code_uri="functions/account_data/",
             handler="lambda_handler.handler",
-            layers=[shared_code_layer, portfolio_layer],
+            layers=[shared_code_layer, portfolio_layer, data_layer],
             role=account_data_role,
             timeout_seconds=300,
             memory_size=256,
