@@ -27,7 +27,6 @@ Payload schema (from orchestrator):
 from __future__ import annotations
 
 import logging as _logging
-import os
 import sys
 import uuid
 from datetime import UTC, datetime

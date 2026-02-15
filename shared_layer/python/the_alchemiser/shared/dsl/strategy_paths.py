@@ -12,9 +12,7 @@ import os
 from pathlib import Path
 
 # Resolved once: the repo root relative to this shared-layer file.
-_SHARED_LAYER_STRATEGIES = (
-    Path(__file__).resolve().parent.parent / "strategies"
-)
+_SHARED_LAYER_STRATEGIES = Path(__file__).resolve().parent.parent / "strategies"
 
 
 def get_strategies_dir() -> Path:
@@ -48,6 +46,4 @@ def get_strategies_dir() -> Path:
         if env_path.exists():
             return env_path
 
-    raise ValueError(
-        "Cannot locate strategies directory. Set STRATEGIES_DIR environment variable."
-    )
+    raise ValueError("Cannot locate strategies directory. Set STRATEGIES_DIR environment variable.")

@@ -35,6 +35,7 @@ the recursion guard and must always be empty before a new evaluation begins.
 from __future__ import annotations
 
 import math
+import re
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
