@@ -86,9 +86,9 @@ class StrategyStack(cdk.Stack):
         # LocalShellBundling runs locally first; Docker is only a fallback.
         _strategy_layer_cmd = (
             "pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
-            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q structlog 'cachetools>=5.5,<7' -t /asset-output/python --upgrade"
         )
         self.strategy_layer = _lambda.LayerVersion(

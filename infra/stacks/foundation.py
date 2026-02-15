@@ -68,9 +68,9 @@ class FoundationStack(cdk.Stack):
         # ---- Notifications Layer (shared: used by Orchestrator, ScheduleManager, TradeAggregator) ----
         _notifications_layer_cmd = (
             "pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
-            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q structlog 'cachetools>=6,<7' pyyaml -t /asset-output/python --upgrade"
             " && pip install -q httpx httpcore anyio h11 requests certifi charset-normalizer"
             " idna urllib3 python-dateutil pytz tzdata -t /asset-output/python --upgrade"
@@ -96,9 +96,9 @@ class FoundationStack(cdk.Stack):
         # ---- Portfolio Layer (shared: used by Hedging, Dashboard, AccountData) ----
         _portfolio_layer_cmd = (
             "pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
-            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q structlog 'cachetools>=6,<7' pyyaml -t /asset-output/python --upgrade"
             " && pip install -q httpx httpcore anyio h11 requests certifi charset-normalizer"
             " idna urllib3 python-dateutil pytz tzdata -t /asset-output/python --upgrade"
