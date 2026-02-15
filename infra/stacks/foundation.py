@@ -27,7 +27,7 @@ from aws_cdk import (
 from constructs import Construct
 
 from infra.config import StageConfig
-from infra.constructs import LocalShellBundling, alchemiser_table
+from infra.constructs import alchemiser_table, bundled_layer_code
 
 
 class FoundationStack(cdk.Stack):
@@ -80,14 +80,7 @@ class FoundationStack(cdk.Stack):
             "NotificationsLayer",
             layer_version_name=config.resource_name("notifications-deps"),
             description="Notifications Lambda dependencies (pydantic, structlog, alpaca-py)",
-            code=_lambda.Code.from_asset(
-                "layers/notifications/",
-                bundling=cdk.BundlingOptions(
-                    image=_lambda.Runtime.PYTHON_3_12.bundling_image,
-                    local=LocalShellBundling(_notifications_layer_cmd),
-                    command=["bash", "-c", _notifications_layer_cmd],
-                ),
-            ),
+            code=bundled_layer_code(_notifications_layer_cmd),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
             compatible_architectures=[_lambda.Architecture.ARM_64],
             removal_policy=RemovalPolicy.DESTROY,
@@ -108,14 +101,7 @@ class FoundationStack(cdk.Stack):
             "PortfolioLayer",
             layer_version_name=config.resource_name("portfolio-deps"),
             description="Portfolio Lambda dependencies (alpaca-py, pydantic)",
-            code=_lambda.Code.from_asset(
-                "layers/portfolio/",
-                bundling=cdk.BundlingOptions(
-                    image=_lambda.Runtime.PYTHON_3_12.bundling_image,
-                    local=LocalShellBundling(_portfolio_layer_cmd),
-                    command=["bash", "-c", _portfolio_layer_cmd],
-                ),
-            ),
+            code=bundled_layer_code(_portfolio_layer_cmd),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
             compatible_architectures=[_lambda.Architecture.ARM_64],
             removal_policy=RemovalPolicy.DESTROY,

@@ -38,8 +38,8 @@ from constructs import Construct
 from infra.config import StageConfig
 from infra.constructs import (
     AlchemiserFunction,
-    LocalShellBundling,
     alchemiser_table,
+    bundled_layer_code,
     lambda_execution_role,
     layer_from_ssm,
     scheduler_role,
@@ -96,14 +96,7 @@ class StrategyStack(cdk.Stack):
             "StrategyLayer",
             layer_version_name=config.resource_name("strategy-deps"),
             description="alpaca-py + additional dependencies (used with AWS managed awswrangler layer)",
-            code=_lambda.Code.from_asset(
-                "layers/strategy/",
-                bundling=cdk.BundlingOptions(
-                    image=_lambda.Runtime.PYTHON_3_12.bundling_image,
-                    local=LocalShellBundling(_strategy_layer_cmd),
-                    command=["bash", "-c", _strategy_layer_cmd],
-                ),
-            ),
+            code=bundled_layer_code(_strategy_layer_cmd),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
             compatible_architectures=[_lambda.Architecture.ARM_64],
             removal_policy=RemovalPolicy.DESTROY,

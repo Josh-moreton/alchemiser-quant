@@ -63,6 +63,37 @@ class LocalShellBundling:
         return result.returncode == 0
 
 
+def bundled_layer_code(pip_command: str) -> _lambda.Code:
+    """Build a Lambda layer from a pip install command without a source directory.
+
+    CDK's ``Code.from_asset`` requires a source path, but our layer builds
+    are fully self-contained pip installs that never read from the source.
+    This helper uses ``.`` (project root) as a dummy source and derives a
+    deterministic ``asset_hash`` from the pip command string so each layer
+    gets a unique CDK asset fingerprint.
+
+    Args:
+        pip_command: Shell command using ``/asset-output`` as output dir.
+
+    Returns:
+        A ``Code`` object usable in ``LayerVersion(..., code=...)``.
+
+    """
+    import hashlib
+
+    cmd_hash = hashlib.sha256(pip_command.encode()).hexdigest()[:16]
+    return _lambda.Code.from_asset(
+        ".",
+        bundling=cdk.BundlingOptions(
+            image=PYTHON_RUNTIME.bundling_image,
+            local=LocalShellBundling(pip_command),
+            command=["bash", "-c", pip_command],
+        ),
+        asset_hash=cmd_hash,
+        asset_hash_type=cdk.AssetHashType.CUSTOM,
+    )
+
+
 PYTHON_RUNTIME = _lambda.Runtime.PYTHON_3_12
 ARM_64 = _lambda.Architecture.ARM_64
 

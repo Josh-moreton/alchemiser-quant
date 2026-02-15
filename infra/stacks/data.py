@@ -33,8 +33,8 @@ from constructs import Construct
 from infra.config import StageConfig
 from infra.constructs import (
     AlchemiserFunction,
-    LocalShellBundling,
     alchemiser_table,
+    bundled_layer_code,
     lambda_execution_role,
     layer_from_ssm,
     scheduler_role,
@@ -117,8 +117,7 @@ class DataStack(cdk.Stack):
             layer_version_arn="arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:22",
         )
 
-        # Build custom layer with additional dependencies on top of awswrangler
-        # CDK BundlingOptions replicates the layers/data/Makefile logic.
+        # Build custom layer with additional dependencies on top of awswrangler.
         # LocalShellBundling runs locally first; Docker is only a fallback.
         _data_layer_cmd = (
             "pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
@@ -131,14 +130,7 @@ class DataStack(cdk.Stack):
             "DataLayer",
             layer_version_name=config.resource_name("data-deps"),
             description="alpaca-py + additional dependencies (used with AWS managed awswrangler layer)",
-            code=_lambda.Code.from_asset(
-                "layers/data/",
-                bundling=cdk.BundlingOptions(
-                    image=_lambda.Runtime.PYTHON_3_12.bundling_image,
-                    local=LocalShellBundling(_data_layer_cmd),
-                    command=["bash", "-c", _data_layer_cmd],
-                ),
-            ),
+            code=bundled_layer_code(_data_layer_cmd),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
             compatible_architectures=[_lambda.Architecture.ARM_64],
             removal_policy=RemovalPolicy.DESTROY,

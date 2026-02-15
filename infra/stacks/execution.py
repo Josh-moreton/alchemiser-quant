@@ -32,8 +32,8 @@ from constructs import Construct
 from infra.config import StageConfig
 from infra.constructs import (
     AlchemiserFunction,
-    LocalShellBundling,
     alchemiser_table,
+    bundled_layer_code,
     lambda_execution_role,
     layer_from_ssm,
 )
@@ -51,7 +51,6 @@ class ExecutionStack(cdk.Stack):
         event_bus: events.IEventBus,
         trade_ledger_table: dynamodb.ITable,
         account_data_table: dynamodb.ITable,
-        execution_layer_code_path: str = "layers/execution/",
         **kwargs: object,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -85,14 +84,7 @@ class ExecutionStack(cdk.Stack):
             "ExecutionLayer",
             layer_version_name=config.resource_name("execution-deps"),
             description="Execution Lambda dependencies (alpaca-py, pydantic)",
-            code=_lambda.Code.from_asset(
-                execution_layer_code_path,
-                bundling=cdk.BundlingOptions(
-                    image=_lambda.Runtime.PYTHON_3_12.bundling_image,
-                    local=LocalShellBundling(_execution_layer_cmd),
-                    command=["bash", "-c", _execution_layer_cmd],
-                ),
-            ),
+            code=bundled_layer_code(_execution_layer_cmd),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
             compatible_architectures=[_lambda.Architecture.ARM_64],
             removal_policy=cdk.RemovalPolicy.DESTROY,
