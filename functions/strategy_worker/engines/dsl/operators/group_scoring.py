@@ -1224,7 +1224,7 @@ def _try_lambda_backfill(
             },
         )
 
-        return groups_processed > 0 and groups_failed == 0
+        return bool(groups_processed > 0 and groups_failed == 0)
 
     except Exception as exc:
         logger.warning(

@@ -111,6 +111,14 @@ class InMemoryAdapter(MarketDataPort):
         """Not used for backfill."""
         return None
 
+    def get_latest_quote(self, symbol: Symbol) -> object:
+        """Not used for backfill."""
+        return None
+
+    def get_mid_price(self, symbol: Symbol) -> float | None:
+        """Not used for backfill."""
+        return None
+
 
 # ---------------------------------------------------------------------------
 # Market data pre-loading
@@ -210,11 +218,9 @@ def evaluate_group_signal(
         Dictionary of {symbol: weight} for the group's signal on eval_date.
 
     """
-    from engines.dsl.operators.portfolio import (
-        PortfolioFragment,
-        collect_weights_from_value,
-    )
+    from engines.dsl.operators.portfolio import collect_weights_from_value
 
+    from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
     from the_alchemiser.shared.schemas.trace import Trace
 
     engine.indicator_service.as_of_date = eval_date
