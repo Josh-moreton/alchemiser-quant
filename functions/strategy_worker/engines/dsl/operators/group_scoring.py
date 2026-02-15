@@ -1037,7 +1037,12 @@ def _fetch_or_backfill_returns(
     window: int,
     context: DslContext,
 ) -> list[Decimal]:
-    """Fetch historical returns from cache, triggering backfill on miss."""
+    """Fetch historical returns from cache, triggering backfill on miss.
+
+    On cache miss, attempts Lambda-based backfill first (if DATA_FUNCTION_NAME
+    is set). Falls back to in-process backfill when running locally or when
+    Lambda invocation fails.
+    """
     lookback_calendar_days = int(window * 2.5) + 10
 
     # When running inside a nested backfill, the indicator service has
@@ -1071,6 +1076,35 @@ def _fetch_or_backfill_returns(
             "correlation_id": context.correlation_id,
         },
     )
+
+    # Attempt Lambda-based backfill (production path)
+    lambda_result = _try_lambda_backfill(
+        group_id=group_id,
+        group_name=group_name,
+        lookback_days=lookback_calendar_days,
+        correlation_id=context.correlation_id,
+    )
+    if lambda_result is not None:
+        # Re-read from cache after Lambda backfill
+        refreshed = lookup_historical_returns(
+            group_id=group_id,
+            lookback_days=lookback_calendar_days,
+            end_date=anchor_date,
+        )
+        if len(refreshed) >= window:
+            return refreshed
+        logger.warning(
+            "Lambda backfill completed but insufficient returns in cache",
+            extra={
+                "group_id": group_id,
+                "group_name": group_name,
+                "returns_after_lambda": len(refreshed),
+                "window_needed": window,
+                "correlation_id": context.correlation_id,
+            },
+        )
+
+    # Fallback: in-process backfill (local runs or Lambda failure)
     return _backfill_group_cache(
         group_id=group_id,
         group_name=group_name,
@@ -1078,6 +1112,131 @@ def _fetch_or_backfill_returns(
         window=window,
         context=context,
     )
+
+
+def _try_lambda_backfill(
+    group_id: str,
+    group_name: str,
+    lookback_days: int,
+    correlation_id: str,
+) -> bool | None:
+    """Invoke Data Lambda to backfill a single group via the orchestrator.
+
+    Returns True if invocation succeeded, False if it failed, or None if
+    Lambda-based backfill is not available (no DATA_FUNCTION_NAME env var).
+
+    The Data Lambda routes the request to the group backfill orchestrator,
+    which fans out to a dedicated worker Lambda for this group.
+
+    Args:
+        group_id: Deterministic group cache key.
+        group_name: Human-readable group name.
+        lookback_days: Calendar days to backfill.
+        correlation_id: Tracing identifier.
+
+    Returns:
+        True on success, False on failure, None if not available.
+
+    """
+    import json
+    import os
+
+    data_function_name = os.environ.get("DATA_FUNCTION_NAME", "")
+    if not data_function_name:
+        return None
+
+    # Discover strategy file from context
+    strategy_file = os.environ.get("CURRENT_STRATEGY_FILE", "")
+    if not strategy_file:
+        logger.debug(
+            "Lambda backfill skipped: no CURRENT_STRATEGY_FILE env var",
+            extra={"group_id": group_id},
+        )
+        return None
+
+    try:
+        import boto3
+        from botocore.config import Config
+
+        config = Config(
+            read_timeout=910,
+            connect_timeout=10,
+            retries={"max_attempts": 0},
+        )
+        lambda_client = boto3.client("lambda", config=config)
+
+        payload = {
+            "action": "group_backfill",
+            "strategy_file": strategy_file,
+            "groups": [
+                {
+                    "group_id": group_id,
+                    "group_name": group_name,
+                    "depth": 0,
+                    "parent_filter_metric": "unknown",
+                },
+            ],
+            "lookback_days": lookback_days,
+            "correlation_id": correlation_id,
+            "requesting_component": "group_scoring",
+        }
+
+        logger.info(
+            "Invoking Data Lambda for group backfill",
+            extra={
+                "group_id": group_id,
+                "group_name": group_name,
+                "function_name": data_function_name,
+                "correlation_id": correlation_id,
+            },
+        )
+
+        response = lambda_client.invoke(
+            FunctionName=data_function_name,
+            InvocationType="RequestResponse",
+            Payload=json.dumps(payload).encode(),
+        )
+
+        status_code = response.get("StatusCode", 500)
+        if status_code != 200:
+            logger.warning(
+                "Data Lambda returned non-200 status for group backfill",
+                extra={
+                    "group_id": group_id,
+                    "status_code": status_code,
+                    "correlation_id": correlation_id,
+                },
+            )
+            return False
+
+        response_payload = json.loads(response["Payload"].read().decode())
+        body = response_payload.get("body", {})
+        groups_processed = body.get("groups_processed", 0)
+        groups_failed = body.get("groups_failed", 0)
+
+        logger.info(
+            "Data Lambda group backfill completed",
+            extra={
+                "group_id": group_id,
+                "groups_processed": groups_processed,
+                "groups_failed": groups_failed,
+                "correlation_id": correlation_id,
+            },
+        )
+
+        return groups_processed > 0 and groups_failed == 0
+
+    except Exception as exc:
+        logger.warning(
+            "Lambda-based group backfill failed, will fall back to in-process",
+            extra={
+                "group_id": group_id,
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+                "correlation_id": correlation_id,
+            },
+        )
+        return False
 
 
 # ---------------------------------------------------------------------------
