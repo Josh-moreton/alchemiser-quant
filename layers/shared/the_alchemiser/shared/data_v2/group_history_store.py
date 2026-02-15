@@ -189,10 +189,10 @@ class GroupHistoryStore:
             cached_metadata = pq.read_metadata(cache_path)
             cached_row_count = cached_metadata.num_rows
 
-            # Compare row counts
-            if cached_row_count < s3_metadata.row_count:
+            # Compare row counts - invalidate if different (handles both stale and corrupted cache)
+            if cached_row_count != s3_metadata.row_count:
                 logger.info(
-                    "Cache stale: S3 has newer data",
+                    "Cache row count mismatch, invalidating cache",
                     group_id=group_id,
                     cached_rows=cached_row_count,
                     s3_rows=s3_metadata.row_count,
@@ -322,23 +322,29 @@ class GroupHistoryStore:
             )
 
             # Write to temp file for pandas to read
-            with tempfile.NamedTemporaryFile(suffix=".parquet", delete=False) as tmp:
-                tmp.write(response["Body"].read())
-                tmp_path = tmp.name
+            tmp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(suffix=".parquet", delete=False) as tmp:
+                    tmp.write(response["Body"].read())
+                    tmp_path = tmp.name
 
-            df = pd.read_parquet(tmp_path, engine="pyarrow")
-            Path(tmp_path).unlink()  # Clean up temp file
+                df = pd.read_parquet(tmp_path, engine="pyarrow")
 
-            # Update local cache
-            if use_cache:
-                df.to_parquet(cache_path, index=False, engine="pyarrow")
+                # Update local cache
+                if use_cache:
+                    df.to_parquet(cache_path, index=False, engine="pyarrow")
 
-            logger.info(
-                "Read from S3",
-                group_id=group_id,
-                rows=len(df),
-            )
-            return df
+                logger.info(
+                    "Read from S3",
+                    group_id=group_id,
+                    rows=len(df),
+                )
+                return df
+
+            finally:
+                # Clean up temp file
+                if tmp_path is not None:
+                    Path(tmp_path).unlink(missing_ok=True)
 
         except self.s3_client.exceptions.NoSuchKey:
             logger.debug("No data found for group", group_id=group_id)
@@ -366,6 +372,7 @@ class GroupHistoryStore:
             logger.warning("Attempted to write empty DataFrame", group_id=group_id)
             return False
 
+        tmp_path = None
         try:
             # Write to temp file first
             with tempfile.NamedTemporaryFile(suffix=".parquet", delete=False) as tmp:
@@ -380,8 +387,6 @@ class GroupHistoryStore:
                     Body=f.read(),
                     ContentType="application/octet-stream",
                 )
-
-            tmp_path.unlink()  # Clean up temp file
 
             # Update metadata
             self._update_metadata(group_id, df)
@@ -404,6 +409,11 @@ class GroupHistoryStore:
                 error=str(e),
             )
             return False
+
+        finally:
+            # Clean up temp file
+            if tmp_path is not None:
+                tmp_path.unlink(missing_ok=True)
 
     def append_records(
         self,

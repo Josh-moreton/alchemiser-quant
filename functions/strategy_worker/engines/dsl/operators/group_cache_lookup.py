@@ -252,7 +252,7 @@ def write_historical_return(
         record_date: ISO date string (YYYY-MM-DD)
         selections: Symbol-to-weight mapping (weights as strings)
         portfolio_daily_return: Daily return as Decimal (e.g. Decimal("0.0153"))
-        ttl_days: TTL in days (unused for S3, kept for API compatibility)
+        ttl_days: Deprecated (unused for S3 storage, kept for API compatibility)
 
     Returns:
         True if write succeeded, False otherwise.
@@ -275,7 +275,7 @@ def write_historical_return(
                     "selection_count": len(selections),
                     "portfolio_daily_return": str(portfolio_daily_return),
                     "evaluated_at": datetime.now(UTC).isoformat(),
-                    "source": "on_demand_backfill",
+                    "source": "on_demand_backfill_script",
                 }
             ]
         )
