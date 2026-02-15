@@ -37,22 +37,33 @@ build-StrategyLayer:
 		-t "$(ARTIFACTS_DIR)/python" \
 		--upgrade
 	
-	# Add alpaca-py's runtime dependencies that aren't in awswrangler
-	@echo "➕ Adding alpaca-py runtime dependencies..."
+	# Add alpaca-py's runtime dependencies that aren't in awswrangler (ARM64 binaries)
+	@echo "Adding alpaca-py runtime dependencies (aarch64)..."
 	$(PIP) install -q \
 		msgpack \
 		sseclient-py \
 		websockets \
 		-t "$(ARTIFACTS_DIR)/python" \
-		--upgrade
+		--upgrade \
+		--platform manylinux_2_28_aarch64 \
+		--only-binary=:all: \
+		--python-version 3.12 \
+		--implementation cp
 	
-	# Add Strategy-specific deps not in awswrangler
-	@echo "➕ Adding Strategy-specific dependencies..."
+	# Add Strategy-specific deps not in awswrangler (ARM64 binaries where applicable)
+	@echo "Adding Strategy-specific dependencies (aarch64)..."
 	$(PIP) install -q \
 		pydantic \
 		pydantic-settings \
-		structlog \
 		dependency-injector \
+		-t "$(ARTIFACTS_DIR)/python" \
+		--upgrade \
+		--platform manylinux_2_28_aarch64 \
+		--only-binary=:all: \
+		--python-version 3.12 \
+		--implementation cp
+	$(PIP) install -q \
+		structlog \
 		cachetools \
 		-t "$(ARTIFACTS_DIR)/python" \
 		--upgrade
