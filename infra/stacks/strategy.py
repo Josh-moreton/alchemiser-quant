@@ -145,7 +145,7 @@ class StrategyStack(cdk.Stack):
                     resources=[trade_ledger_table.table_arn, f"{trade_ledger_table.table_arn}/index/*"],
                 ),
                 iam.PolicyStatement(
-                    actions=["s3:GetObject", "s3:ListBucket"],
+                    actions=["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
                     resources=[market_data_bucket.bucket_arn, f"{market_data_bucket.bucket_arn}/*"],
                 ),
                 iam.PolicyStatement(

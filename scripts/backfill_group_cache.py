@@ -1036,6 +1036,78 @@ def _batch_write_dynamodb(
 
 
 # ---------------------------------------------------------------------------
+# Batch S3 writer
+# ---------------------------------------------------------------------------
+def _batch_write_s3(
+    items_by_group: dict[str, list[dict[str, Any]]],
+    *,
+    dry_run: bool = False,
+) -> tuple[int, int]:
+    """Batch-write group history to S3 as Parquet files. Returns (groups_written, groups_failed).
+
+    Args:
+        items_by_group: Dict mapping group_id to list of records with keys:
+            group_id, record_date, selections, portfolio_daily_return.
+        dry_run: If True, skip writing.
+
+    Returns:
+        Tuple of (groups_written, groups_failed).
+
+    """
+    if dry_run or not items_by_group:
+        return (len(items_by_group) if dry_run else 0), 0
+
+    # Import here to avoid dependencies in dry-run mode
+    import pandas as pd
+    from the_alchemiser.shared.data_v2.group_history_store import GroupHistoryStore
+
+    try:
+        store = GroupHistoryStore()
+    except ValueError:
+        print(f"  {YELLOW}S3 bucket not configured, skipping S3 write{RESET}")
+        return 0, len(items_by_group)
+
+    written = 0
+    failed = 0
+
+    for group_id, items in items_by_group.items():
+        try:
+            # Convert items to DataFrame
+            records = []
+            for item in items:
+                # Convert selections dict to JSON string for Parquet storage
+                import json
+                selections_json = json.dumps(item["selections"])
+                
+                records.append({
+                    "record_date": item["record_date"],
+                    "portfolio_daily_return": str(item["portfolio_daily_return"]),
+                    "selections": selections_json,
+                })
+            
+            df = pd.DataFrame(records)
+            
+            # Sort by date
+            df = df.sort_values("record_date")
+            
+            # Append to existing data (or create new)
+            if store.append_records(group_id, df):
+                written += 1
+            else:
+                failed += 1
+                print(f"    {YELLOW}Failed to write {group_id} to S3{RESET}")
+                
+        except Exception as exc:
+            failed += 1
+            print(
+                f"    {YELLOW}S3 write failed for {group_id}: "
+                f"{type(exc).__name__}: {exc}{RESET}"
+            )
+
+    return written, failed
+
+
+# ---------------------------------------------------------------------------
 # Single-group backfill (used by both sequential and parallel paths)
 # ---------------------------------------------------------------------------
 def _backfill_single_group(
@@ -1579,6 +1651,15 @@ def backfill_strategy_groups(
 
         # ---- Batch write all items for this level ----
         if level_items:
+            # Group items by group_id for S3 writing
+            items_by_group: dict[str, list[dict[str, Any]]] = {}
+            for item in level_items:
+                group_id = item["group_id"]
+                if group_id not in items_by_group:
+                    items_by_group[group_id] = []
+                items_by_group[group_id].append(item)
+            
+            # Write to DynamoDB (legacy)
             print(f"\n  {DIM}Batch writing {len(level_items)} items to "
                   f"DynamoDB ...{RESET}", end="", flush=True)
             written, failed = _batch_write_dynamodb(
@@ -1590,6 +1671,17 @@ def backfill_strategy_groups(
             if dry_run:
                 status = f"{YELLOW}DRY RUN{RESET}"
             print(f" {written} written, {status} ({level_elapsed:.1f}s)")
+            
+            # Write to S3 (new)
+            print(f"  {DIM}Batch writing {len(items_by_group)} groups to "
+                  f"S3 ...{RESET}", end="", flush=True)
+            s3_written, s3_failed = _batch_write_s3(
+                items_by_group, dry_run=dry_run,
+            )
+            s3_status = f"{GREEN}OK{RESET}" if s3_failed == 0 else f"{RED}{s3_failed} failed{RESET}"
+            if dry_run:
+                s3_status = f"{YELLOW}DRY RUN{RESET}"
+            print(f" {s3_written} groups written, {s3_status}")
         else:
             print(f"\n  {DIM}No items to write for depth {depth}{RESET}")
 
@@ -1601,6 +1693,7 @@ def backfill_strategy_groups(
     print(f"{BOLD}{'=' * 72}{RESET}")
     print(f"  Strategy:        {strategy_name}")
     print(f"  DynamoDB table:  {os.environ.get('GROUP_HISTORY_TABLE', '(not set)')}")
+    print(f"  S3 bucket:       {os.environ.get('MARKET_DATA_BUCKET', '(not set)')}")
     lookback_mode = (
         "ALL available history (per-group)" if backfill_all
         else f"{lookback_days or 45} calendar days"
