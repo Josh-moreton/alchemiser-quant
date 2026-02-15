@@ -110,11 +110,11 @@ class DataStack(cdk.Stack):
         # CDK BundlingOptions replicates the layers/data/Makefile logic.
         # LocalShellBundling runs locally first; Docker is only a fallback.
         _data_layer_cmd = (
-            "curl -sL 'https://aws-data-wrangler-public-artifacts.s3.amazonaws.com/releases/3.10.0/awswrangler-layer-3.10.0-py3.12.zip' -o /tmp/awswrangler-layer.zip"
+            "curl -sL 'https://github.com/aws/aws-sdk-pandas/releases/download/3.10.0/awswrangler-layer-3.10.0-py3.12-arm64.zip' -o /tmp/awswrangler-layer.zip"
             " && unzip -q -o /tmp/awswrangler-layer.zip -d /asset-output"
             " && pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
             " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade"
-            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux2014_x86_64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q structlog -t /asset-output/python --upgrade"
             " && rm -f /tmp/awswrangler-layer.zip"
         )
@@ -132,7 +132,7 @@ class DataStack(cdk.Stack):
                 ),
             ),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
-            compatible_architectures=[_lambda.Architecture.X86_64],
+            compatible_architectures=[_lambda.Architecture.ARM_64],
             removal_policy=RemovalPolicy.DESTROY,
         )
 

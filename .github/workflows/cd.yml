@@ -26,7 +26,7 @@ env:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     environment: ${{ contains(github.ref_name, 'beta') && 'dev' || contains(github.ref_name, 'staging') && 'staging' || (github.event_name == 'workflow_dispatch' && inputs.environment || 'prod') }}
     # Ensure only one deploy per environment runs at a time
     concurrency:
