@@ -87,7 +87,7 @@ class StrategyStack(cdk.Stack):
         _strategy_layer_cmd = (
             "pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
             " && pip install -q msgpack websockets -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q pydantic -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q 'pydantic>=2.0.0' pydantic-core -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q pydantic-settings sseclient-py structlog 'cachetools>=5.5,<7' -t /asset-output/python --upgrade"
         )

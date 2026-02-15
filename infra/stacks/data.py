@@ -122,7 +122,7 @@ class DataStack(cdk.Stack):
         _data_layer_cmd = (
             "pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
             " && pip install -q msgpack websockets -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q pydantic -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q 'pydantic>=2.0.0' pydantic-core -t /asset-output/python --upgrade --platform manylinux_2_28_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q pydantic-settings sseclient-py structlog -t /asset-output/python --upgrade --no-deps"
         )
         self.data_layer = _lambda.LayerVersion(
