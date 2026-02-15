@@ -109,23 +109,28 @@ class DataStack(cdk.Stack):
             service_tag="bad-data-markers",
         )
 
-        # ---- Data Layer (Makefile-built: awswrangler + alpaca-py) ----
+        # ---- Data Layer (uses AWS managed awswrangler layer + custom deps) ----
+        # Reference AWS managed layer for AWS SDK for pandas (awswrangler)
+        awswrangler_managed_layer = _lambda.LayerVersion.from_layer_version_arn(
+            self,
+            "AWSSDKPandasManagedLayer",
+            layer_version_arn="arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:22",
+        )
+
+        # Build custom layer with additional dependencies on top of awswrangler
         # CDK BundlingOptions replicates the layers/data/Makefile logic.
         # LocalShellBundling runs locally first; Docker is only a fallback.
         _data_layer_cmd = (
-            "curl -sL 'https://github.com/aws/aws-sdk-pandas/releases/download/3.15.1/awswrangler-layer-3.15.1-py3.12-arm64.zip' -o /tmp/awswrangler-layer.zip"
-            " && unzip -q -o /tmp/awswrangler-layer.zip -d /asset-output"
-            " && pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
+            "pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
             " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q structlog -t /asset-output/python --upgrade"
-            " && rm -f /tmp/awswrangler-layer.zip"
         )
         self.data_layer = _lambda.LayerVersion(
             self,
             "DataLayer",
             layer_version_name=config.resource_name("data-deps"),
-            description="awswrangler 3.15.1 + alpaca-py (pandas, numpy, pyarrow included)",
+            description="alpaca-py + additional dependencies (used with AWS managed awswrangler layer)",
             code=_lambda.Code.from_asset(
                 "layers/data/",
                 bundling=cdk.BundlingOptions(
@@ -195,7 +200,7 @@ class DataStack(cdk.Stack):
             function_name=config.resource_name("data"),
             code_uri="functions/data/",
             handler="lambda_handler.lambda_handler",
-            layers=[shared_code_layer, self.data_layer],
+            layers=[shared_code_layer, awswrangler_managed_layer, self.data_layer],
             role=data_role,
             timeout_seconds=900,
             memory_size=1024,

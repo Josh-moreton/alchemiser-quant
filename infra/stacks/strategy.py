@@ -74,23 +74,28 @@ class StrategyStack(cdk.Stack):
             ssm_suffix="shared-code-arn",
         )
 
-        # ---- Strategy Layer (Makefile-built: awswrangler + alpaca-py) ----
+        # ---- Strategy Layer (uses AWS managed awswrangler layer + custom deps) ----
+        # Reference AWS managed layer for AWS SDK for pandas (awswrangler)
+        awswrangler_managed_layer = _lambda.LayerVersion.from_layer_version_arn(
+            self,
+            "AWSSDKPandasManagedLayer",
+            layer_version_arn="arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:22",
+        )
+
+        # Build custom layer with additional dependencies on top of awswrangler
         # LocalShellBundling runs locally first; Docker is only a fallback.
         _strategy_layer_cmd = (
-            "curl -sL 'https://github.com/aws/aws-sdk-pandas/releases/download/3.15.1/awswrangler-layer-3.15.1-py3.12-arm64.zip' -o /tmp/awswrangler-layer.zip"
-            " && unzip -q -o /tmp/awswrangler-layer.zip -d /asset-output"
-            " && pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
+            "pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
             " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q structlog 'cachetools>=5.5,<7' -t /asset-output/python --upgrade"
-            " && rm -f /tmp/awswrangler-layer.zip"
         )
         self.strategy_layer = _lambda.LayerVersion(
             self,
             "StrategyLayer",
             layer_version_name=config.resource_name("strategy-deps"),
-            description="awswrangler 3.15.1 + alpaca-py (pandas, numpy, pyarrow included)",
+            description="alpaca-py + additional dependencies (used with AWS managed awswrangler layer)",
             code=_lambda.Code.from_asset(
                 "layers/strategy/",
                 bundling=cdk.BundlingOptions(
@@ -197,7 +202,7 @@ class StrategyStack(cdk.Stack):
             function_name=config.resource_name("strategy-worker"),
             code_uri="functions/strategy_worker/",
             handler="lambda_handler.lambda_handler",
-            layers=[shared_code_layer, self.strategy_layer],
+            layers=[shared_code_layer, awswrangler_managed_layer, self.strategy_layer],
             role=strategy_role,
             timeout_seconds=900,
             memory_size=1024,
@@ -259,7 +264,7 @@ class StrategyStack(cdk.Stack):
             function_name=config.resource_name("strategy-orchestrator"),
             code_uri="functions/strategy_orchestrator/",
             handler="lambda_handler.lambda_handler",
-            layers=[shared_code_layer, self.strategy_layer],
+            layers=[shared_code_layer, awswrangler_managed_layer, self.strategy_layer],
             role=orchestrator_role,
             timeout_seconds=60,
             memory_size=512,
@@ -317,7 +322,7 @@ class StrategyStack(cdk.Stack):
             function_name=config.resource_name("schedule-manager"),
             code_uri="functions/schedule_manager/",
             handler="lambda_handler.lambda_handler",
-            layers=[shared_code_layer, self.strategy_layer],
+            layers=[shared_code_layer, awswrangler_managed_layer, self.strategy_layer],
             role=schedule_mgr_role,
             timeout_seconds=60,
             memory_size=256,
@@ -381,7 +386,7 @@ class StrategyStack(cdk.Stack):
             function_name=f"alch-{config.stage}-strategy-analytics",
             code_uri="functions/strategy_analytics/",
             handler="lambda_handler.lambda_handler",
-            layers=[shared_code_layer, self.strategy_layer],
+            layers=[shared_code_layer, awswrangler_managed_layer, self.strategy_layer],
             role=analytics_role,
             timeout_seconds=120,
             memory_size=1024,
@@ -435,7 +440,7 @@ class StrategyStack(cdk.Stack):
             function_name=f"alch-{config.stage}-strategy-reports",
             code_uri="functions/strategy_reports/",
             handler="lambda_handler.lambda_handler",
-            layers=[shared_code_layer, self.strategy_layer],
+            layers=[shared_code_layer, awswrangler_managed_layer, self.strategy_layer],
             role=reports_role,
             timeout_seconds=300,
             memory_size=2048,
