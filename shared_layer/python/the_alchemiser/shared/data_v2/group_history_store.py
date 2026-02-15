@@ -16,6 +16,7 @@ Data Format:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import tempfile
@@ -326,10 +327,8 @@ class GroupHistoryStore:
                 return df
             finally:
                 if tmp_path is not None:
-                    try:
+                    with contextlib.suppress(FileNotFoundError):
                         Path(tmp_path).unlink()
-                    except FileNotFoundError:
-                        pass
 
         except self.s3_client.exceptions.NoSuchKey:
             logger.debug("No history found for group", group_id=group_id)
@@ -398,10 +397,8 @@ class GroupHistoryStore:
                 )
                 return True
             finally:
-                try:
+                with contextlib.suppress(FileNotFoundError):
                     tmp_path.unlink()
-                except FileNotFoundError:
-                    pass
 
         except Exception as e:
             logger.error(
