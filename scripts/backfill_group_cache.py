@@ -51,6 +51,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import multiprocessing as mp
 import os
 import sys
@@ -1076,7 +1077,6 @@ def _batch_write_s3(
             records = []
             for item in items:
                 # Convert selections dict to JSON string for Parquet storage
-                import json
                 selections_json = json.dumps(item["selections"])
                 
                 records.append({
