@@ -77,10 +77,11 @@ class StrategyStack(cdk.Stack):
         # ---- Strategy Layer (Makefile-built: awswrangler + alpaca-py) ----
         # LocalShellBundling runs locally first; Docker is only a fallback.
         _strategy_layer_cmd = (
-            "curl -sL 'https://github.com/aws/aws-sdk-pandas/releases/download/3.10.0/awswrangler-layer-3.10.0-py3.12-arm64.zip' -o /tmp/awswrangler-layer.zip"
+            "curl -sL 'https://github.com/aws/aws-sdk-pandas/releases/download/3.15.1/awswrangler-layer-3.15.1-py3.12-arm64.zip' -o /tmp/awswrangler-layer.zip"
             " && unzip -q -o /tmp/awswrangler-layer.zip -d /asset-output"
             " && pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
             " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade"
+            " --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q structlog 'cachetools>=5.5,<7' -t /asset-output/python --upgrade"
@@ -90,7 +91,7 @@ class StrategyStack(cdk.Stack):
             self,
             "StrategyLayer",
             layer_version_name=config.resource_name("strategy-deps"),
-            description="awswrangler 3.10.0 + alpaca-py (pandas, numpy, pyarrow included)",
+            description="awswrangler 3.15.1 + alpaca-py (pandas, numpy, pyarrow included)",
             code=_lambda.Code.from_asset(
                 "layers/strategy/",
                 bundling=cdk.BundlingOptions(
