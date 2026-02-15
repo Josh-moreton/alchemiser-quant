@@ -3,18 +3,19 @@
 Group history cache lookup for portfolio scoring.
 
 This module provides utilities to query cached historical selections
-and pre-computed portfolio daily returns from DynamoDB for accurate
-filter scoring of groups/portfolios.
+and pre-computed portfolio daily returns for accurate filter scoring
+of groups/portfolios.
 
 When a filter operator needs to compute a metric like moving-average-return
 on a group, it needs the historical return stream of that group over the
-lookback window. The Group Cache Lambda evaluates each group daily and stores
-both the selections and the portfolio daily return. This module queries
-that cache.
+lookback window. The group history is now stored in S3 as Parquet files
+(similar to individual ticker data), with DynamoDB as a legacy fallback.
+
+Data Storage:
+    - Primary: S3 Parquet files (via GroupHistoryStore)
+    - Legacy: DynamoDB table (read-only fallback)
 
 Invariants:
-    - DynamoDB items contain ``portfolio_daily_return`` (Decimal string) when
-      available, alongside ``selections`` ({symbol: weight}).
     - Returns are close-to-close daily percentage changes as Decimals
       (e.g. Decimal("0.0153") for +1.53%).
     - Dates are ISO-8601 strings (YYYY-MM-DD).
@@ -22,31 +23,53 @@ Invariants:
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 import boto3
+import pandas as pd
 from botocore.exceptions import ClientError
 
+from the_alchemiser.shared.data_v2.group_history_store import GroupHistoryStore
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Environment variable for table name
+# Environment variables
 GROUP_HISTORY_TABLE = os.environ.get("GROUP_HISTORY_TABLE", "")
+MARKET_DATA_BUCKET = os.environ.get("MARKET_DATA_BUCKET", "")
 
-# Lazy-loaded DynamoDB client
+# Lazy-loaded clients
 _dynamodb_table = None
+_group_history_store = None
 
 
 def get_dynamodb_table() -> object | None:
-    """Get the DynamoDB table resource (lazy-loaded singleton)."""
+    """Get the DynamoDB table resource (lazy-loaded singleton).
+    
+    This is maintained for backward compatibility during migration.
+    """
     global _dynamodb_table
     if _dynamodb_table is None and GROUP_HISTORY_TABLE:
         dynamodb = boto3.resource("dynamodb")
         _dynamodb_table = dynamodb.Table(GROUP_HISTORY_TABLE)
     return _dynamodb_table
+
+
+def get_group_history_store() -> GroupHistoryStore | None:
+    """Get the GroupHistoryStore instance (lazy-loaded singleton)."""
+    global _group_history_store
+    if _group_history_store is None and MARKET_DATA_BUCKET:
+        try:
+            _group_history_store = GroupHistoryStore(bucket_name=MARKET_DATA_BUCKET)
+        except Exception as e:
+            logger.warning(
+                "Failed to initialize GroupHistoryStore",
+                error=str(e),
+            )
+    return _group_history_store
 
 
 def lookup_historical_selections(
@@ -74,6 +97,84 @@ def lookup_historical_selections(
         >>> # Returns: {"2026-02-05": {"TQQQ": Decimal("1.0")}, ...}
 
     """
+    # Try S3 first
+    selections = _lookup_selections_from_s3(group_id, lookback_days, end_date)
+    if selections:
+        return selections
+    
+    # Fall back to DynamoDB (legacy)
+    return _lookup_selections_from_dynamodb(group_id, lookback_days, end_date)
+
+
+def _lookup_selections_from_s3(
+    group_id: str,
+    lookback_days: int,
+    end_date: date | None = None,
+) -> dict[str, dict[str, Decimal]]:
+    """Look up historical selections from S3 Parquet files."""
+    store = get_group_history_store()
+    if store is None:
+        logger.debug("Group history store not available (MARKET_DATA_BUCKET not set)")
+        return {}
+    
+    if end_date is None:
+        end_date = datetime.now(UTC).date()
+    
+    start_date = end_date - timedelta(days=lookback_days)
+    
+    try:
+        df = store.read_group_history(group_id)
+        if df is None or df.empty:
+            logger.debug(
+                "No group history found in S3",
+                group_id=group_id,
+            )
+            return {}
+        
+        # Filter to date range
+        df["record_date"] = pd.to_datetime(df["record_date"])
+        mask = (df["record_date"] >= pd.Timestamp(start_date)) & (
+            df["record_date"] <= pd.Timestamp(end_date)
+        )
+        df = df[mask]
+        
+        # Convert to expected format
+        selections: dict[str, dict[str, Decimal]] = {}
+        for _, row in df.iterrows():
+            record_date = row["record_date"].strftime("%Y-%m-%d")
+            # Parse selections from JSON string or dict
+            raw_selections = row.get("selections", {})
+            if isinstance(raw_selections, str):
+                raw_selections = json.loads(raw_selections)
+            
+            selections[record_date] = {
+                symbol: Decimal(str(weight))
+                for symbol, weight in raw_selections.items()
+            }
+        
+        logger.debug(
+            "S3 cache lookup successful",
+            group_id=group_id,
+            lookback_days=lookback_days,
+            dates_found=len(selections),
+        )
+        return selections
+        
+    except Exception as e:
+        logger.warning(
+            "Failed to query group history from S3",
+            group_id=group_id,
+            error=str(e),
+        )
+        return {}
+
+
+def _lookup_selections_from_dynamodb(
+    group_id: str,
+    lookback_days: int,
+    end_date: date | None = None,
+) -> dict[str, dict[str, Decimal]]:
+    """Look up historical selections from DynamoDB (legacy fallback)."""
     table = get_dynamodb_table()
     if table is None:
         logger.debug("Group history cache not available (GROUP_HISTORY_TABLE not set)")
@@ -155,10 +256,9 @@ def lookup_historical_returns(
 ) -> list[Decimal]:
     """Look up pre-computed historical portfolio daily returns from the cache.
 
-    Queries the same DynamoDB table as ``lookup_historical_selections`` but
-    extracts the ``portfolio_daily_return`` field written by the Group Cache
-    Lambda.  Returns a date-sorted list of Decimal returns suitable for
-    direct metric computation (moving-average, stdev, etc.).
+    Queries the group history (S3 or DynamoDB fallback) and extracts the
+    ``portfolio_daily_return`` field. Returns a date-sorted list of Decimal
+    returns suitable for direct metric computation (moving-average, stdev, etc.).
 
     Args:
         group_id: Group identifier (e.g. "ftl_starburst__yinn_yang_mean_reversion")
@@ -180,6 +280,85 @@ def lookup_historical_returns(
         10
 
     """
+    # Try S3 first
+    returns = _lookup_returns_from_s3(group_id, lookback_days, end_date)
+    if returns:
+        return returns
+    
+    # Fall back to DynamoDB (legacy)
+    return _lookup_returns_from_dynamodb(group_id, lookback_days, end_date)
+
+
+def _lookup_returns_from_s3(
+    group_id: str,
+    lookback_days: int,
+    end_date: date | None = None,
+) -> list[Decimal]:
+    """Look up historical returns from S3 Parquet files."""
+    store = get_group_history_store()
+    if store is None:
+        logger.debug("Group history store not available for return lookup")
+        return []
+    
+    if end_date is None:
+        end_date = datetime.now(UTC).date()
+    
+    start_date = end_date - timedelta(days=lookback_days)
+    
+    try:
+        df = store.read_group_history(group_id)
+        if df is None or df.empty:
+            logger.debug(
+                "No group history found in S3 for returns",
+                group_id=group_id,
+            )
+            return []
+        
+        # Filter to date range and sort
+        df["record_date"] = pd.to_datetime(df["record_date"])
+        mask = (df["record_date"] >= pd.Timestamp(start_date)) & (
+            df["record_date"] <= pd.Timestamp(end_date)
+        )
+        df = df[mask].sort_values("record_date")
+        
+        # Extract returns
+        returns: list[Decimal] = []
+        for _, row in df.iterrows():
+            raw_return = row.get("portfolio_daily_return")
+            if raw_return is not None:
+                try:
+                    returns.append(Decimal(str(raw_return)))
+                except (InvalidOperation, ValueError):
+                    logger.warning(
+                        "Invalid portfolio_daily_return value",
+                        group_id=group_id,
+                        record_date=row.get("record_date"),
+                        raw_value=str(raw_return),
+                    )
+        
+        logger.debug(
+            "S3 historical returns lookup successful",
+            group_id=group_id,
+            lookback_days=lookback_days,
+            returns_found=len(returns),
+        )
+        return returns
+        
+    except Exception as e:
+        logger.warning(
+            "Failed to query historical returns from S3",
+            group_id=group_id,
+            error=str(e),
+        )
+        return []
+
+
+def _lookup_returns_from_dynamodb(
+    group_id: str,
+    lookback_days: int,
+    end_date: date | None = None,
+) -> list[Decimal]:
+    """Look up historical returns from DynamoDB (legacy fallback)."""
     table = get_dynamodb_table()
     if table is None:
         logger.debug("Group history table not available for return lookup")
@@ -259,7 +438,14 @@ def lookup_historical_returns(
 
 
 def is_cache_available() -> bool:
-    """Check if the group history cache is configured and available."""
+    """Check if the group history cache is configured and available.
+    
+    Returns True if either S3 (preferred) or DynamoDB (legacy) is available.
+    """
+    # Check S3 first
+    if MARKET_DATA_BUCKET and get_group_history_store() is not None:
+        return True
+    # Fall back to DynamoDB
     return bool(GROUP_HISTORY_TABLE and get_dynamodb_table() is not None)
 
 
