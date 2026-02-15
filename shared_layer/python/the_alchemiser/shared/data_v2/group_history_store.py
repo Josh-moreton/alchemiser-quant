@@ -9,7 +9,7 @@ is stored in MarketDataStore.
 
 Data Format:
     - Each row represents one trading day
-    - Columns: record_date, portfolio_daily_return, selections (JSON), group_id
+    - Columns: record_date, portfolio_daily_return, selections (JSON)
     - Parquet file per group: s3://{bucket}/groups/{group_id}/history.parquet
     - Metadata file per group: s3://{bucket}/groups/{group_id}/metadata.json
 """
@@ -238,7 +238,13 @@ class GroupHistoryStore:
             return
 
         # Get the last record date from the DataFrame
-        last_date = pd.to_datetime(df["record_date"]).max()
+        last_date = pd.to_datetime(df["record_date"], errors="coerce").max()
+        if pd.isna(last_date):
+            logger.warning(
+                "Unable to determine last_record_date from record_date column; skipping metadata update",
+                group_id=group_id,
+            )
+            return
 
         metadata = GroupMetadata(
             group_id=group_id,
@@ -300,23 +306,30 @@ class GroupHistoryStore:
             )
 
             # Write to temp file for pandas to read
+            tmp_path: str | None = None
             with tempfile.NamedTemporaryFile(suffix=".parquet", delete=False) as tmp:
                 tmp.write(response["Body"].read())
                 tmp_path = tmp.name
 
-            df = pd.read_parquet(tmp_path, engine="pyarrow")
-            Path(tmp_path).unlink()  # Clean up temp file
+            try:
+                df = pd.read_parquet(tmp_path, engine="pyarrow")
 
-            # Update local cache
-            if use_cache:
-                df.to_parquet(cache_path, index=False, engine="pyarrow")
+                # Update local cache
+                if use_cache:
+                    df.to_parquet(cache_path, index=False, engine="pyarrow")
 
-            logger.info(
-                "Read group history from S3",
-                group_id=group_id,
-                rows=len(df),
-            )
-            return df
+                logger.info(
+                    "Read group history from S3",
+                    group_id=group_id,
+                    rows=len(df),
+                )
+                return df
+            finally:
+                if tmp_path is not None:
+                    try:
+                        Path(tmp_path).unlink()
+                    except FileNotFoundError:
+                        pass
 
         except self.s3_client.exceptions.NoSuchKey:
             logger.debug("No history found for group", group_id=group_id)
@@ -345,11 +358,14 @@ class GroupHistoryStore:
             return False
 
         try:
-            # Ensure record_date is string format (YYYY-MM-DD)
-            if "record_date" not in df.columns:
+            # Validate required columns before writing
+            required_columns = ["record_date", "portfolio_daily_return", "selections"]
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
                 logger.error(
-                    "DataFrame missing required column: record_date",
+                    "DataFrame missing required columns",
                     group_id=group_id,
+                    missing_columns=missing_columns,
                 )
                 return False
 
@@ -358,30 +374,34 @@ class GroupHistoryStore:
                 df.to_parquet(tmp.name, index=False, compression="snappy", engine="pyarrow")
                 tmp_path = Path(tmp.name)
 
-            # Upload to S3
-            with tmp_path.open("rb") as f:
-                self.s3_client.put_object(
-                    Bucket=self.bucket_name,
-                    Key=self._group_data_key(group_id),
-                    Body=f.read(),
-                    ContentType="application/octet-stream",
+            try:
+                # Upload to S3
+                with tmp_path.open("rb") as f:
+                    self.s3_client.put_object(
+                        Bucket=self.bucket_name,
+                        Key=self._group_data_key(group_id),
+                        Body=f.read(),
+                        ContentType="application/octet-stream",
+                    )
+
+                # Update metadata
+                self._update_metadata(group_id, df)
+
+                # Update local cache
+                cache_path = self._local_cache_path(group_id)
+                df.to_parquet(cache_path, index=False, engine="pyarrow")
+
+                logger.info(
+                    "Wrote group history to S3",
+                    group_id=group_id,
+                    rows=len(df),
                 )
-
-            tmp_path.unlink()  # Clean up temp file
-
-            # Update metadata
-            self._update_metadata(group_id, df)
-
-            # Update local cache
-            cache_path = self._local_cache_path(group_id)
-            df.to_parquet(cache_path, index=False, engine="pyarrow")
-
-            logger.info(
-                "Wrote group history to S3",
-                group_id=group_id,
-                rows=len(df),
-            )
-            return True
+                return True
+            finally:
+                try:
+                    tmp_path.unlink()
+                except FileNotFoundError:
+                    pass
 
         except Exception as e:
             logger.error(

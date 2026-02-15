@@ -138,12 +138,12 @@ def _lookup_selections_from_s3(
         )
         df = df[mask]
 
-        # Convert to expected format
+        # Convert to expected format using vectorized approach
         selections: dict[str, dict[str, Decimal]] = {}
-        for _, row in df.iterrows():
-            record_date = row["record_date"].strftime("%Y-%m-%d")
+        for record in df.to_dict("records"):
+            record_date = record["record_date"].strftime("%Y-%m-%d")
             # Parse selections from JSON string or dict
-            raw_selections = row.get("selections", {})
+            raw_selections = record.get("selections", {})
             if isinstance(raw_selections, str):
                 raw_selections = json.loads(raw_selections)
 
@@ -320,20 +320,18 @@ def _lookup_returns_from_s3(
         )
         df = df[mask].sort_values("record_date")
 
-        # Extract returns
+        # Extract returns using vectorized conversion
+        raw_series = df["portfolio_daily_return"].dropna()
         returns: list[Decimal] = []
-        for _, row in df.iterrows():
-            raw_return = row.get("portfolio_daily_return")
-            if raw_return is not None:
-                try:
-                    returns.append(Decimal(str(raw_return)))
-                except (InvalidOperation, ValueError):
-                    logger.warning(
-                        "Invalid portfolio_daily_return value",
-                        group_id=group_id,
-                        record_date=row.get("record_date"),
-                        raw_value=str(raw_return),
-                    )
+        for raw_return in raw_series:
+            try:
+                returns.append(Decimal(str(raw_return)))
+            except (InvalidOperation, ValueError):
+                logger.warning(
+                    "Invalid portfolio_daily_return value",
+                    group_id=group_id,
+                    raw_value=str(raw_return),
+                )
 
         logger.debug(
             "S3 historical returns lookup successful",
