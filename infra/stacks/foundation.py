@@ -27,7 +27,7 @@ from aws_cdk import (
 from constructs import Construct
 
 from infra.config import StageConfig
-from infra.constructs import LocalShellBundling, alchemiser_table
+from infra.constructs import alchemiser_table, bundled_layer_code
 
 
 class FoundationStack(cdk.Stack):
@@ -61,67 +61,51 @@ class FoundationStack(cdk.Stack):
             description="Shared business logic (the_alchemiser.shared module)",
             code=_lambda.Code.from_asset("shared_layer/"),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
-            compatible_architectures=[_lambda.Architecture.X86_64],
+            compatible_architectures=[_lambda.Architecture.ARM_64],
             removal_policy=RemovalPolicy.DESTROY,
         )
 
         # ---- Notifications Layer (shared: used by Orchestrator, ScheduleManager, TradeAggregator) ----
         _notifications_layer_cmd = (
             "pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
-            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade"
-            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade"
-            " --platform manylinux2014_x86_64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q dependency-injector -t /asset-output/python --upgrade"
-            " --platform manylinux2014_x86_64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q structlog 'cachetools>=6,<7' pyyaml -t /asset-output/python --upgrade"
-            " && pip install -q httpx httpcore anyio h11 requests certifi charset-normalizer"
-            " idna urllib3 python-dateutil pytz tzdata -t /asset-output/python --upgrade"
+            " && pip install -q msgpack websockets -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q 'pydantic>=2.0.0' -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q charset-normalizer pyyaml -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q pydantic-settings python-dotenv sseclient-py structlog 'cachetools>=6,<7' -t /asset-output/python --upgrade --no-deps"
+            " && pip install -q httpx httpcore anyio h11 requests certifi"
+            " idna urllib3 python-dateutil pytz tzdata -t /asset-output/python --upgrade --no-deps"
         )
         self.notifications_layer = _lambda.LayerVersion(
             self,
             "NotificationsLayer",
             layer_version_name=config.resource_name("notifications-deps"),
             description="Notifications Lambda dependencies (pydantic, structlog, alpaca-py)",
-            code=_lambda.Code.from_asset(
-                "layers/notifications/",
-                bundling=cdk.BundlingOptions(
-                    image=_lambda.Runtime.PYTHON_3_12.bundling_image,
-                    local=LocalShellBundling(_notifications_layer_cmd),
-                    command=["bash", "-c", _notifications_layer_cmd],
-                ),
-            ),
+            code=bundled_layer_code(_notifications_layer_cmd),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
-            compatible_architectures=[_lambda.Architecture.X86_64],
+            compatible_architectures=[_lambda.Architecture.ARM_64],
             removal_policy=RemovalPolicy.DESTROY,
         )
 
         # ---- Portfolio Layer (shared: used by Hedging, Dashboard, AccountData) ----
         _portfolio_layer_cmd = (
             "pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
-            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade"
-            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade"
-            " --platform manylinux2014_x86_64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q dependency-injector -t /asset-output/python --upgrade"
-            " --platform manylinux2014_x86_64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q structlog 'cachetools>=6,<7' pyyaml -t /asset-output/python --upgrade"
-            " && pip install -q httpx httpcore anyio h11 requests certifi charset-normalizer"
-            " idna urllib3 python-dateutil pytz tzdata -t /asset-output/python --upgrade"
+            " && pip install -q msgpack websockets -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q 'pydantic>=2.0.0' -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q charset-normalizer pyyaml -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q pydantic-settings python-dotenv sseclient-py structlog 'cachetools>=6,<7' -t /asset-output/python --upgrade --no-deps"
+            " && pip install -q httpx httpcore anyio h11 requests certifi"
+            " idna urllib3 python-dateutil pytz tzdata -t /asset-output/python --upgrade --no-deps"
         )
         self.portfolio_layer = _lambda.LayerVersion(
             self,
             "PortfolioLayer",
             layer_version_name=config.resource_name("portfolio-deps"),
             description="Portfolio Lambda dependencies (alpaca-py, pydantic)",
-            code=_lambda.Code.from_asset(
-                "layers/portfolio/",
-                bundling=cdk.BundlingOptions(
-                    image=_lambda.Runtime.PYTHON_3_12.bundling_image,
-                    local=LocalShellBundling(_portfolio_layer_cmd),
-                    command=["bash", "-c", _portfolio_layer_cmd],
-                ),
-            ),
+            code=bundled_layer_code(_portfolio_layer_cmd),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
-            compatible_architectures=[_lambda.Architecture.X86_64],
+            compatible_architectures=[_lambda.Architecture.ARM_64],
             removal_policy=RemovalPolicy.DESTROY,
         )
 
@@ -161,10 +145,12 @@ class FoundationStack(cdk.Stack):
         # ---- Trade Ledger Table (5 GSIs) ----
         gsi_attrs = []
         for i in range(1, 6):
-            gsi_attrs.extend([
-                {"name": f"GSI{i}PK", "type": dynamodb.AttributeType.STRING},
-                {"name": f"GSI{i}SK", "type": dynamodb.AttributeType.STRING},
-            ])
+            gsi_attrs.extend(
+                [
+                    {"name": f"GSI{i}PK", "type": dynamodb.AttributeType.STRING},
+                    {"name": f"GSI{i}SK", "type": dynamodb.AttributeType.STRING},
+                ]
+            )
 
         self.trade_ledger_table = alchemiser_table(
             self,
@@ -178,28 +164,48 @@ class FoundationStack(cdk.Stack):
             global_secondary_indexes=[
                 {
                     "index_name": "GSI1-CorrelationIndex",
-                    "partition_key": dynamodb.Attribute(name="GSI1PK", type=dynamodb.AttributeType.STRING),
-                    "sort_key": dynamodb.Attribute(name="GSI1SK", type=dynamodb.AttributeType.STRING),
+                    "partition_key": dynamodb.Attribute(
+                        name="GSI1PK", type=dynamodb.AttributeType.STRING
+                    ),
+                    "sort_key": dynamodb.Attribute(
+                        name="GSI1SK", type=dynamodb.AttributeType.STRING
+                    ),
                 },
                 {
                     "index_name": "GSI2-SymbolIndex",
-                    "partition_key": dynamodb.Attribute(name="GSI2PK", type=dynamodb.AttributeType.STRING),
-                    "sort_key": dynamodb.Attribute(name="GSI2SK", type=dynamodb.AttributeType.STRING),
+                    "partition_key": dynamodb.Attribute(
+                        name="GSI2PK", type=dynamodb.AttributeType.STRING
+                    ),
+                    "sort_key": dynamodb.Attribute(
+                        name="GSI2SK", type=dynamodb.AttributeType.STRING
+                    ),
                 },
                 {
                     "index_name": "GSI3-StrategyIndex",
-                    "partition_key": dynamodb.Attribute(name="GSI3PK", type=dynamodb.AttributeType.STRING),
-                    "sort_key": dynamodb.Attribute(name="GSI3SK", type=dynamodb.AttributeType.STRING),
+                    "partition_key": dynamodb.Attribute(
+                        name="GSI3PK", type=dynamodb.AttributeType.STRING
+                    ),
+                    "sort_key": dynamodb.Attribute(
+                        name="GSI3SK", type=dynamodb.AttributeType.STRING
+                    ),
                 },
                 {
                     "index_name": "GSI4-CorrelationSnapshotIndex",
-                    "partition_key": dynamodb.Attribute(name="GSI4PK", type=dynamodb.AttributeType.STRING),
-                    "sort_key": dynamodb.Attribute(name="GSI4SK", type=dynamodb.AttributeType.STRING),
+                    "partition_key": dynamodb.Attribute(
+                        name="GSI4PK", type=dynamodb.AttributeType.STRING
+                    ),
+                    "sort_key": dynamodb.Attribute(
+                        name="GSI4SK", type=dynamodb.AttributeType.STRING
+                    ),
                 },
                 {
                     "index_name": "GSI5-StrategyLotsIndex",
-                    "partition_key": dynamodb.Attribute(name="GSI5PK", type=dynamodb.AttributeType.STRING),
-                    "sort_key": dynamodb.Attribute(name="GSI5SK", type=dynamodb.AttributeType.STRING),
+                    "partition_key": dynamodb.Attribute(
+                        name="GSI5PK", type=dynamodb.AttributeType.STRING
+                    ),
+                    "sort_key": dynamodb.Attribute(
+                        name="GSI5SK", type=dynamodb.AttributeType.STRING
+                    ),
                 },
             ],
         )

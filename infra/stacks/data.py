@@ -33,8 +33,8 @@ from constructs import Construct
 from infra.config import StageConfig
 from infra.constructs import (
     AlchemiserFunction,
-    LocalShellBundling,
     alchemiser_table,
+    bundled_layer_code,
     lambda_execution_role,
     layer_from_ssm,
     scheduler_role,
@@ -59,7 +59,10 @@ class DataStack(cdk.Stack):
 
         # ---- Shared layer (looked up from SSM to avoid cross-stack export lock) ----
         shared_code_layer = layer_from_ssm(
-            self, "SharedCodeLayer", config=config, ssm_suffix="shared-code-arn",
+            self,
+            "SharedCodeLayer",
+            config=config,
+            ssm_suffix="shared-code-arn",
         )
 
         # ---- Market Data S3 Bucket ----
@@ -106,33 +109,33 @@ class DataStack(cdk.Stack):
             service_tag="bad-data-markers",
         )
 
-        # ---- Data Layer (Makefile-built: awswrangler + alpaca-py) ----
-        # CDK BundlingOptions replicates the layers/data/Makefile logic.
+        # ---- Data Layer (uses AWS managed awswrangler layer + custom deps) ----
+        # Reference AWS managed layer for AWS SDK for pandas (awswrangler)
+        awswrangler_managed_layer = _lambda.LayerVersion.from_layer_version_arn(
+            self,
+            "AWSSDKPandasManagedLayer",
+            layer_version_arn="arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:22",
+        )
+
+        # Build custom layer with additional dependencies on top of awswrangler.
         # LocalShellBundling runs locally first; Docker is only a fallback.
         _data_layer_cmd = (
-            "curl -sL 'https://aws-data-wrangler-public-artifacts.s3.amazonaws.com/releases/3.10.0/awswrangler-layer-3.10.0-py3.12.zip' -o /tmp/awswrangler-layer.zip"
-            " && unzip -q -o /tmp/awswrangler-layer.zip -d /asset-output"
-            " && pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
-            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade"
-            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux2014_x86_64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q structlog -t /asset-output/python --upgrade"
-            " && rm -f /tmp/awswrangler-layer.zip"
+            "pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
+            " && pip install -q msgpack websockets -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q 'pydantic>=2.0.0' -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q charset-normalizer -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q pydantic-settings python-dotenv sseclient-py structlog -t /asset-output/python --upgrade --no-deps"
+            " && pip install -q httpx httpcore anyio h11 requests certifi"
+            " idna urllib3 python-dateutil pytz tzdata -t /asset-output/python --upgrade --no-deps"
         )
         self.data_layer = _lambda.LayerVersion(
             self,
             "DataLayer",
             layer_version_name=config.resource_name("data-deps"),
-            description="awswrangler 3.10.0 + alpaca-py (pandas, numpy, pyarrow included)",
-            code=_lambda.Code.from_asset(
-                "layers/data/",
-                bundling=cdk.BundlingOptions(
-                    image=_lambda.Runtime.PYTHON_3_12.bundling_image,
-                    local=LocalShellBundling(_data_layer_cmd),
-                    command=["bash", "-c", _data_layer_cmd],
-                ),
-            ),
+            description="alpaca-py + additional dependencies (used with AWS managed awswrangler layer)",
+            code=bundled_layer_code(_data_layer_cmd),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
-            compatible_architectures=[_lambda.Architecture.X86_64],
+            compatible_architectures=[_lambda.Architecture.ARM_64],
             removal_policy=RemovalPolicy.DESTROY,
         )
 
@@ -150,11 +153,22 @@ class DataStack(cdk.Stack):
                     ],
                 ),
                 iam.PolicyStatement(
-                    actions=["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:DeleteItem", "dynamodb:Query"],
+                    actions=[
+                        "dynamodb:PutItem",
+                        "dynamodb:GetItem",
+                        "dynamodb:DeleteItem",
+                        "dynamodb:Query",
+                    ],
                     resources=[self.fetch_requests_table.table_arn],
                 ),
                 iam.PolicyStatement(
-                    actions=["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:Scan"],
+                    actions=[
+                        "dynamodb:PutItem",
+                        "dynamodb:GetItem",
+                        "dynamodb:DeleteItem",
+                        "dynamodb:Query",
+                        "dynamodb:Scan",
+                    ],
                     resources=[self.bad_data_markers_table.table_arn],
                 ),
                 iam.PolicyStatement(
@@ -181,7 +195,7 @@ class DataStack(cdk.Stack):
             function_name=config.resource_name("data"),
             code_uri="functions/data/",
             handler="lambda_handler.lambda_handler",
-            layers=[shared_code_layer, self.data_layer],
+            layers=[shared_code_layer, awswrangler_managed_layer, self.data_layer],
             role=data_role,
             timeout_seconds=900,
             memory_size=1024,
@@ -238,11 +252,27 @@ class DataStack(cdk.Stack):
         )
 
         # ---- Outputs ----
-        CfnOutput(self, "MarketDataBucketName", value=self.market_data_bucket.bucket_name,
-                  export_name=f"{config.prefix}-MarketDataBucket")
-        CfnOutput(self, "MarketDataFetchRequestsTableName", value=self.fetch_requests_table.table_name,
-                  export_name=f"{config.prefix}-MarketDataFetchRequestsTable")
-        CfnOutput(self, "BadDataMarkersTableName", value=self.bad_data_markers_table.table_name,
-                  export_name=f"{config.prefix}-BadDataMarkersTable")
-        CfnOutput(self, "DataFunctionArn", value=self.data_function.function_arn,
-                  export_name=f"{config.prefix}-DataFunction")
+        CfnOutput(
+            self,
+            "MarketDataBucketName",
+            value=self.market_data_bucket.bucket_name,
+            export_name=f"{config.prefix}-MarketDataBucket",
+        )
+        CfnOutput(
+            self,
+            "MarketDataFetchRequestsTableName",
+            value=self.fetch_requests_table.table_name,
+            export_name=f"{config.prefix}-MarketDataFetchRequestsTable",
+        )
+        CfnOutput(
+            self,
+            "BadDataMarkersTableName",
+            value=self.bad_data_markers_table.table_name,
+            export_name=f"{config.prefix}-BadDataMarkersTable",
+        )
+        CfnOutput(
+            self,
+            "DataFunctionArn",
+            value=self.data_function.function_arn,
+            export_name=f"{config.prefix}-DataFunction",
+        )

@@ -62,15 +62,47 @@ class LocalShellBundling:
         )
         return result.returncode == 0
 
+
+def bundled_layer_code(pip_command: str) -> _lambda.Code:
+    """Build a Lambda layer from a pip install command without a source directory.
+
+    CDK's ``Code.from_asset`` requires a source path, but our layer builds
+    are fully self-contained pip installs that never read from the source.
+    This helper uses ``.`` (project root) as a dummy source and derives a
+    deterministic ``asset_hash`` from the pip command string so each layer
+    gets a unique CDK asset fingerprint.
+
+    Args:
+        pip_command: Shell command using ``/asset-output`` as output dir.
+
+    Returns:
+        A ``Code`` object usable in ``LayerVersion(..., code=...)``.
+
+    """
+    import hashlib
+
+    cmd_hash = hashlib.sha256(pip_command.encode()).hexdigest()[:16]
+    return _lambda.Code.from_asset(
+        ".",
+        bundling=cdk.BundlingOptions(
+            image=PYTHON_RUNTIME.bundling_image,
+            local=LocalShellBundling(pip_command),
+            command=["bash", "-c", pip_command],
+        ),
+        asset_hash=cmd_hash,
+        asset_hash_type=cdk.AssetHashType.CUSTOM,
+    )
+
+
 PYTHON_RUNTIME = _lambda.Runtime.PYTHON_3_12
-X86_64 = _lambda.Architecture.X86_64
+ARM_64 = _lambda.Architecture.ARM_64
 
 
 class AlchemiserFunction(Construct):
     """Lambda function with Alchemiser defaults.
 
     Applies:
-    - python3.12, x86_64
+    - python3.12, arm64
     - 900s timeout / 512 MB (overridable)
     - global env vars from StageConfig
     - standard tags
@@ -103,7 +135,7 @@ class AlchemiserFunction(Construct):
             "Fn",
             function_name=function_name,
             runtime=PYTHON_RUNTIME,
-            architecture=X86_64,
+            architecture=ARM_64,
             code=_lambda.Code.from_asset(
                 code_uri,
                 exclude=[
@@ -203,7 +235,9 @@ def lambda_execution_role(
         construct_id,
         assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
         managed_policies=[
-            iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole"),
+            iam.ManagedPolicy.from_aws_managed_policy_name(
+                "service-role/AWSLambdaBasicExecutionRole"
+            ),
         ],
         role_name=role_name,
     )
@@ -273,5 +307,7 @@ def layer_from_ssm(
     param_name = f"/{config.prefix}/layer/{ssm_suffix}"
     layer_arn = ssm.StringParameter.value_for_string_parameter(scope, param_name)
     return _lambda.LayerVersion.from_layer_version_arn(
-        scope, construct_id, layer_arn,
+        scope,
+        construct_id,
+        layer_arn,
     )
