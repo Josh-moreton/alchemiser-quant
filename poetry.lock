@@ -110,11 +110,83 @@ version = "25.4.0"
 description = "Classes Without Boilerplate"
 optional = false
 python-versions = ">=3.9"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "attrs-25.4.0-py3-none-any.whl", hash = "sha256:adcf7e2a1fb3b36ac48d97835bb6d8ade15b8dcce26aba8bf1d14847b57a3373"},
     {file = "attrs-25.4.0.tar.gz", hash = "sha256:16d5969b87f0859ef33a48b35d55ac1be6e42ae49d5e853b597db70c35c57e11"},
 ]
+
+[[package]]
+name = "aws-cdk-asset-awscli-v1"
+version = "2.2.263"
+description = "A library that contains the AWS CLI for use in Lambda Layers"
+optional = false
+python-versions = "~=3.9"
+groups = ["dev"]
+files = [
+    {file = "aws_cdk_asset_awscli_v1-2.2.263-py3-none-any.whl", hash = "sha256:185150757d4216ea982d7b35596de5b3d767776be00cd78cacce02eaa08f8851"},
+    {file = "aws_cdk_asset_awscli_v1-2.2.263.tar.gz", hash = "sha256:657605260ace055fac4ae30a6fb84a80504a6e24ce0b1d278913d4db4bafa266"},
+]
+
+[package.dependencies]
+jsii = ">=1.125.0,<2.0.0"
+publication = ">=0.0.3"
+typeguard = "2.13.3"
+
+[[package]]
+name = "aws-cdk-asset-node-proxy-agent-v6"
+version = "2.1.0"
+description = "@aws-cdk/asset-node-proxy-agent-v6"
+optional = false
+python-versions = "~=3.8"
+groups = ["dev"]
+files = [
+    {file = "aws_cdk.asset_node_proxy_agent_v6-2.1.0-py3-none-any.whl", hash = "sha256:24a388b69a44d03bae6dbf864c4e25ba650d4b61c008b4568b94ffbb9a69e40e"},
+    {file = "aws_cdk_asset_node_proxy_agent_v6-2.1.0.tar.gz", hash = "sha256:1f292c0631f86708ba4ee328b3a2b229f7e46ea1c79fbde567ee9eb119c2b0e2"},
+]
+
+[package.dependencies]
+jsii = ">=1.103.1,<2.0.0"
+publication = ">=0.0.3"
+typeguard = ">=2.13.3,<5.0.0"
+
+[[package]]
+name = "aws-cdk-cloud-assembly-schema"
+version = "48.20.0"
+description = "Schema for the protocol between CDK framework and CDK CLI"
+optional = false
+python-versions = "~=3.9"
+groups = ["dev"]
+files = [
+    {file = "aws_cdk_cloud_assembly_schema-48.20.0-py3-none-any.whl", hash = "sha256:f5b6cf661cac8690add9461de13aeae3f3742eec71c066032bd045b08d0b7c3e"},
+    {file = "aws_cdk_cloud_assembly_schema-48.20.0.tar.gz", hash = "sha256:229aa136c26b71b0a82b5a32658eabcd30e344f7e136315fdb6e3de8ef523bfa"},
+]
+
+[package.dependencies]
+jsii = ">=1.118.0,<2.0.0"
+publication = ">=0.0.3"
+typeguard = ">=2.13.3,<4.3.0"
+
+[[package]]
+name = "aws-cdk-lib"
+version = "2.238.0"
+description = "Version 2 of the AWS Cloud Development Kit library"
+optional = false
+python-versions = "~=3.9"
+groups = ["dev"]
+files = [
+    {file = "aws_cdk_lib-2.238.0-py3-none-any.whl", hash = "sha256:6602d6678597c649d80ff884972c3fa67a98fd6cacb56adcb77cd8fc4a735d43"},
+    {file = "aws_cdk_lib-2.238.0.tar.gz", hash = "sha256:cef10c71e1575196df277fdac57c54010a8d28d77646da09200b1d1cb3625f8e"},
+]
+
+[package.dependencies]
+"aws-cdk.asset-awscli-v1" = "2.2.263"
+"aws-cdk.asset-node-proxy-agent-v6" = ">=2.1.0,<3.0.0"
+"aws-cdk.cloud-assembly-schema" = ">=48.20.0,<49.0.0"
+constructs = ">=10.0.0,<11.0.0"
+jsii = ">=1.126.0,<2.0.0"
+publication = ">=0.0.3"
+typeguard = "2.13.3"
 
 [[package]]
 name = "bandit"
@@ -820,6 +892,32 @@ files = [
 Pillow = "*"
 
 [[package]]
+name = "cattrs"
+version = "25.3.0"
+description = "Composable complex class support for attrs and dataclasses."
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "cattrs-25.3.0-py3-none-any.whl", hash = "sha256:9896e84e0a5bf723bc7b4b68f4481785367ce07a8a02e7e9ee6eb2819bc306ff"},
+    {file = "cattrs-25.3.0.tar.gz", hash = "sha256:1ac88d9e5eda10436c4517e390a4142d88638fe682c436c93db7ce4a277b884a"},
+]
+
+[package.dependencies]
+attrs = ">=25.4.0"
+typing-extensions = ">=4.14.0"
+
+[package.extras]
+bson = ["pymongo (>=4.4.0)"]
+cbor2 = ["cbor2 (>=5.4.6)"]
+msgpack = ["msgpack (>=1.0.5)"]
+msgspec = ["msgspec (>=0.19.0) ; implementation_name == \"cpython\""]
+orjson = ["orjson (>=3.11.3) ; implementation_name == \"cpython\""]
+pyyaml = ["pyyaml (>=6.0)"]
+tomlkit = ["tomlkit (>=0.11.8)"]
+ujson = ["ujson (>=5.10.0)"]
+
+[[package]]
 name = "certifi"
 version = "2026.1.4"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -1090,6 +1188,23 @@ files = [
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
 markers = {main = "platform_system == \"Windows\"", dev = "platform_system == \"Windows\" or sys_platform == \"win32\""}
+
+[[package]]
+name = "constructs"
+version = "10.4.5"
+description = "A programming model for software-defined state"
+optional = false
+python-versions = "~=3.9"
+groups = ["dev"]
+files = [
+    {file = "constructs-10.4.5-py3-none-any.whl", hash = "sha256:e63d6675ba2e8a9076db8df1d4c7af78efdb96182ba28abe938384ba321e4b81"},
+    {file = "constructs-10.4.5.tar.gz", hash = "sha256:efa0f9e4fe65bd334bad719d00e0c8d9e3e4c6d873da8e874e67517a029c190b"},
+]
+
+[package.dependencies]
+jsii = ">=1.125.0,<2.0.0"
+publication = ">=0.0.3"
+typeguard = "2.13.3"
 
 [[package]]
 name = "contourpy"
@@ -1944,6 +2059,26 @@ typing-extensions = ">=3.10.0.0"
 uvicorn = "*"
 
 [[package]]
+name = "importlib-resources"
+version = "6.5.2"
+description = "Read resources from Python packages"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "importlib_resources-6.5.2-py3-none-any.whl", hash = "sha256:789cfdc3ed28c78b67a06acb8126751ced69a3d5f79c095a98298cd8a760ccec"},
+    {file = "importlib_resources-6.5.2.tar.gz", hash = "sha256:185f87adef5bcc288449d98fb4fba07cea78bc036455dd44c5fc4a2fe78fed2c"},
+]
+
+[package.extras]
+check = ["pytest-checkdocs (>=2.4)", "pytest-ruff (>=0.2.1) ; sys_platform != \"cygwin\""]
+cover = ["pytest-cov"]
+doc = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-lint"]
+enabler = ["pytest-enabler (>=2.2)"]
+test = ["jaraco.test (>=5.4)", "pytest (>=6,!=8.1.*)", "zipp (>=3.17)"]
+type = ["pytest-mypy"]
+
+[[package]]
 name = "ipython"
 version = "9.10.0"
 description = "IPython: Productive Interactive Computing"
@@ -2039,6 +2174,27 @@ files = [
     {file = "jmespath-1.1.0-py3-none-any.whl", hash = "sha256:a5663118de4908c91729bea0acadca56526eb2698e83de10cd116ae0f4e97c64"},
     {file = "jmespath-1.1.0.tar.gz", hash = "sha256:472c87d80f36026ae83c6ddd0f1d05d4e510134ed462851fd5f754c8c3cbb88d"},
 ]
+
+[[package]]
+name = "jsii"
+version = "1.126.0"
+description = "Python client for jsii runtime"
+optional = false
+python-versions = "~=3.9"
+groups = ["dev"]
+files = [
+    {file = "jsii-1.126.0-py3-none-any.whl", hash = "sha256:0bb3d5423fd62a499f9ce83e98668b48424ac6ef39472bff90cdf4650aa41b41"},
+    {file = "jsii-1.126.0.tar.gz", hash = "sha256:5e4739843aab3af25472490a05a271cf7d53f01a6d46167ab0f1f2cff3a8df95"},
+]
+
+[package.dependencies]
+attrs = ">=21.2,<26.0"
+cattrs = ">=1.8,<25.4"
+importlib_resources = ">=5.2.0"
+publication = ">=0.0.3"
+python-dateutil = "*"
+typeguard = "2.13.3"
+typing_extensions = ">=3.8,<5.0"
 
 [[package]]
 name = "jsonschema"
@@ -3364,6 +3520,18 @@ files = [
 ]
 
 [[package]]
+name = "publication"
+version = "0.0.3"
+description = "Publication helps you maintain public-api-friendly modules by preventing unintentional access to private implementation details via introspection."
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "publication-0.0.3-py2.py3-none-any.whl", hash = "sha256:0248885351febc11d8a1098d5c8e3ab2dabcf3e8c0c96db1e17ecd12b53afbe6"},
+    {file = "publication-0.0.3.tar.gz", hash = "sha256:68416a0de76dddcdd2930d1c8ef853a743cc96c82416c4e4d3b5d901c6276dc4"},
+]
+
+[[package]]
 name = "pure-eval"
 version = "0.2.3"
 description = "Safely evaluate AST nodes without side effects"
@@ -4581,6 +4749,22 @@ docs = ["myst-parser", "pydata-sphinx-theme", "sphinx"]
 test = ["argcomplete (>=3.0.3)", "mypy (>=1.7.0)", "pre-commit", "pytest (>=7.0,<8.2)", "pytest-mock", "pytest-mypy-testing"]
 
 [[package]]
+name = "typeguard"
+version = "2.13.3"
+description = "Run-time type checker for Python"
+optional = false
+python-versions = ">=3.5.3"
+groups = ["dev"]
+files = [
+    {file = "typeguard-2.13.3-py3-none-any.whl", hash = "sha256:5e3e3be01e887e7eafae5af63d1f36c849aaa94e3a0112097312aabfa16284f1"},
+    {file = "typeguard-2.13.3.tar.gz", hash = "sha256:00edaa8da3a133674796cf5ea87d9f4b4c367d77476e185e80251cc13dfbb8c4"},
+]
+
+[package.extras]
+doc = ["sphinx-autodoc-typehints (>=1.2.0)", "sphinx-rtd-theme"]
+test = ["mypy ; platform_python_implementation != \"PyPy\"", "pytest", "typing-extensions"]
+
+[[package]]
 name = "types-awscrt"
 version = "0.31.1"
 description = "Type annotations and code completion for awscrt"
@@ -4912,4 +5096,4 @@ repair = ["scipy (>=1.6.3)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0.0"
-content-hash = "8e4b243e48a35917d792d5c0575b61ee6d394855aeebbdc57294483ee7af04ec"
+content-hash = "6fef3ca9c3860f1abb879be621d34bf4de176df47d8d9af41a45a18c59ef7d25"

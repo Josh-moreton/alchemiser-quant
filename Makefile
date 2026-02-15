@@ -1,10 +1,10 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups hedge-kill-switch-status hedge-kill-switch-reset tearsheets tearsheet-account tearsheet-strategy dashboard
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report backfill-groups hedge-kill-switch-status hedge-kill-switch-reset tearsheets tearsheet-account tearsheet-strategy cdk-synth cdk-diff cdk-deploy-dev dashboard reset-environment
 
 # Python path setup for scripts (mirrors Lambda layer structure)
-export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
+export PYTHONPATH := $(shell pwd)/shared_layer/python:$(PYTHONPATH)
 
 # Default target
 help:
@@ -24,7 +24,8 @@ help:
 	@echo "  strategy-check-fractionable all=1   Check all strategy files"
 	@echo ""
 	@echo "Group Cache:"
-	@echo "  backfill-groups s=<file>              Backfill group cache (45 days, sequential)"
+	@echo "  backfill-groups s=<file>              Backfill group cache (45 days, sequential, dev)"
+	@echo "  backfill-groups s=<file> stage=prod   Target production tables"
 	@echo "  backfill-groups s=<file> all=1 p=6    Full history, 6 parallel workers"
 	@echo "  backfill-groups s=<file> wipe=1       Wipe cache before backfilling"
 	@echo "  backfill-groups s=<file> level=1      Process only groups at depth 1"
@@ -59,6 +60,14 @@ help:
 	@echo "  logs id=<correlation-id>   Fetch logs for specific workflow"
 	@echo "  logs id=<id> all=1         Fetch all logs for a workflow"
 	@echo ""
+	@echo "DANGEROUS - Environment Reset:"
+	@echo "  reset-environment                    !!! WIPES ALL DATA !!! Liquidates all Alpaca"
+	@echo "                                       positions, clears trade ledger, execution runs,"
+	@echo "                                       rebalance plans, and S3 performance reports."
+	@echo "                                       Targets dev by default. IRREVERSIBLE."
+	@echo "  reset-environment stage=prod         Target production (requires --confirm + 'RESET')"
+	@echo "  reset-environment dry-run=1          Preview what would be destroyed (safe to run)"
+	@echo ""
 	@echo "Development:"
 	@echo "  format          Format code with Ruff (style, whitespace, auto-fixes)"
 	@echo "  type-check      Run MyPy type checking"
@@ -70,6 +79,11 @@ help:
 	@echo "  deploy-staging  Deploy to STAGING (creates staging tag, triggers CI/CD)"
 	@echo "  deploy-prod     Deploy to PROD (creates release tag, triggers CI/CD)"
 	@echo "  deploy-prod v=x.y.z  Deploy specific version to PROD"
+	@echo ""
+	@echo "CDK (local):"
+	@echo "  cdk-synth       Synthesize all CDK stacks (dev)"
+	@echo "  cdk-diff        Preview CDK changes vs deployed (dev)"
+	@echo "  cdk-deploy-dev  Deploy all CDK stacks to dev locally"
 	@echo ""
 	@echo "Version Management:"
 	@echo "  bump-patch      Bump patch version (x.y.z -> x.y.z+1)"
@@ -88,21 +102,21 @@ help:
 format:
 	@echo "🎨 Formatting code (Ruff formatter + auto-fix lint)..."
 	@echo "  → Running Ruff formatter (handles whitespace, line endings, style)..."
-	poetry run ruff format functions/ layers/shared/the_alchemiser/
+	poetry run ruff format functions/ shared_layer/python/the_alchemiser/
 	@echo "  → Running Ruff auto-fix (safe fixes for lints)..."
-	poetry run ruff check --fix functions/ layers/shared/the_alchemiser/
+	poetry run ruff check --fix functions/ shared_layer/python/the_alchemiser/
 
 type-check:
 	@echo "🔍 Running MyPy type checking..."
 	@# Check shared layer with correct module path
 	@echo "  → Checking shared layer..."
-	MYPYPATH="layers/shared" poetry run mypy layers/shared/the_alchemiser/ --config-file=pyproject.toml
+	MYPYPATH="shared_layer/python" poetry run mypy shared_layer/python/the_alchemiser/ --config-file=pyproject.toml
 	@# Check each Lambda function with its own MYPYPATH context
 	@echo "  → Checking Lambda functions..."
 	@for func in execution portfolio strategy_worker strategy_orchestrator trade_aggregator notifications data strategy_analytics strategy_reports account_data hedge_evaluator hedge_executor hedge_roll_manager schedule_manager; do \
 		if [ -d "functions/$$func" ]; then \
 			echo "    → functions/$$func"; \
-			MYPYPATH="functions/$$func:layers/shared" poetry run mypy "functions/$$func/" --config-file=pyproject.toml 2>&1 | grep -v "^Success" || true; \
+			MYPYPATH="functions/$$func:shared_layer/python" poetry run mypy "functions/$$func/" --config-file=pyproject.toml 2>&1 | grep -v "^Success" || true; \
 		fi; \
 	done
 	@echo "✅ Type checking complete"
@@ -246,9 +260,11 @@ backfill-groups:
 	@if [ -z "$(s)" ]; then \
 		echo "Usage: make backfill-groups s=<strategy_file.clj>"; \
 		echo "       make backfill-groups s=ftl_starburst.clj all=1 p=6"; \
+		echo "       make backfill-groups s=ftl_starburst.clj stage=prod all=1 p=6"; \
 		exit 1; \
 	fi
 	@ARGS="$(s)"; \
+	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; fi; \
 	if [ -n "$(all)" ]; then ARGS="$$ARGS --all"; fi; \
 	if [ -n "$(days)" ]; then ARGS="$$ARGS --days $(days)"; fi; \
 	if [ -n "$(p)" ]; then ARGS="$$ARGS --parallel $(p)"; fi; \
@@ -350,7 +366,7 @@ rebalance-weights:
 		echo "🚀 Strategy weights updated successfully!"; \
 		echo "📦 Bumping version and deploying to production..."; \
 		echo ""; \
-		git add layers/shared/the_alchemiser/shared/config/strategy.prod.json; \
+		git add shared_layer/python/the_alchemiser/shared/config/strategy.prod.json; \
 		$(MAKE) bump-patch && $(MAKE) deploy-prod; \
 	elif [ $$? -eq 0 ] && [ -z "$(dry-run)" ] && [ "$$STAGE" != "prod" ]; then \
 		echo ""; \
@@ -444,6 +460,32 @@ hedge-kill-switch-reset:
 		--expression-attribute-values '{":false": {"BOOL": false}, ":zero": {"N": "0"}, ":null": {"NULL": true}, ":now": {"S": "'"$$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"'"}}' \
 		--no-cli-pager; \
 	echo "Kill switch deactivated."
+
+# ============================================================================
+# CDK (local)
+# ============================================================================
+
+# Synthesize all CDK stacks for dev
+# Usage: make cdk-synth
+#        make cdk-synth stage=prod
+cdk-synth:
+	@STAGE=$${stage:-dev}; \
+	echo "Synthesizing CDK stacks ($$STAGE)..."; \
+	npx cdk synth -c stage=$$STAGE --quiet
+
+# Preview changes vs deployed infrastructure
+# Usage: make cdk-diff
+#        make cdk-diff stage=prod
+cdk-diff:
+	@STAGE=$${stage:-dev}; \
+	echo "Diffing CDK stacks ($$STAGE)..."; \
+	npx cdk diff --all -c stage=$$STAGE
+
+# Deploy all CDK stacks to dev locally
+# Usage: make cdk-deploy-dev
+cdk-deploy-dev:
+	@echo "Deploying CDK stacks to dev..."
+	./scripts/cdk_deploy.sh dev
 
 # ============================================================================
 # DEPLOYMENT (via GitHub Actions CI/CD)
@@ -595,3 +637,20 @@ deploy-prod:
 		--notes "Production release $$TAG"; \
 	echo "✅ Production release $$TAG created and pushed!"; \
 	echo "🚀 Production deployment will start automatically via GitHub Actions"
+
+# ============================================================================
+# ENVIRONMENT RESET (DESTRUCTIVE)
+# ============================================================================
+
+# Liquidate all positions, wipe trade ledger, execution runs, rebalance plans, and S3 reports.
+# Usage: make reset-environment                    # Dry-run against dev (safe preview)
+#        make reset-environment dry-run=1          # Explicit dry-run
+#        make reset-environment confirm=1          # Live reset against dev
+#        make reset-environment stage=prod confirm=1  # Live reset against prod
+reset-environment:
+	@STAGE=$${stage:-dev}; \
+	ARGS="--stage $$STAGE"; \
+	if [ -n "$(dry-run)" ]; then ARGS="$$ARGS --dry-run"; fi; \
+	if [ -n "$(confirm)" ]; then ARGS="$$ARGS --confirm"; fi; \
+	if [ -n "$(yes)" ]; then ARGS="$$ARGS --yes"; fi; \
+	poetry run python scripts/prep_production_reset.py $$ARGS

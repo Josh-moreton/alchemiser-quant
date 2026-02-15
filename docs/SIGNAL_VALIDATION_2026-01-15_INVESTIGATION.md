@@ -187,7 +187,7 @@ Both values >= 70, so condition is FALSE either way.
 
 ### Partial Bar Configuration
 
-Location: `layers/shared/python/the_alchemiser/shared/indicators/partial_bar_config.py`
+Location: `shared_layer/python/the_alchemiser/shared/indicators/partial_bar_config.py`
 
 Current settings (as of investigation):
 | Indicator | use_live_bar | Notes |

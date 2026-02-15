@@ -1,5 +1,6 @@
 # Python cache and virtual environments
 __pycache__/
+.mypy_cache/
 *.py[cod]
 *.pyo
 .venv/
@@ -68,6 +69,7 @@ build/
 dist/
 *.egg-info/
 .aws-sam/
+cdk.out/
 
 # Data outputs
 data/*

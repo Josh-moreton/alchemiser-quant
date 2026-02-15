@@ -174,7 +174,7 @@ Run the test script to validate:
 
 ```bash
 cd /home/runner/work/alchemiser-quant/alchemiser-quant
-PYTHONPATH=layers/shared:$PYTHONPATH python3 scripts/test_dynamic_contract_selection.py
+PYTHONPATH=shared_layer/python:$PYTHONPATH python3 scripts/test_dynamic_contract_selection.py
 ```
 
 ## Future Enhancements

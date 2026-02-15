@@ -24,16 +24,16 @@ from decimal import Decimal
 from pathlib import Path
 
 # Set environment variables for S3 market data access and DynamoDB group cache
-os.environ.setdefault("MARKET_DATA_BUCKET", "alchemiser-dev-market-data")
+os.environ.setdefault("MARKET_DATA_BUCKET", "alch-dev-market-data")
 os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
-os.environ.setdefault("GROUP_HISTORY_TABLE", "alchemiser-dev-group-history")
+os.environ.setdefault("GROUP_HISTORY_TABLE", "alch-dev-group-history")
 
 # Add functions/strategy_worker to path for imports
 strategy_worker_path = Path(__file__).parent.parent / "functions" / "strategy_worker"
 sys.path.insert(0, str(strategy_worker_path))
 
-# Add layers/shared to path for shared imports
-shared_layer_path = Path(__file__).parent.parent / "layers" / "shared"
+# Add shared_layer/python to path for shared imports (Lambda layer convention)
+shared_layer_path = Path(__file__).parent.parent / "shared_layer" / "python"
 sys.path.insert(0, str(shared_layer_path))
 
 

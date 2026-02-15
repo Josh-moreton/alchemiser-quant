@@ -7,7 +7,7 @@ This guide explains how to customize email templates in The Alchemiser notificat
 The Alchemiser uses code-based templates (not SES stored templates) for full flexibility and version control. All templates are in:
 
 ```
-layers/shared/the_alchemiser/shared/notifications/templates.py
+shared_layer/python/the_alchemiser/shared/notifications/templates.py
 ```
 
 ## Template Structure

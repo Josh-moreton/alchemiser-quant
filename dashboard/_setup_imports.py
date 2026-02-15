@@ -9,7 +9,7 @@ Production (AWS Lambda):
   - Function code: /var/task/
 
 Local Development (Dashboard):
-  - Shared layer: layers/shared/the_alchemiser/shared/
+  - Shared layer: shared_layer/python/the_alchemiser/shared/
   - Function code: functions/*/the_alchemiser/*/
 
 This module adds the layers to sys.path so the dashboard can import:
@@ -34,7 +34,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 
 # Add shared layer to path (contains the_alchemiser.shared.*)
-SHARED_LAYER_PATH = PROJECT_ROOT / "layers" / "shared"
+SHARED_LAYER_PATH = PROJECT_ROOT / "shared_layer" / "python"
 
 if SHARED_LAYER_PATH.exists():
     sys.path.insert(0, str(SHARED_LAYER_PATH))

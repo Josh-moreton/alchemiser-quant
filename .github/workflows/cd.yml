@@ -26,7 +26,7 @@ env:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     environment: ${{ contains(github.ref_name, 'beta') && 'dev' || contains(github.ref_name, 'staging') && 'staging' || (github.event_name == 'workflow_dispatch' && inputs.environment || 'prod') }}
     # Ensure only one deploy per environment runs at a time
     concurrency:
@@ -80,33 +80,26 @@ jobs:
         uses: actions/cache@v5
         with:
           path: .venv
-          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+          key: venv-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/poetry.lock') }}
 
       - name: Install dependencies
         run: poetry install --no-interaction
 
-      - name: Install SAM CLI
-        uses: aws-actions/setup-sam@v2
+      - name: Install CDK CLI
+        run: npm install -g aws-cdk
 
-      - name: Build (matching target env)
-        run: sam build --parallel --config-env "${{ steps.target.outputs.env }}"
-
-      - name: Prepare environment variables (dev)
-        if: steps.target.outputs.env == 'dev'
+      - name: Prepare environment variables
         env:
           ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
           ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
           ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
-          EMAIL__PASSWORD: ${{ secrets.EMAIL__PASSWORD }}
           NOTIFICATION_EMAIL: ${{ vars.NOTIFICATION_EMAIL }}
-          LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
           EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
         run: |
-          echo "Exporting dev ALPACA_* env vars for deploy.sh"
-          echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
-          echo "ALPACA_SECRET=$ALPACA_SECRET" >> $GITHUB_ENV
-          if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA_ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
-          if [ -n "$EMAIL__PASSWORD" ]; then echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" >> $GITHUB_ENV; fi
+          echo "Exporting env vars for CDK deploy..."
+          echo "ALPACA__KEY=$ALPACA_KEY" >> $GITHUB_ENV
+          echo "ALPACA__SECRET=$ALPACA_SECRET" >> $GITHUB_ENV
+          if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA__ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
           if [ -n "$NOTIFICATION_EMAIL" ]; then echo "NOTIFICATION_EMAIL=$NOTIFICATION_EMAIL" >> $GITHUB_ENV; fi
           # Non-secret runtime config
           if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
@@ -156,5 +149,5 @@ jobs:
 
       - name: Deploy
         run: |
-          chmod +x scripts/deploy.sh
-          ./scripts/deploy.sh "${{ steps.target.outputs.env }}"
+          chmod +x scripts/cdk_deploy.sh
+          ./scripts/cdk_deploy.sh "${{ steps.target.outputs.env }}"

@@ -1,6 +1,9 @@
-"""Import path setup for local scripts.
+"""Business Unit: scripts | Status: current.
 
-This module configures Python's import path to work with the Lambda layers architecture.
+Import path setup for scripts that need access to the shared Lambda layer.
+
+This module configures Python's import path to work with the Lambda layers
+architecture so that scripts can import from ``the_alchemiser.shared.*``.
 
 Architecture Overview:
 ======================
@@ -9,15 +12,8 @@ Production (AWS Lambda):
   - Function code: /var/task/
 
 Local Development (Scripts):
-  - Shared layer: layers/shared/the_alchemiser/shared/
-  - Function code: functions/*/the_alchemiser/*/
-
-This module adds the layers to sys.path so scripts can import:
-  - from the_alchemiser.shared.* (always available)
-  - from the_alchemiser.shared.data_v2.* (in shared layer)
-
-For function-specific imports (strategy_v2, etc.), import this module
-AND add the specific function directory to sys.path.
+  - Shared layer: shared_layer/python/the_alchemiser/shared/
+  - Function code: functions/*/
 
 Usage:
     # At the top of your script (after stdlib imports, before local imports):
@@ -37,17 +33,18 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 
 # Add shared layer to path (contains the_alchemiser.shared.*)
-SHARED_LAYER_PATH = PROJECT_ROOT / "layers" / "shared"
+# Note: the Lambda layer convention places Python packages under python/
+SHARED_LAYER_PATH = PROJECT_ROOT / "shared_layer" / "python"
 
 if SHARED_LAYER_PATH.exists():
     sys.path.insert(0, str(SHARED_LAYER_PATH))
 else:
     msg = (
         f"ERROR: Shared layer not found at {SHARED_LAYER_PATH}\n"
-        "This script requires the Lambda layers architecture.\n"
+        "This module requires the Lambda layers architecture.\n"
         "See CLAUDE.md for project structure."
     )
     raise RuntimeError(msg)
 
-# Export for scripts that need to reference project structure
+# Export for modules that need to reference project structure
 __all__ = ["PROJECT_ROOT", "SHARED_LAYER_PATH"]
