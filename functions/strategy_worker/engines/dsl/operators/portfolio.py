@@ -23,7 +23,6 @@ from engines.dsl.dispatcher import DslDispatcher
 from engines.dsl.operators.control_flow import create_indicator_with_symbol
 from engines.dsl.operators.group_cache_lookup import is_cache_available
 from engines.dsl.operators.group_scoring import (
-    derive_group_id,
     is_bare_asset_fragment,
     register_ast_body,
     try_cache_scoring,
@@ -34,6 +33,7 @@ from engines.dsl.operators.group_scoring import (
 )
 from engines.dsl.types import DslEvaluationError, DSLValue
 
+from the_alchemiser.shared.dsl.group_discovery import derive_group_id
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.indicator_request import (
