@@ -487,16 +487,49 @@ When filtering groups by their historical performance:
 
 The filter needs each group's portfolio return for the last 10 days. Computing this on-the-fly is expensive and timing-sensitive.
 
-### Solution: On-Demand Group Cache
+### Solution: Group History in S3
+
+Group history is stored in **S3 as Parquet files** (mirroring the MarketDataStore pattern):
+
+- **Storage**: `s3://market-data-bucket/group-history/{group_id}/daily.parquet`
+- **Metadata**: `s3://market-data-bucket/group-history/{group_id}/metadata.json`
+- **Schema**: `record_date`, `selections` (JSON), `portfolio_daily_return`, `evaluated_at`, `source`
 
 When a filter operator encounters a named group, the **strategy worker** automatically handles cache population:
 
-1. Checks DynamoDB (`GroupHistoricalSelectionsTable`) for cached portfolio returns
+1. Checks S3 (`GroupHistoryStore`) for cached portfolio returns
 2. On cache miss, re-evaluates the group's AST body for historical dates
-3. Computes weighted daily portfolio returns and writes results to DynamoDB
+3. Computes weighted daily portfolio returns and writes results to S3 as Parquet
 4. Scores the group using the cached return series
 
 Group IDs are derived deterministically from group names using SHA-256 hashing, so no manual configuration is required when adding new strategies or groups.
+
+### Backfilling Group History
+
+To populate group history for all strategies:
+
+```bash
+# Backfill 45 days (default)
+poetry run python scripts/backfill_group_cache.py \
+    layers/shared/the_alchemiser/shared/strategies/ftl_starburst.clj
+
+# Backfill all available history
+poetry run python scripts/backfill_group_cache.py \
+    ftl_starburst.clj --all
+
+# Dry-run (compute but don't write to S3)
+poetry run python scripts/backfill_group_cache.py \
+    ftl_starburst.clj --dry-run
+
+# Parallel processing (4 workers)
+poetry run python scripts/backfill_group_cache.py \
+    ftl_starburst.clj --parallel 4
+```
+
+The backfill script should be run:
+- After initial deployment
+- When adding new strategies with filtered groups
+- Periodically (e.g., weekly) to keep historical data up-to-date
 
 ## Signal Validation
 
