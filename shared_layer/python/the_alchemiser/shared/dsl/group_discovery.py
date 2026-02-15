@@ -235,7 +235,7 @@ def extract_symbols_from_ast(nodes: list[ASTNode]) -> set[str]:
                 ):
                     ticker_node = node.children[1]
                     ticker = ticker_node.get_atom_value()
-                    if _is_ticker(ticker):
+                    if isinstance(ticker, str) and _is_ticker(ticker):
                         symbols.add(ticker)
 
             # Recurse into all children
