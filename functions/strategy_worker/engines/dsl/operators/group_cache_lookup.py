@@ -48,7 +48,7 @@ _group_history_store = None
 
 def get_dynamodb_table() -> object | None:
     """Get the DynamoDB table resource (lazy-loaded singleton).
-    
+
     This is maintained for backward compatibility during migration.
     """
     global _dynamodb_table
@@ -101,7 +101,7 @@ def lookup_historical_selections(
     selections = _lookup_selections_from_s3(group_id, lookback_days, end_date)
     if selections:
         return selections
-    
+
     # Fall back to DynamoDB (legacy)
     return _lookup_selections_from_dynamodb(group_id, lookback_days, end_date)
 
@@ -116,12 +116,12 @@ def _lookup_selections_from_s3(
     if store is None:
         logger.debug("Group history store not available (MARKET_DATA_BUCKET not set)")
         return {}
-    
+
     if end_date is None:
         end_date = datetime.now(UTC).date()
-    
+
     start_date = end_date - timedelta(days=lookback_days)
-    
+
     try:
         df = store.read_group_history(group_id)
         if df is None or df.empty:
@@ -130,14 +130,14 @@ def _lookup_selections_from_s3(
                 group_id=group_id,
             )
             return {}
-        
+
         # Filter to date range
         df["record_date"] = pd.to_datetime(df["record_date"])
         mask = (df["record_date"] >= pd.Timestamp(start_date)) & (
             df["record_date"] <= pd.Timestamp(end_date)
         )
         df = df[mask]
-        
+
         # Convert to expected format
         selections: dict[str, dict[str, Decimal]] = {}
         for _, row in df.iterrows():
@@ -146,12 +146,11 @@ def _lookup_selections_from_s3(
             raw_selections = row.get("selections", {})
             if isinstance(raw_selections, str):
                 raw_selections = json.loads(raw_selections)
-            
+
             selections[record_date] = {
-                symbol: Decimal(str(weight))
-                for symbol, weight in raw_selections.items()
+                symbol: Decimal(str(weight)) for symbol, weight in raw_selections.items()
             }
-        
+
         logger.debug(
             "S3 cache lookup successful",
             group_id=group_id,
@@ -159,7 +158,7 @@ def _lookup_selections_from_s3(
             dates_found=len(selections),
         )
         return selections
-        
+
     except Exception as e:
         logger.warning(
             "Failed to query group history from S3",
@@ -284,7 +283,7 @@ def lookup_historical_returns(
     returns = _lookup_returns_from_s3(group_id, lookback_days, end_date)
     if returns:
         return returns
-    
+
     # Fall back to DynamoDB (legacy)
     return _lookup_returns_from_dynamodb(group_id, lookback_days, end_date)
 
@@ -299,12 +298,12 @@ def _lookup_returns_from_s3(
     if store is None:
         logger.debug("Group history store not available for return lookup")
         return []
-    
+
     if end_date is None:
         end_date = datetime.now(UTC).date()
-    
+
     start_date = end_date - timedelta(days=lookback_days)
-    
+
     try:
         df = store.read_group_history(group_id)
         if df is None or df.empty:
@@ -313,14 +312,14 @@ def _lookup_returns_from_s3(
                 group_id=group_id,
             )
             return []
-        
+
         # Filter to date range and sort
         df["record_date"] = pd.to_datetime(df["record_date"])
         mask = (df["record_date"] >= pd.Timestamp(start_date)) & (
             df["record_date"] <= pd.Timestamp(end_date)
         )
         df = df[mask].sort_values("record_date")
-        
+
         # Extract returns
         returns: list[Decimal] = []
         for _, row in df.iterrows():
@@ -335,7 +334,7 @@ def _lookup_returns_from_s3(
                         record_date=row.get("record_date"),
                         raw_value=str(raw_return),
                     )
-        
+
         logger.debug(
             "S3 historical returns lookup successful",
             group_id=group_id,
@@ -343,7 +342,7 @@ def _lookup_returns_from_s3(
             returns_found=len(returns),
         )
         return returns
-        
+
     except Exception as e:
         logger.warning(
             "Failed to query historical returns from S3",
@@ -439,7 +438,7 @@ def _lookup_returns_from_dynamodb(
 
 def is_cache_available() -> bool:
     """Check if the group history cache is configured and available.
-    
+
     Returns True if either S3 (preferred) or DynamoDB (legacy) is available.
     """
     # Check S3 first

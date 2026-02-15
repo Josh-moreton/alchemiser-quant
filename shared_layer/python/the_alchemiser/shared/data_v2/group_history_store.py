@@ -21,7 +21,6 @@ import os
 import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -262,9 +261,7 @@ class GroupHistoryStore:
             row_count=metadata.row_count,
         )
 
-    def read_group_history(
-        self, group_id: str, *, use_cache: bool = True
-    ) -> pd.DataFrame | None:
+    def read_group_history(self, group_id: str, *, use_cache: bool = True) -> pd.DataFrame | None:
         """Read historical data for a group.
 
         Args:
