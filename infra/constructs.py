@@ -63,7 +63,7 @@ class LocalShellBundling:
         return result.returncode == 0
 
 
-PYTHON_RUNTIME = _lambda.Runtime.PYTHON_3_12
+PYTHON_RUNTIME = _lambda.Runtime.PYTHON_3_14
 ARM_64 = _lambda.Architecture.ARM_64
 
 
@@ -71,7 +71,7 @@ class AlchemiserFunction(Construct):
     """Lambda function with Alchemiser defaults.
 
     Applies:
-    - python3.12, arm64
+    - python3.14, arm64
     - 900s timeout / 512 MB (overridable)
     - global env vars from StageConfig
     - standard tags

@@ -60,7 +60,7 @@ class FoundationStack(cdk.Stack):
             layer_version_name=config.resource_name("shared-code"),
             description="Shared business logic (the_alchemiser.shared module)",
             code=_lambda.Code.from_asset("shared_layer/"),
-            compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
+            compatible_runtimes=[_lambda.Runtime.PYTHON_3_14],
             compatible_architectures=[_lambda.Architecture.ARM_64],
             removal_policy=RemovalPolicy.DESTROY,
         )
@@ -68,9 +68,9 @@ class FoundationStack(cdk.Stack):
         # ---- Notifications Layer (shared: used by Orchestrator, ScheduleManager, TradeAggregator) ----
         _notifications_layer_cmd = (
             "pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
-            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.14 --implementation cp"
+            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.14 --implementation cp"
+            " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.14 --implementation cp"
             " && pip install -q structlog 'cachetools>=6,<7' pyyaml -t /asset-output/python --upgrade"
             " && pip install -q httpx httpcore anyio h11 requests certifi charset-normalizer"
             " idna urllib3 python-dateutil pytz tzdata -t /asset-output/python --upgrade"
@@ -83,12 +83,12 @@ class FoundationStack(cdk.Stack):
             code=_lambda.Code.from_asset(
                 "layers/notifications/",
                 bundling=cdk.BundlingOptions(
-                    image=_lambda.Runtime.PYTHON_3_12.bundling_image,
+                    image=_lambda.Runtime.PYTHON_3_14.bundling_image,
                     local=LocalShellBundling(_notifications_layer_cmd),
                     command=["bash", "-c", _notifications_layer_cmd],
                 ),
             ),
-            compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
+            compatible_runtimes=[_lambda.Runtime.PYTHON_3_14],
             compatible_architectures=[_lambda.Architecture.ARM_64],
             removal_policy=RemovalPolicy.DESTROY,
         )
@@ -96,9 +96,9 @@ class FoundationStack(cdk.Stack):
         # ---- Portfolio Layer (shared: used by Hedging, Dashboard, AccountData) ----
         _portfolio_layer_cmd = (
             "pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
-            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.14 --implementation cp"
+            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.14 --implementation cp"
+            " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.14 --implementation cp"
             " && pip install -q structlog 'cachetools>=6,<7' pyyaml -t /asset-output/python --upgrade"
             " && pip install -q httpx httpcore anyio h11 requests certifi charset-normalizer"
             " idna urllib3 python-dateutil pytz tzdata -t /asset-output/python --upgrade"
@@ -111,12 +111,12 @@ class FoundationStack(cdk.Stack):
             code=_lambda.Code.from_asset(
                 "layers/portfolio/",
                 bundling=cdk.BundlingOptions(
-                    image=_lambda.Runtime.PYTHON_3_12.bundling_image,
+                    image=_lambda.Runtime.PYTHON_3_14.bundling_image,
                     local=LocalShellBundling(_portfolio_layer_cmd),
                     command=["bash", "-c", _portfolio_layer_cmd],
                 ),
             ),
-            compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
+            compatible_runtimes=[_lambda.Runtime.PYTHON_3_14],
             compatible_architectures=[_lambda.Architecture.ARM_64],
             removal_policy=RemovalPolicy.DESTROY,
         )

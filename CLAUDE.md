@@ -21,7 +21,7 @@ Alchemiser is a **multi-strategy quantitative trading system** deployed as **mul
 Note: Each Lambda's source is packaged from `functions/<name>/` (SAM `CodeUri`) and shared runtime/business code is provided by `shared_layer/` (the `SharedCodeLayer`). Avoid copying `the_alchemiser/shared/` into each function; prefer the shared layer.
 
 ### Tech Stack
-- **Language**: Python 3.12+
+- **Language**: Python 3.14+
 - **Framework**: AWS SAM (Serverless Application Model)
 - **Broker**: Alpaca Markets API
 - **Messaging**: EventBridge (events), SQS (execution queue), SNS (notifications)

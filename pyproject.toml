@@ -14,12 +14,12 @@ package-mode = false  # Dependency management only - no package installation
 # Lambda functions are NOT installed as a Python package.
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py314"
 line-length = 100
 extend-exclude = [ ".git", ".mypy_cache", ".ruff_cache", ".venv", "__pycache__", "build", "dist", "tests", "scripts",]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 strict = true
 plugins = [ "pydantic.mypy",]
 files = [ "functions/", "shared_layer/",]

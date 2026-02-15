@@ -286,7 +286,7 @@ StageConfig(
 
 | Construct | Purpose |
 |-----------|---------|
-| `AlchemiserFunction` | Lambda with standard defaults (Python 3.12, x86_64, global env vars, tags) |
+| `AlchemiserFunction` | Lambda with standard defaults (Python 3.14, arm64, global env vars, tags) |
 | `alchemiser_table` | DynamoDB table factory (PAY_PER_REQUEST, SSE, tags, optional GSIs) |
 | `lambda_execution_role` | IAM role with `AWSLambdaBasicExecutionRole` + inline policy |
 | `scheduler_role` | IAM role for EventBridge Scheduler -> Lambda invocation |
