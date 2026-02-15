@@ -161,10 +161,12 @@ class FoundationStack(cdk.Stack):
         # ---- Trade Ledger Table (5 GSIs) ----
         gsi_attrs = []
         for i in range(1, 6):
-            gsi_attrs.extend([
-                {"name": f"GSI{i}PK", "type": dynamodb.AttributeType.STRING},
-                {"name": f"GSI{i}SK", "type": dynamodb.AttributeType.STRING},
-            ])
+            gsi_attrs.extend(
+                [
+                    {"name": f"GSI{i}PK", "type": dynamodb.AttributeType.STRING},
+                    {"name": f"GSI{i}SK", "type": dynamodb.AttributeType.STRING},
+                ]
+            )
 
         self.trade_ledger_table = alchemiser_table(
             self,
@@ -178,28 +180,48 @@ class FoundationStack(cdk.Stack):
             global_secondary_indexes=[
                 {
                     "index_name": "GSI1-CorrelationIndex",
-                    "partition_key": dynamodb.Attribute(name="GSI1PK", type=dynamodb.AttributeType.STRING),
-                    "sort_key": dynamodb.Attribute(name="GSI1SK", type=dynamodb.AttributeType.STRING),
+                    "partition_key": dynamodb.Attribute(
+                        name="GSI1PK", type=dynamodb.AttributeType.STRING
+                    ),
+                    "sort_key": dynamodb.Attribute(
+                        name="GSI1SK", type=dynamodb.AttributeType.STRING
+                    ),
                 },
                 {
                     "index_name": "GSI2-SymbolIndex",
-                    "partition_key": dynamodb.Attribute(name="GSI2PK", type=dynamodb.AttributeType.STRING),
-                    "sort_key": dynamodb.Attribute(name="GSI2SK", type=dynamodb.AttributeType.STRING),
+                    "partition_key": dynamodb.Attribute(
+                        name="GSI2PK", type=dynamodb.AttributeType.STRING
+                    ),
+                    "sort_key": dynamodb.Attribute(
+                        name="GSI2SK", type=dynamodb.AttributeType.STRING
+                    ),
                 },
                 {
                     "index_name": "GSI3-StrategyIndex",
-                    "partition_key": dynamodb.Attribute(name="GSI3PK", type=dynamodb.AttributeType.STRING),
-                    "sort_key": dynamodb.Attribute(name="GSI3SK", type=dynamodb.AttributeType.STRING),
+                    "partition_key": dynamodb.Attribute(
+                        name="GSI3PK", type=dynamodb.AttributeType.STRING
+                    ),
+                    "sort_key": dynamodb.Attribute(
+                        name="GSI3SK", type=dynamodb.AttributeType.STRING
+                    ),
                 },
                 {
                     "index_name": "GSI4-CorrelationSnapshotIndex",
-                    "partition_key": dynamodb.Attribute(name="GSI4PK", type=dynamodb.AttributeType.STRING),
-                    "sort_key": dynamodb.Attribute(name="GSI4SK", type=dynamodb.AttributeType.STRING),
+                    "partition_key": dynamodb.Attribute(
+                        name="GSI4PK", type=dynamodb.AttributeType.STRING
+                    ),
+                    "sort_key": dynamodb.Attribute(
+                        name="GSI4SK", type=dynamodb.AttributeType.STRING
+                    ),
                 },
                 {
                     "index_name": "GSI5-StrategyLotsIndex",
-                    "partition_key": dynamodb.Attribute(name="GSI5PK", type=dynamodb.AttributeType.STRING),
-                    "sort_key": dynamodb.Attribute(name="GSI5SK", type=dynamodb.AttributeType.STRING),
+                    "partition_key": dynamodb.Attribute(
+                        name="GSI5PK", type=dynamodb.AttributeType.STRING
+                    ),
+                    "sort_key": dynamodb.Attribute(
+                        name="GSI5SK", type=dynamodb.AttributeType.STRING
+                    ),
                 },
             ],
         )

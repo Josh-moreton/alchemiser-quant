@@ -54,18 +54,28 @@ class HedgingStack(cdk.Stack):
 
         # ---- Shared layers (looked up from SSM to avoid cross-stack export lock) ----
         shared_code_layer = layer_from_ssm(
-            self, "SharedCodeLayer", config=config, ssm_suffix="shared-code-arn",
+            self,
+            "SharedCodeLayer",
+            config=config,
+            ssm_suffix="shared-code-arn",
         )
         portfolio_layer = layer_from_ssm(
-            self, "PortfolioLayer", config=config, ssm_suffix="portfolio-deps-arn",
+            self,
+            "PortfolioLayer",
+            config=config,
+            ssm_suffix="portfolio-deps-arn",
         )
         execution_layer = layer_from_ssm(
-            self, "ExecutionLayer", config=config, ssm_suffix="execution-deps-arn",
+            self,
+            "ExecutionLayer",
+            config=config,
+            ssm_suffix="execution-deps-arn",
         )
 
         # ---- DynamoDB Tables ----
         self.hedge_positions_table = alchemiser_table(
-            self, "HedgePositionsTable",
+            self,
+            "HedgePositionsTable",
             config=config,
             table_name_suffix="hedge-positions",
             partition_key=dynamodb.Attribute(name="PK", type=dynamodb.AttributeType.STRING),
@@ -75,24 +85,32 @@ class HedgingStack(cdk.Stack):
             global_secondary_indexes=[
                 {
                     "index_name": "GSI1-UnderlyingExpirationIndex",
-                    "partition_key": dynamodb.Attribute(name="GSI1PK", type=dynamodb.AttributeType.STRING),
-                    "sort_key": dynamodb.Attribute(name="GSI1SK", type=dynamodb.AttributeType.STRING),
+                    "partition_key": dynamodb.Attribute(
+                        name="GSI1PK", type=dynamodb.AttributeType.STRING
+                    ),
+                    "sort_key": dynamodb.Attribute(
+                        name="GSI1SK", type=dynamodb.AttributeType.STRING
+                    ),
                 },
             ],
         )
 
         self.hedge_history_table = alchemiser_table(
-            self, "HedgeHistoryTable",
+            self,
+            "HedgeHistoryTable",
             config=config,
             table_name_suffix="hedge-history",
             partition_key=dynamodb.Attribute(name="account_id", type=dynamodb.AttributeType.STRING),
-            sort_key=dynamodb.Attribute(name="timestamp_action", type=dynamodb.AttributeType.STRING),
+            sort_key=dynamodb.Attribute(
+                name="timestamp_action", type=dynamodb.AttributeType.STRING
+            ),
             time_to_live_attribute="ttl",
             service_tag="hedge-history",
         )
 
         self.hedge_kill_switch_table = alchemiser_table(
-            self, "HedgeKillSwitchTable",
+            self,
+            "HedgeKillSwitchTable",
             config=config,
             table_name_suffix="hedge-kill-switch",
             partition_key=dynamodb.Attribute(name="switch_id", type=dynamodb.AttributeType.STRING),
@@ -100,10 +118,13 @@ class HedgingStack(cdk.Stack):
         )
 
         self.iv_history_table = alchemiser_table(
-            self, "IVHistoryTable",
+            self,
+            "IVHistoryTable",
             config=config,
             table_name_suffix="iv-history",
-            partition_key=dynamodb.Attribute(name="underlying_symbol", type=dynamodb.AttributeType.STRING),
+            partition_key=dynamodb.Attribute(
+                name="underlying_symbol", type=dynamodb.AttributeType.STRING
+            ),
             sort_key=dynamodb.Attribute(name="record_date", type=dynamodb.AttributeType.STRING),
             time_to_live_attribute="ttl",
             service_tag="iv-history",
@@ -111,23 +132,29 @@ class HedgingStack(cdk.Stack):
 
         # ---- SQS Queues ----
         self.hedge_execution_dlq = sqs.Queue(
-            self, "HedgeExecutionDLQ",
+            self,
+            "HedgeExecutionDLQ",
             queue_name=config.resource_name("hedge-execution-dlq"),
             retention_period=Duration.days(14),
         )
         self.hedge_execution_queue = sqs.Queue(
-            self, "HedgeExecutionQueue",
+            self,
+            "HedgeExecutionQueue",
             queue_name=config.resource_name("hedge-execution-queue"),
             visibility_timeout=Duration.seconds(900),
             retention_period=Duration.days(4),
-            dead_letter_queue=sqs.DeadLetterQueue(max_receive_count=3, queue=self.hedge_execution_dlq),
+            dead_letter_queue=sqs.DeadLetterQueue(
+                max_receive_count=3, queue=self.hedge_execution_dlq
+            ),
         )
 
         options_hedging_enabled = "true" if not config.is_production else "false"
 
         # ---- Hedge Evaluator Role ----
         evaluator_role = lambda_execution_role(
-            self, "HedgeEvaluatorExecutionRole", config=config,
+            self,
+            "HedgeEvaluatorExecutionRole",
+            config=config,
             policy_statements=[
                 iam.PolicyStatement(
                     actions=["events:PutEvents"],
@@ -161,7 +188,8 @@ class HedgingStack(cdk.Stack):
 
         # ---- Hedge Evaluator Lambda ----
         evaluator_fn = AlchemiserFunction(
-            self, "HedgeEvaluatorFunction",
+            self,
+            "HedgeEvaluatorFunction",
             config=config,
             function_name=config.resource_name("hedge-evaluator"),
             code_uri="functions/hedge_evaluator/",
@@ -184,7 +212,8 @@ class HedgingStack(cdk.Stack):
 
         # ---- EventBridge Rule: AllTradesCompleted -> HedgeEvaluator ----
         all_trades_to_hedge_rule = events.Rule(
-            self, "AllTradesCompletedToHedgeRule",
+            self,
+            "AllTradesCompletedToHedgeRule",
             rule_name=config.resource_name("trades-completed-to-hedge"),
             event_bus=event_bus,
             event_pattern=events.EventPattern(
@@ -196,7 +225,9 @@ class HedgingStack(cdk.Stack):
 
         # ---- Hedge Executor Role ----
         executor_role = lambda_execution_role(
-            self, "HedgeExecutorExecutionRole", config=config,
+            self,
+            "HedgeExecutorExecutionRole",
+            config=config,
             policy_statements=[
                 iam.PolicyStatement(
                     actions=["events:PutEvents"],
@@ -207,7 +238,12 @@ class HedgingStack(cdk.Stack):
                     resources=[self.hedge_execution_queue.queue_arn],
                 ),
                 iam.PolicyStatement(
-                    actions=["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Query"],
+                    actions=[
+                        "dynamodb:PutItem",
+                        "dynamodb:GetItem",
+                        "dynamodb:UpdateItem",
+                        "dynamodb:Query",
+                    ],
                     resources=[
                         self.hedge_positions_table.table_arn,
                         f"{self.hedge_positions_table.table_arn}/index/*",
@@ -226,7 +262,8 @@ class HedgingStack(cdk.Stack):
 
         # ---- Hedge Executor Lambda ----
         executor_fn = AlchemiserFunction(
-            self, "HedgeExecutorFunction",
+            self,
+            "HedgeExecutorFunction",
             config=config,
             function_name=config.resource_name("hedge-executor"),
             code_uri="functions/hedge_executor/",
@@ -249,13 +286,17 @@ class HedgingStack(cdk.Stack):
         # SQS event source
         self.hedge_executor_function.add_event_source(
             event_sources.SqsEventSource(
-                self.hedge_execution_queue, batch_size=1, report_batch_item_failures=True,
+                self.hedge_execution_queue,
+                batch_size=1,
+                report_batch_item_failures=True,
             )
         )
 
         # ---- Hedge Roll Manager Role ----
         roll_mgr_role = lambda_execution_role(
-            self, "HedgeRollManagerExecutionRole", config=config,
+            self,
+            "HedgeRollManagerExecutionRole",
+            config=config,
             policy_statements=[
                 iam.PolicyStatement(
                     actions=["events:PutEvents"],
@@ -281,7 +322,8 @@ class HedgingStack(cdk.Stack):
 
         # ---- Hedge Roll Manager Lambda ----
         roll_mgr_fn = AlchemiserFunction(
-            self, "HedgeRollManagerFunction",
+            self,
+            "HedgeRollManagerFunction",
             config=config,
             function_name=config.resource_name("hedge-roll-manager"),
             code_uri="functions/hedge_roll_manager/",
@@ -300,7 +342,8 @@ class HedgingStack(cdk.Stack):
         )
         # HedgeRollManager uses SAM Schedule (not ScheduleV2), which maps to events.Rule
         events.Rule(
-            self, "HedgeRollManagerDailyCheck",
+            self,
+            "HedgeRollManagerDailyCheck",
             schedule=events.Schedule.cron(minute="45", hour="19", week_day="MON-FRI"),
             description="Daily hedge roll check (~3:45 PM ET, see comment for timezone note)",
             targets=[targets.LambdaFunction(roll_mgr_fn.function)],

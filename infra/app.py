@@ -33,10 +33,11 @@ app = cdk.App()
 
 # ---------- resolve stage from CDK context ----------
 stage: str = app.node.try_get_context("stage") or os.environ.get("STAGE", "dev")
-stack_name_override: str = app.node.try_get_context("stack_name") or os.environ.get("STACK_NAME", "")
-notification_email: str = (
-    app.node.try_get_context("notification_email")
-    or os.environ.get("NOTIFICATION_EMAIL", "")
+stack_name_override: str = app.node.try_get_context("stack_name") or os.environ.get(
+    "STACK_NAME", ""
+)
+notification_email: str = app.node.try_get_context("notification_email") or os.environ.get(
+    "NOTIFICATION_EMAIL", ""
 )
 
 # ---------- Alpaca credentials from environment ----------
@@ -85,14 +86,16 @@ stack_prefix = config.prefix
 
 # ---------- 1. Foundation (shared layers + core tables) ----------
 foundation = FoundationStack(
-    app, f"{stack_prefix}-foundation",
+    app,
+    f"{stack_prefix}-foundation",
     config=config,
     env=env,
 )
 
 # ---------- 2. Data ----------
 data = DataStack(
-    app, f"{stack_prefix}-data",
+    app,
+    f"{stack_prefix}-data",
     config=config,
     event_bus=foundation.event_bus,
     env=env,
@@ -101,7 +104,8 @@ data.add_dependency(foundation)
 
 # ---------- 3. Dashboard ----------
 dashboard = DashboardStack(
-    app, f"{stack_prefix}-dashboard",
+    app,
+    f"{stack_prefix}-dashboard",
     config=config,
     env=env,
 )
@@ -110,7 +114,8 @@ dashboard.add_dependency(data)
 
 # ---------- 4. Execution ----------
 execution = ExecutionStack(
-    app, f"{stack_prefix}-execution",
+    app,
+    f"{stack_prefix}-execution",
     config=config,
     event_bus=foundation.event_bus,
     trade_ledger_table=foundation.trade_ledger_table,
@@ -122,7 +127,8 @@ execution.add_dependency(dashboard)
 
 # ---------- 5. Strategy ----------
 strategy = StrategyStack(
-    app, f"{stack_prefix}-strategy",
+    app,
+    f"{stack_prefix}-strategy",
     config=config,
     event_bus=foundation.event_bus,
     trade_ledger_table=foundation.trade_ledger_table,
@@ -139,7 +145,8 @@ strategy.add_dependency(execution)
 
 # ---------- 6. Hedging ----------
 hedging = HedgingStack(
-    app, f"{stack_prefix}-hedging",
+    app,
+    f"{stack_prefix}-hedging",
     config=config,
     event_bus=foundation.event_bus,
     env=env,
@@ -149,7 +156,8 @@ hedging.add_dependency(execution)
 
 # ---------- 7. Notifications (last: depends on Execution + Strategy outputs) ----------
 notifications = NotificationsStack(
-    app, f"{stack_prefix}-notifications",
+    app,
+    f"{stack_prefix}-notifications",
     config=config,
     event_bus=foundation.event_bus,
     trade_ledger_table=foundation.trade_ledger_table,

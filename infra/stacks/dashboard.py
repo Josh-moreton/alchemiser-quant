@@ -45,13 +45,22 @@ class DashboardStack(cdk.Stack):
 
         # ---- Shared layers (looked up from SSM to avoid cross-stack export lock) ----
         shared_code_layer = layer_from_ssm(
-            self, "SharedCodeLayer", config=config, ssm_suffix="shared-code-arn",
+            self,
+            "SharedCodeLayer",
+            config=config,
+            ssm_suffix="shared-code-arn",
         )
         portfolio_layer = layer_from_ssm(
-            self, "PortfolioLayer", config=config, ssm_suffix="portfolio-deps-arn",
+            self,
+            "PortfolioLayer",
+            config=config,
+            ssm_suffix="portfolio-deps-arn",
         )
         data_layer = layer_from_ssm(
-            self, "DataLayer", config=config, ssm_suffix="data-deps-arn",
+            self,
+            "DataLayer",
+            config=config,
+            ssm_suffix="data-deps-arn",
         )
 
         # ---- DynamoDB Table ----
@@ -74,7 +83,12 @@ class DashboardStack(cdk.Stack):
             config=config,
             policy_statements=[
                 iam.PolicyStatement(
-                    actions=["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:Query", "dynamodb:BatchWriteItem"],
+                    actions=[
+                        "dynamodb:PutItem",
+                        "dynamodb:GetItem",
+                        "dynamodb:Query",
+                        "dynamodb:BatchWriteItem",
+                    ],
                     resources=[self.account_data_table.table_arn],
                 ),
             ],

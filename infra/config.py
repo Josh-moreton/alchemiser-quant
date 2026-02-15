@@ -35,7 +35,9 @@ class StageConfig:
 
     # Per-environment Alpaca configs (populated by app.py from env vars / secrets)
     alpaca: AlpacaConfig = field(
-        default_factory=lambda: AlpacaConfig(key="", secret="", endpoint="https://paper-api.alpaca.markets/v2"),
+        default_factory=lambda: AlpacaConfig(
+            key="", secret="", endpoint="https://paper-api.alpaca.markets/v2"
+        ),
     )
 
     # ---------- derived helpers ----------
@@ -78,7 +80,12 @@ class StageConfig:
 
     @property
     def title_case(self) -> str:
-        mapping = {"dev": "Dev", "staging": "Staging", "prod": "Production", "ephemeral": "Ephemeral"}
+        mapping = {
+            "dev": "Dev",
+            "staging": "Staging",
+            "prod": "Production",
+            "ephemeral": "Ephemeral",
+        }
         return mapping.get(self.stage, self.stage.capitalize())
 
     def resource_name(self, suffix: str) -> str:

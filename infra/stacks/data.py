@@ -59,7 +59,10 @@ class DataStack(cdk.Stack):
 
         # ---- Shared layer (looked up from SSM to avoid cross-stack export lock) ----
         shared_code_layer = layer_from_ssm(
-            self, "SharedCodeLayer", config=config, ssm_suffix="shared-code-arn",
+            self,
+            "SharedCodeLayer",
+            config=config,
+            ssm_suffix="shared-code-arn",
         )
 
         # ---- Market Data S3 Bucket ----
@@ -150,11 +153,22 @@ class DataStack(cdk.Stack):
                     ],
                 ),
                 iam.PolicyStatement(
-                    actions=["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:DeleteItem", "dynamodb:Query"],
+                    actions=[
+                        "dynamodb:PutItem",
+                        "dynamodb:GetItem",
+                        "dynamodb:DeleteItem",
+                        "dynamodb:Query",
+                    ],
                     resources=[self.fetch_requests_table.table_arn],
                 ),
                 iam.PolicyStatement(
-                    actions=["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:Scan"],
+                    actions=[
+                        "dynamodb:PutItem",
+                        "dynamodb:GetItem",
+                        "dynamodb:DeleteItem",
+                        "dynamodb:Query",
+                        "dynamodb:Scan",
+                    ],
                     resources=[self.bad_data_markers_table.table_arn],
                 ),
                 iam.PolicyStatement(
@@ -238,11 +252,27 @@ class DataStack(cdk.Stack):
         )
 
         # ---- Outputs ----
-        CfnOutput(self, "MarketDataBucketName", value=self.market_data_bucket.bucket_name,
-                  export_name=f"{config.prefix}-MarketDataBucket")
-        CfnOutput(self, "MarketDataFetchRequestsTableName", value=self.fetch_requests_table.table_name,
-                  export_name=f"{config.prefix}-MarketDataFetchRequestsTable")
-        CfnOutput(self, "BadDataMarkersTableName", value=self.bad_data_markers_table.table_name,
-                  export_name=f"{config.prefix}-BadDataMarkersTable")
-        CfnOutput(self, "DataFunctionArn", value=self.data_function.function_arn,
-                  export_name=f"{config.prefix}-DataFunction")
+        CfnOutput(
+            self,
+            "MarketDataBucketName",
+            value=self.market_data_bucket.bucket_name,
+            export_name=f"{config.prefix}-MarketDataBucket",
+        )
+        CfnOutput(
+            self,
+            "MarketDataFetchRequestsTableName",
+            value=self.fetch_requests_table.table_name,
+            export_name=f"{config.prefix}-MarketDataFetchRequestsTable",
+        )
+        CfnOutput(
+            self,
+            "BadDataMarkersTableName",
+            value=self.bad_data_markers_table.table_name,
+            export_name=f"{config.prefix}-BadDataMarkersTable",
+        )
+        CfnOutput(
+            self,
+            "DataFunctionArn",
+            value=self.data_function.function_arn,
+            export_name=f"{config.prefix}-DataFunction",
+        )

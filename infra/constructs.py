@@ -62,6 +62,7 @@ class LocalShellBundling:
         )
         return result.returncode == 0
 
+
 PYTHON_RUNTIME = _lambda.Runtime.PYTHON_3_12
 ARM_64 = _lambda.Architecture.ARM_64
 
@@ -203,7 +204,9 @@ def lambda_execution_role(
         construct_id,
         assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
         managed_policies=[
-            iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole"),
+            iam.ManagedPolicy.from_aws_managed_policy_name(
+                "service-role/AWSLambdaBasicExecutionRole"
+            ),
         ],
         role_name=role_name,
     )
@@ -273,5 +276,7 @@ def layer_from_ssm(
     param_name = f"/{config.prefix}/layer/{ssm_suffix}"
     layer_arn = ssm.StringParameter.value_for_string_parameter(scope, param_name)
     return _lambda.LayerVersion.from_layer_version_arn(
-        scope, construct_id, layer_arn,
+        scope,
+        construct_id,
+        layer_arn,
     )

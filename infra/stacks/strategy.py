@@ -68,7 +68,10 @@ class StrategyStack(cdk.Stack):
 
         # ---- Shared layer (looked up from SSM to avoid cross-stack export lock) ----
         shared_code_layer = layer_from_ssm(
-            self, "SharedCodeLayer", config=config, ssm_suffix="shared-code-arn",
+            self,
+            "SharedCodeLayer",
+            config=config,
+            ssm_suffix="shared-code-arn",
         )
 
         # ---- Strategy Layer (Makefile-built: awswrangler + alpaca-py) ----
@@ -103,7 +106,8 @@ class StrategyStack(cdk.Stack):
 
         # ---- Group Historical Selections Table ----
         self.group_history_table = alchemiser_table(
-            self, "GroupHistoricalSelectionsTable",
+            self,
+            "GroupHistoricalSelectionsTable",
             config=config,
             table_name_suffix="group-history",
             partition_key=dynamodb.Attribute(name="group_id", type=dynamodb.AttributeType.STRING),
@@ -114,7 +118,8 @@ class StrategyStack(cdk.Stack):
 
         # ---- Performance Reports Bucket ----
         self.performance_reports_bucket = s3.Bucket(
-            self, "PerformanceReportsBucket",
+            self,
+            "PerformanceReportsBucket",
             bucket_name=(
                 f"{config.stack_name_override}-performance-reports"
                 if config.stack_name_override
@@ -134,7 +139,9 @@ class StrategyStack(cdk.Stack):
 
         # ---- Strategy Worker Role ----
         strategy_role = lambda_execution_role(
-            self, "StrategyExecutionRole", config=config,
+            self,
+            "StrategyExecutionRole",
+            config=config,
             policy_statements=[
                 iam.PolicyStatement(
                     actions=["events:PutEvents"],
@@ -142,7 +149,10 @@ class StrategyStack(cdk.Stack):
                 ),
                 iam.PolicyStatement(
                     actions=["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:Query"],
-                    resources=[trade_ledger_table.table_arn, f"{trade_ledger_table.table_arn}/index/*"],
+                    resources=[
+                        trade_ledger_table.table_arn,
+                        f"{trade_ledger_table.table_arn}/index/*",
+                    ],
                 ),
                 iam.PolicyStatement(
                     actions=["s3:GetObject", "s3:ListBucket"],
@@ -161,19 +171,28 @@ class StrategyStack(cdk.Stack):
                     resources=[execution_fifo_queue.queue_arn],
                 ),
                 iam.PolicyStatement(
-                    actions=["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Query"],
+                    actions=[
+                        "dynamodb:PutItem",
+                        "dynamodb:GetItem",
+                        "dynamodb:UpdateItem",
+                        "dynamodb:Query",
+                    ],
                     resources=[execution_runs_table.table_arn],
                 ),
                 iam.PolicyStatement(
                     actions=["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:Query"],
-                    resources=[rebalance_plan_table.table_arn, f"{rebalance_plan_table.table_arn}/index/*"],
+                    resources=[
+                        rebalance_plan_table.table_arn,
+                        f"{rebalance_plan_table.table_arn}/index/*",
+                    ],
                 ),
             ],
         )
 
         # ---- Strategy Worker Lambda ----
         strategy_fn = AlchemiserFunction(
-            self, "StrategyFunction",
+            self,
+            "StrategyFunction",
             config=config,
             function_name=config.resource_name("strategy-worker"),
             code_uri="functions/strategy_worker/",
@@ -199,7 +218,8 @@ class StrategyStack(cdk.Stack):
 
         # Async failure destination -> EventBridge
         _lambda.CfnEventInvokeConfig(
-            self, "StrategyFunctionEventInvokeConfig",
+            self,
+            "StrategyFunctionEventInvokeConfig",
             function_name=self.strategy_function.function_name,
             qualifier="$LATEST",
             maximum_retry_attempts=2,
@@ -212,7 +232,9 @@ class StrategyStack(cdk.Stack):
 
         # ---- Strategy Orchestrator Role ----
         orchestrator_role = lambda_execution_role(
-            self, "StrategyOrchestratorExecutionRole", config=config,
+            self,
+            "StrategyOrchestratorExecutionRole",
+            config=config,
             policy_statements=[
                 iam.PolicyStatement(
                     actions=["events:PutEvents"],
@@ -231,7 +253,8 @@ class StrategyStack(cdk.Stack):
 
         # ---- Strategy Orchestrator Lambda ----
         orchestrator_fn = AlchemiserFunction(
-            self, "StrategyOrchestratorFunction",
+            self,
+            "StrategyOrchestratorFunction",
             config=config,
             function_name=config.resource_name("strategy-orchestrator"),
             code_uri="functions/strategy_orchestrator/",
@@ -250,7 +273,8 @@ class StrategyStack(cdk.Stack):
 
         # ---- Scheduler Role (shared for Schedule Manager -> Orchestrator invocation) ----
         strategy_scheduler_role = scheduler_role(
-            self, "StrategySchedulerRole",
+            self,
+            "StrategySchedulerRole",
             target_function_arns=[
                 self.strategy_function.function_arn,
                 self.orchestrator_function.function_arn,
@@ -259,10 +283,16 @@ class StrategyStack(cdk.Stack):
 
         # ---- Schedule Manager Role ----
         schedule_mgr_role = lambda_execution_role(
-            self, "ScheduleManagerExecutionRole", config=config,
+            self,
+            "ScheduleManagerExecutionRole",
+            config=config,
             policy_statements=[
                 iam.PolicyStatement(
-                    actions=["scheduler:CreateSchedule", "scheduler:DeleteSchedule", "scheduler:GetSchedule"],
+                    actions=[
+                        "scheduler:CreateSchedule",
+                        "scheduler:DeleteSchedule",
+                        "scheduler:GetSchedule",
+                    ],
                     resources=[
                         f"arn:aws:scheduler:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:schedule/default/*-trading-execution-*",
                     ],
@@ -281,7 +311,8 @@ class StrategyStack(cdk.Stack):
 
         # ---- Schedule Manager Lambda ----
         schedule_mgr_fn = AlchemiserFunction(
-            self, "ScheduleManagerFunction",
+            self,
+            "ScheduleManagerFunction",
             config=config,
             function_name=config.resource_name("schedule-manager"),
             code_uri="functions/schedule_manager/",
@@ -302,11 +333,13 @@ class StrategyStack(cdk.Stack):
 
         # Schedule Manager morning schedule
         schedule_mgr_scheduler_role = scheduler_role(
-            self, "ScheduleManagerSchedulerRole",
+            self,
+            "ScheduleManagerSchedulerRole",
             target_function_arns=[self.schedule_manager_function.function_arn],
         )
         scheduler.CfnSchedule(
-            self, "ScheduleManagerSchedule",
+            self,
+            "ScheduleManagerSchedule",
             name=config.resource_name("schedule-manager"),
             description="Run Schedule Manager at 9:00 AM ET to set up today's trading schedule",
             schedule_expression="cron(0 9 ? * MON-FRI *)",
@@ -322,20 +355,28 @@ class StrategyStack(cdk.Stack):
 
         # ---- Strategy Analytics ----
         analytics_role = lambda_execution_role(
-            self, "StrategyAnalyticsExecutionRole", config=config,
+            self,
+            "StrategyAnalyticsExecutionRole",
+            config=config,
             policy_statements=[
                 iam.PolicyStatement(
                     actions=["dynamodb:Query", "dynamodb:GetItem", "dynamodb:Scan"],
-                    resources=[trade_ledger_table.table_arn, f"{trade_ledger_table.table_arn}/index/*"],
+                    resources=[
+                        trade_ledger_table.table_arn,
+                        f"{trade_ledger_table.table_arn}/index/*",
+                    ],
                 ),
                 iam.PolicyStatement(
                     actions=["s3:PutObject"],
-                    resources=[f"{self.performance_reports_bucket.bucket_arn}/strategy-analytics/*"],
+                    resources=[
+                        f"{self.performance_reports_bucket.bucket_arn}/strategy-analytics/*"
+                    ],
                 ),
             ],
         )
         analytics_fn = AlchemiserFunction(
-            self, "StrategyAnalyticsFunction",
+            self,
+            "StrategyAnalyticsFunction",
             config=config,
             function_name=f"alch-{config.stage}-strategy-analytics",
             code_uri="functions/strategy_analytics/",
@@ -352,7 +393,8 @@ class StrategyStack(cdk.Stack):
         )
         # ScheduleV2: daily at 9 PM ET
         scheduler.CfnSchedule(
-            self, "StrategyAnalyticsSchedule",
+            self,
+            "StrategyAnalyticsSchedule",
             name=f"alch-{config.stage}-strategy-analytics",
             schedule_expression="cron(0 21 ? * MON-FRI *)",
             schedule_expression_timezone="America/New_York",
@@ -361,7 +403,8 @@ class StrategyStack(cdk.Stack):
             target=scheduler.CfnSchedule.TargetProperty(
                 arn=analytics_fn.function.function_arn,
                 role_arn=scheduler_role(
-                    self, "StrategyAnalyticsSchedulerRole",
+                    self,
+                    "StrategyAnalyticsSchedulerRole",
                     target_function_arns=[analytics_fn.function.function_arn],
                 ).role_arn,
             ),
@@ -369,11 +412,15 @@ class StrategyStack(cdk.Stack):
 
         # ---- Strategy Reports ----
         reports_role = lambda_execution_role(
-            self, "StrategyReportsExecutionRole", config=config,
+            self,
+            "StrategyReportsExecutionRole",
+            config=config,
             policy_statements=[
                 iam.PolicyStatement(
                     actions=["s3:GetObject"],
-                    resources=[f"{self.performance_reports_bucket.bucket_arn}/strategy-analytics/*"],
+                    resources=[
+                        f"{self.performance_reports_bucket.bucket_arn}/strategy-analytics/*"
+                    ],
                 ),
                 iam.PolicyStatement(
                     actions=["s3:PutObject"],
@@ -382,7 +429,8 @@ class StrategyStack(cdk.Stack):
             ],
         )
         reports_fn = AlchemiserFunction(
-            self, "StrategyReportsFunction",
+            self,
+            "StrategyReportsFunction",
             config=config,
             function_name=f"alch-{config.stage}-strategy-reports",
             code_uri="functions/strategy_reports/",
@@ -398,7 +446,8 @@ class StrategyStack(cdk.Stack):
         )
         # ScheduleV2: daily at 9:15 PM ET
         scheduler.CfnSchedule(
-            self, "StrategyReportsSchedule",
+            self,
+            "StrategyReportsSchedule",
             name=f"alch-{config.stage}-strategy-reports",
             schedule_expression="cron(15 21 ? * MON-FRI *)",
             schedule_expression_timezone="America/New_York",
@@ -407,7 +456,8 @@ class StrategyStack(cdk.Stack):
             target=scheduler.CfnSchedule.TargetProperty(
                 arn=reports_fn.function.function_arn,
                 role_arn=scheduler_role(
-                    self, "StrategyReportsSchedulerRole",
+                    self,
+                    "StrategyReportsSchedulerRole",
                     target_function_arns=[reports_fn.function.function_arn],
                 ).role_arn,
             ),
@@ -415,11 +465,13 @@ class StrategyStack(cdk.Stack):
 
         # ---- CloudWatch Alarms ----
         cloudwatch.Alarm(
-            self, "StrategyOrchestratorErrorsAlarm",
+            self,
+            "StrategyOrchestratorErrorsAlarm",
             alarm_name=config.resource_name("orchestrator-errors"),
             alarm_description="Alert when Strategy Orchestrator Lambda has errors (timeouts, crashes)",
             metric=self.orchestrator_function.metric_errors(
-                period=Duration.seconds(60), statistic="Sum",
+                period=Duration.seconds(60),
+                statistic="Sum",
             ),
             threshold=1,
             evaluation_periods=1,
@@ -428,11 +480,13 @@ class StrategyStack(cdk.Stack):
         )
 
         cloudwatch.Alarm(
-            self, "StrategyWorkerErrorsAlarm",
+            self,
+            "StrategyWorkerErrorsAlarm",
             alarm_name=config.resource_name("strategy-worker-errors"),
             alarm_description="Alert when Strategy Worker Lambda has errors (timeouts, crashes)",
             metric=self.strategy_function.metric_errors(
-                period=Duration.seconds(60), statistic="Sum",
+                period=Duration.seconds(60),
+                statistic="Sum",
             ),
             threshold=1,
             evaluation_periods=1,
@@ -441,9 +495,15 @@ class StrategyStack(cdk.Stack):
         )
 
         # ---- Outputs ----
-        CfnOutput(self, "PerformanceReportsBucketName",
-                  value=self.performance_reports_bucket.bucket_name,
-                  export_name=f"{config.prefix}-PerformanceReportsBucket")
-        CfnOutput(self, "GroupHistoricalSelectionsTableName",
-                  value=self.group_history_table.table_name,
-                  export_name=f"{config.prefix}-GroupHistoricalSelectionsTable")
+        CfnOutput(
+            self,
+            "PerformanceReportsBucketName",
+            value=self.performance_reports_bucket.bucket_name,
+            export_name=f"{config.prefix}-PerformanceReportsBucket",
+        )
+        CfnOutput(
+            self,
+            "GroupHistoricalSelectionsTableName",
+            value=self.group_history_table.table_name,
+            export_name=f"{config.prefix}-GroupHistoricalSelectionsTable",
+        )
