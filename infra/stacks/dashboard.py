@@ -45,13 +45,28 @@ class DashboardStack(cdk.Stack):
 
         # ---- Shared layers (looked up from SSM to avoid cross-stack export lock) ----
         shared_code_layer = layer_from_ssm(
-            self, "SharedCodeLayer", config=config, ssm_suffix="shared-code-arn",
+            self,
+            "SharedCodeLayer",
+            config=config,
+            ssm_suffix="shared-code-arn",
         )
         portfolio_layer = layer_from_ssm(
-            self, "PortfolioLayer", config=config, ssm_suffix="portfolio-deps-arn",
+            self,
+            "PortfolioLayer",
+            config=config,
+            ssm_suffix="portfolio-deps-arn",
         )
         data_layer = layer_from_ssm(
-            self, "DataLayer", config=config, ssm_suffix="data-deps-arn",
+            self,
+            "DataLayer",
+            config=config,
+            ssm_suffix="data-deps-arn",
+        )
+        # Reference AWS managed layer for AWS SDK for pandas (awswrangler)
+        awswrangler_managed_layer = _lambda.LayerVersion.from_layer_version_arn(
+            self,
+            "AWSSDKPandasManagedLayer",
+            layer_version_arn="arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:22",
         )
 
         # ---- DynamoDB Table ----
@@ -74,7 +89,12 @@ class DashboardStack(cdk.Stack):
             config=config,
             policy_statements=[
                 iam.PolicyStatement(
-                    actions=["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:Query", "dynamodb:BatchWriteItem"],
+                    actions=[
+                        "dynamodb:PutItem",
+                        "dynamodb:GetItem",
+                        "dynamodb:Query",
+                        "dynamodb:BatchWriteItem",
+                    ],
                     resources=[self.account_data_table.table_arn],
                 ),
             ],
@@ -88,7 +108,7 @@ class DashboardStack(cdk.Stack):
             function_name=config.resource_name("account-data"),
             code_uri="functions/account_data/",
             handler="lambda_handler.handler",
-            layers=[shared_code_layer, portfolio_layer, data_layer],
+            layers=[shared_code_layer, portfolio_layer, awswrangler_managed_layer, data_layer],
             role=account_data_role,
             timeout_seconds=300,
             memory_size=256,

@@ -45,10 +45,16 @@ class NotificationsStack(cdk.Stack):
 
         # ---- Shared layers (looked up from SSM to avoid cross-stack export lock) ----
         shared_code_layer = layer_from_ssm(
-            self, "SharedCodeLayer", config=config, ssm_suffix="shared-code-arn",
+            self,
+            "SharedCodeLayer",
+            config=config,
+            ssm_suffix="shared-code-arn",
         )
         notifications_layer = layer_from_ssm(
-            self, "NotificationsLayer", config=config, ssm_suffix="notifications-deps-arn",
+            self,
+            "NotificationsLayer",
+            config=config,
+            ssm_suffix="notifications-deps-arn",
         )
 
         # ---- IAM Role ----
@@ -118,7 +124,8 @@ class NotificationsStack(cdk.Stack):
         # ---- EventBridge Rules ----
         # 1. AllStrategiesCompleted
         _domain_rule(
-            self, "AllStrategiesCompletedRule",
+            self,
+            "AllStrategiesCompletedRule",
             config=config,
             event_bus=event_bus,
             target=self.notifications_function,
@@ -128,7 +135,8 @@ class NotificationsStack(cdk.Stack):
 
         # 2. AllTradesCompleted
         _domain_rule(
-            self, "AllTradesCompletedRule",
+            self,
+            "AllTradesCompletedRule",
             config=config,
             event_bus=event_bus,
             target=self.notifications_function,
@@ -151,7 +159,8 @@ class NotificationsStack(cdk.Stack):
 
         # 4. HedgeEvaluationCompleted
         _domain_rule(
-            self, "HedgeEvaluationCompletedRule",
+            self,
+            "HedgeEvaluationCompletedRule",
             config=config,
             event_bus=event_bus,
             target=self.notifications_function,
@@ -161,7 +170,8 @@ class NotificationsStack(cdk.Stack):
 
         # 5. DataLakeUpdateCompleted
         _domain_rule(
-            self, "DataLakeUpdateCompletedRule",
+            self,
+            "DataLakeUpdateCompletedRule",
             config=config,
             event_bus=event_bus,
             target=self.notifications_function,
@@ -171,7 +181,8 @@ class NotificationsStack(cdk.Stack):
 
         # 6. ScheduleCreated
         _domain_rule(
-            self, "ScheduleCreatedRule",
+            self,
+            "ScheduleCreatedRule",
             config=config,
             event_bus=event_bus,
             target=self.notifications_function,
@@ -181,7 +192,8 @@ class NotificationsStack(cdk.Stack):
 
         # 7. Lambda async invocation failures (Lambda Destinations)
         _domain_rule(
-            self, "LambdaAsyncFailureRule",
+            self,
+            "LambdaAsyncFailureRule",
             config=config,
             event_bus=event_bus,
             target=self.notifications_function,

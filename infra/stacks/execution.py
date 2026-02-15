@@ -32,8 +32,8 @@ from constructs import Construct
 from infra.config import StageConfig
 from infra.constructs import (
     AlchemiserFunction,
-    LocalShellBundling,
     alchemiser_table,
+    bundled_layer_code,
     lambda_execution_role,
     layer_from_ssm,
 )
@@ -51,46 +51,43 @@ class ExecutionStack(cdk.Stack):
         event_bus: events.IEventBus,
         trade_ledger_table: dynamodb.ITable,
         account_data_table: dynamodb.ITable,
-        execution_layer_code_path: str = "layers/execution/",
         **kwargs: object,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         # ---- Shared layers (looked up from SSM to avoid cross-stack export lock) ----
         shared_code_layer = layer_from_ssm(
-            self, "SharedCodeLayer", config=config, ssm_suffix="shared-code-arn",
+            self,
+            "SharedCodeLayer",
+            config=config,
+            ssm_suffix="shared-code-arn",
         )
         notifications_layer = layer_from_ssm(
-            self, "NotificationsLayer", config=config, ssm_suffix="notifications-deps-arn",
+            self,
+            "NotificationsLayer",
+            config=config,
+            ssm_suffix="notifications-deps-arn",
         )
 
         # ---- Execution Layer ----
         _execution_layer_cmd = (
             "pip install -q alpaca-py==0.43.0 --no-deps -t /asset-output/python --upgrade"
-            " && pip install -q msgpack sseclient-py websockets -t /asset-output/python --upgrade"
-            " && pip install -q pydantic pydantic-settings -t /asset-output/python --upgrade"
-            " --platform manylinux2014_x86_64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q dependency-injector -t /asset-output/python --upgrade"
-            " --platform manylinux2014_x86_64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q structlog 'cachetools>=6,<7' pyyaml -t /asset-output/python --upgrade"
-            " && pip install -q httpx httpcore anyio h11 requests certifi charset-normalizer"
-            " idna urllib3 python-dateutil pytz tzdata -t /asset-output/python --upgrade"
+            " && pip install -q msgpack websockets -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q 'pydantic>=2.0.0' -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q charset-normalizer pyyaml -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q pydantic-settings python-dotenv sseclient-py structlog 'cachetools>=6,<7' -t /asset-output/python --upgrade --no-deps"
+            " && pip install -q httpx httpcore anyio h11 requests certifi"
+            " idna urllib3 python-dateutil pytz tzdata -t /asset-output/python --upgrade --no-deps"
         )
         self.execution_layer = _lambda.LayerVersion(
             self,
             "ExecutionLayer",
             layer_version_name=config.resource_name("execution-deps"),
             description="Execution Lambda dependencies (alpaca-py, pydantic)",
-            code=_lambda.Code.from_asset(
-                execution_layer_code_path,
-                bundling=cdk.BundlingOptions(
-                    image=_lambda.Runtime.PYTHON_3_12.bundling_image,
-                    local=LocalShellBundling(_execution_layer_cmd),
-                    command=["bash", "-c", _execution_layer_cmd],
-                ),
-            ),
+            code=bundled_layer_code(_execution_layer_cmd),
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
-            compatible_architectures=[_lambda.Architecture.X86_64],
+            compatible_architectures=[_lambda.Architecture.ARM_64],
             removal_policy=cdk.RemovalPolicy.DESTROY,
         )
 
@@ -108,12 +105,14 @@ class ExecutionStack(cdk.Stack):
 
         # ---- SQS Queues ----
         self.execution_dlq = sqs.Queue(
-            self, "ExecutionDLQ",
+            self,
+            "ExecutionDLQ",
             queue_name=config.resource_name("execution-dlq"),
             retention_period=Duration.days(14),
         )
         self.execution_queue = sqs.Queue(
-            self, "ExecutionQueue",
+            self,
+            "ExecutionQueue",
             queue_name=config.resource_name("execution-queue"),
             visibility_timeout=Duration.seconds(900),
             retention_period=Duration.days(4),
@@ -121,13 +120,15 @@ class ExecutionStack(cdk.Stack):
         )
 
         self.execution_fifo_dlq = sqs.Queue(
-            self, "ExecutionFifoDLQ",
+            self,
+            "ExecutionFifoDLQ",
             queue_name=config.resource_name("execution-dlq.fifo"),
             fifo=True,
             retention_period=Duration.days(14),
         )
         self.execution_fifo_queue = sqs.Queue(
-            self, "ExecutionFifoQueue",
+            self,
+            "ExecutionFifoQueue",
             queue_name=config.resource_name("execution.fifo"),
             fifo=True,
             content_based_deduplication=False,
@@ -135,12 +136,15 @@ class ExecutionStack(cdk.Stack):
             fifo_throughput_limit=sqs.FifoThroughputLimit.PER_MESSAGE_GROUP_ID,
             visibility_timeout=Duration.seconds(900),
             retention_period=Duration.days(4),
-            dead_letter_queue=sqs.DeadLetterQueue(max_receive_count=3, queue=self.execution_fifo_dlq),
+            dead_letter_queue=sqs.DeadLetterQueue(
+                max_receive_count=3, queue=self.execution_fifo_dlq
+            ),
         )
 
         # ---- DynamoDB Tables ----
         self.execution_runs_table = alchemiser_table(
-            self, "ExecutionRunsTable",
+            self,
+            "ExecutionRunsTable",
             config=config,
             table_name_suffix="execution-runs",
             partition_key=dynamodb.Attribute(name="PK", type=dynamodb.AttributeType.STRING),
@@ -150,7 +154,8 @@ class ExecutionStack(cdk.Stack):
         )
 
         self.rebalance_plan_table = alchemiser_table(
-            self, "RebalancePlanTable",
+            self,
+            "RebalancePlanTable",
             config=config,
             table_name_suffix="rebalance-plans",
             partition_key=dynamodb.Attribute(name="PK", type=dynamodb.AttributeType.STRING),
@@ -161,30 +166,55 @@ class ExecutionStack(cdk.Stack):
             global_secondary_indexes=[
                 {
                     "index_name": "GSI1-CorrelationIndex",
-                    "partition_key": dynamodb.Attribute(name="GSI1PK", type=dynamodb.AttributeType.STRING),
-                    "sort_key": dynamodb.Attribute(name="GSI1SK", type=dynamodb.AttributeType.STRING),
+                    "partition_key": dynamodb.Attribute(
+                        name="GSI1PK", type=dynamodb.AttributeType.STRING
+                    ),
+                    "sort_key": dynamodb.Attribute(
+                        name="GSI1SK", type=dynamodb.AttributeType.STRING
+                    ),
                 },
             ],
         )
 
         # ---- Execution Role ----
         execution_role = lambda_execution_role(
-            self, "ExecutionExecutionRole", config=config,
+            self,
+            "ExecutionExecutionRole",
+            config=config,
             policy_statements=[
                 iam.PolicyStatement(
                     actions=["events:PutEvents"],
                     resources=[event_bus.event_bus_arn],
                 ),
                 iam.PolicyStatement(
-                    actions=["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes", "sqs:SendMessage"],
+                    actions=[
+                        "sqs:ReceiveMessage",
+                        "sqs:DeleteMessage",
+                        "sqs:GetQueueAttributes",
+                        "sqs:SendMessage",
+                    ],
                     resources=[self.execution_queue.queue_arn, self.execution_fifo_queue.queue_arn],
                 ),
                 iam.PolicyStatement(
-                    actions=["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:Query", "dynamodb:BatchWriteItem", "dynamodb:UpdateItem"],
-                    resources=[trade_ledger_table.table_arn, f"{trade_ledger_table.table_arn}/index/*"],
+                    actions=[
+                        "dynamodb:PutItem",
+                        "dynamodb:GetItem",
+                        "dynamodb:Query",
+                        "dynamodb:BatchWriteItem",
+                        "dynamodb:UpdateItem",
+                    ],
+                    resources=[
+                        trade_ledger_table.table_arn,
+                        f"{trade_ledger_table.table_arn}/index/*",
+                    ],
                 ),
                 iam.PolicyStatement(
-                    actions=["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Query"],
+                    actions=[
+                        "dynamodb:PutItem",
+                        "dynamodb:GetItem",
+                        "dynamodb:UpdateItem",
+                        "dynamodb:Query",
+                    ],
                     resources=[self.execution_runs_table.table_arn],
                 ),
             ],
@@ -192,7 +222,8 @@ class ExecutionStack(cdk.Stack):
 
         # ---- Execution Lambda ----
         exec_fn = AlchemiserFunction(
-            self, "ExecutionFunction",
+            self,
+            "ExecutionFunction",
             config=config,
             function_name=config.resource_name("execution"),
             code_uri="functions/execution/",
@@ -214,25 +245,36 @@ class ExecutionStack(cdk.Stack):
         # SQS event sources
         self.execution_function.add_event_source(
             event_sources.SqsEventSource(
-                self.execution_queue, batch_size=1, report_batch_item_failures=True,
+                self.execution_queue,
+                batch_size=1,
+                report_batch_item_failures=True,
             )
         )
         self.execution_function.add_event_source(
             event_sources.SqsEventSource(
-                self.execution_fifo_queue, batch_size=1, report_batch_item_failures=True,
+                self.execution_fifo_queue,
+                batch_size=1,
+                report_batch_item_failures=True,
             )
         )
 
         # ---- Trade Aggregator Role ----
         aggregator_role = lambda_execution_role(
-            self, "TradeAggregatorExecutionRole", config=config,
+            self,
+            "TradeAggregatorExecutionRole",
+            config=config,
             policy_statements=[
                 iam.PolicyStatement(
                     actions=["events:PutEvents"],
                     resources=[event_bus.event_bus_arn],
                 ),
                 iam.PolicyStatement(
-                    actions=["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query"],
+                    actions=[
+                        "dynamodb:GetItem",
+                        "dynamodb:PutItem",
+                        "dynamodb:UpdateItem",
+                        "dynamodb:Query",
+                    ],
                     resources=[self.execution_runs_table.table_arn],
                 ),
                 iam.PolicyStatement(
@@ -244,7 +286,8 @@ class ExecutionStack(cdk.Stack):
 
         # ---- Trade Aggregator Lambda ----
         aggregator_fn = AlchemiserFunction(
-            self, "TradeAggregatorFunction",
+            self,
+            "TradeAggregatorFunction",
             config=config,
             function_name=config.resource_name("trade-aggregator"),
             code_uri="functions/trade_aggregator/",
@@ -264,7 +307,8 @@ class ExecutionStack(cdk.Stack):
 
         # EventBridge rule: TradeExecuted -> TradeAggregator
         trade_executed_rule = events.Rule(
-            self, "TradeExecutedRule",
+            self,
+            "TradeExecutedRule",
             event_bus=event_bus,
             event_pattern=events.EventPattern(
                 source=["alchemiser.execution"],
@@ -282,11 +326,13 @@ class ExecutionStack(cdk.Stack):
 
         # ---- CloudWatch Alarms ----
         cloudwatch.Alarm(
-            self, "DLQMessageAlarm",
+            self,
+            "DLQMessageAlarm",
             alarm_name=config.resource_name("dlq-messages"),
             alarm_description="Alert when messages land in the execution DLQ after 3 failed attempts",
             metric=self.execution_dlq.metric_approximate_number_of_messages_visible(
-                period=Duration.seconds(60), statistic="Sum",
+                period=Duration.seconds(60),
+                statistic="Sum",
             ),
             threshold=1,
             evaluation_periods=1,
@@ -295,11 +341,13 @@ class ExecutionStack(cdk.Stack):
         )
 
         cloudwatch.Alarm(
-            self, "FifoDLQMessageAlarm",
+            self,
+            "FifoDLQMessageAlarm",
             alarm_name=config.resource_name("parallel-dlq-messages"),
             alarm_description="Alert when per-trade execution messages hit parallel DLQ after 3 retries",
             metric=self.execution_fifo_dlq.metric_approximate_number_of_messages_visible(
-                period=Duration.seconds(60), statistic="Sum",
+                period=Duration.seconds(60),
+                statistic="Sum",
             ),
             threshold=1,
             evaluation_periods=1,
@@ -308,7 +356,8 @@ class ExecutionStack(cdk.Stack):
         )
 
         cloudwatch.Alarm(
-            self, "StuckRunsAlarm",
+            self,
+            "StuckRunsAlarm",
             alarm_name=config.resource_name("stuck-execution-runs"),
             alarm_description="Alert when execution runs are stuck in RUNNING state for >30 minutes",
             metric=cloudwatch.Metric(
@@ -325,9 +374,21 @@ class ExecutionStack(cdk.Stack):
         )
 
         # ---- Outputs ----
-        CfnOutput(self, "ExecutionRunsTableName", value=self.execution_runs_table.table_name,
-                  export_name=f"{config.prefix}-ExecutionRunsTable")
-        CfnOutput(self, "RebalancePlanTableName", value=self.rebalance_plan_table.table_name,
-                  export_name=f"{config.prefix}-RebalancePlanTable")
-        CfnOutput(self, "ExecutionFifoQueueUrl", value=self.execution_fifo_queue.queue_url,
-                  export_name=f"{config.prefix}-ExecutionFifoQueue")
+        CfnOutput(
+            self,
+            "ExecutionRunsTableName",
+            value=self.execution_runs_table.table_name,
+            export_name=f"{config.prefix}-ExecutionRunsTable",
+        )
+        CfnOutput(
+            self,
+            "RebalancePlanTableName",
+            value=self.rebalance_plan_table.table_name,
+            export_name=f"{config.prefix}-RebalancePlanTable",
+        )
+        CfnOutput(
+            self,
+            "ExecutionFifoQueueUrl",
+            value=self.execution_fifo_queue.queue_url,
+            export_name=f"{config.prefix}-ExecutionFifoQueue",
+        )
