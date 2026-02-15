@@ -3,50 +3,51 @@
 Group history cache lookup for portfolio scoring.
 
 This module provides utilities to query cached historical selections
-and pre-computed portfolio daily returns from DynamoDB for accurate
+and pre-computed portfolio daily returns from S3 for accurate
 filter scoring of groups/portfolios.
 
 When a filter operator needs to compute a metric like moving-average-return
 on a group, it needs the historical return stream of that group over the
-lookback window. The Group Cache Lambda evaluates each group daily and stores
-both the selections and the portfolio daily return. This module queries
-that cache.
+lookback window. Group history is stored in S3 as Parquet files, mirroring
+the MarketDataStore pattern.
 
 Invariants:
-    - DynamoDB items contain ``portfolio_daily_return`` (Decimal string) when
-      available, alongside ``selections`` ({symbol: weight}).
+    - Parquet files contain ``portfolio_daily_return`` (Decimal) alongside
+      ``selections`` (dict serialized as string).
     - Returns are close-to-close daily percentage changes as Decimals
       (e.g. Decimal("0.0153") for +1.53%).
-    - Dates are ISO-8601 strings (YYYY-MM-DD).
+    - Dates are in ``record_date`` column as ISO-8601 strings (YYYY-MM-DD).
 """
 
 from __future__ import annotations
 
-import os
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
-import boto3
-from botocore.exceptions import ClientError
+import pandas as pd
 
+from the_alchemiser.shared.data_v2.group_history_store import GroupHistoryStore
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Environment variable for table name
-GROUP_HISTORY_TABLE = os.environ.get("GROUP_HISTORY_TABLE", "")
-
-# Lazy-loaded DynamoDB client
-_dynamodb_table = None
+# Lazy-loaded GroupHistoryStore
+_group_history_store: GroupHistoryStore | None = None
 
 
-def get_dynamodb_table() -> object | None:
-    """Get the DynamoDB table resource (lazy-loaded singleton)."""
-    global _dynamodb_table
-    if _dynamodb_table is None and GROUP_HISTORY_TABLE:
-        dynamodb = boto3.resource("dynamodb")
-        _dynamodb_table = dynamodb.Table(GROUP_HISTORY_TABLE)
-    return _dynamodb_table
+def get_group_history_store() -> GroupHistoryStore | None:
+    """Get the GroupHistoryStore instance (lazy-loaded singleton)."""
+    global _group_history_store
+    if _group_history_store is None:
+        try:
+            _group_history_store = GroupHistoryStore()
+        except ValueError as e:
+            logger.warning(
+                "GroupHistoryStore not available",
+                error=str(e),
+            )
+            return None
+    return _group_history_store
 
 
 def lookup_historical_selections(
@@ -54,7 +55,7 @@ def lookup_historical_selections(
     lookback_days: int,
     end_date: date | None = None,
 ) -> dict[str, dict[str, Decimal]]:
-    """Look up historical selections for a group from the cache.
+    """Look up historical selections for a group from S3.
 
     Args:
         group_id: The group identifier (e.g., "ftl_starburst__yinn_yang_mean_reversion")
@@ -74,9 +75,9 @@ def lookup_historical_selections(
         >>> # Returns: {"2026-02-05": {"TQQQ": Decimal("1.0")}, ...}
 
     """
-    table = get_dynamodb_table()
-    if table is None:
-        logger.debug("Group history cache not available (GROUP_HISTORY_TABLE not set)")
+    store = get_group_history_store()
+    if store is None:
+        logger.debug("Group history store not available")
         return {}
 
     if end_date is None:
@@ -85,64 +86,51 @@ def lookup_historical_selections(
     # Calculate date range
     start_date = end_date - timedelta(days=lookback_days)
 
-    # Query for all dates in range
+    # Read group data from S3
+    df = store.read_group_data(group_id)
+    if df is None or df.empty:
+        logger.warning(
+            "Group history returned ZERO records -- cache may not "
+            "be populated for this group",
+            group_id=group_id,
+            lookback_days=lookback_days,
+            dates_found=0,
+        )
+        return {}
+
+    # Filter by date range
+    df["record_date"] = pd.to_datetime(df["record_date"])
+    mask = (df["record_date"].dt.date >= start_date) & (df["record_date"].dt.date <= end_date)
+    df_filtered = df[mask]
+
+    # Build selections dictionary
     selections: dict[str, dict[str, Decimal]] = {}
+    for _, row in df_filtered.iterrows():
+        record_date_str = row["record_date"].strftime("%Y-%m-%d")
+        # Parse selections from JSON string if needed
+        raw_selections = row.get("selections", {})
+        if isinstance(raw_selections, str):
+            import json
 
-    try:
-        # Query using KeyConditionExpression
-        # Note: table is typed as object but is a DynamoDB Table resource
-        response = table.query(  # type: ignore[attr-defined]
-            KeyConditionExpression=("group_id = :gid AND record_date BETWEEN :start AND :end"),
-            ExpressionAttributeValues={
-                ":gid": group_id,
-                ":start": start_date.isoformat(),
-                ":end": end_date.isoformat(),
-            },
-        )
+            raw_selections = json.loads(raw_selections)
 
-        for item in response.get("Items", []):
-            record_date = item.get("record_date", "")
-            raw_selections = item.get("selections", {})
-            # Convert string weights back to Decimal
-            selections[record_date] = {
-                symbol: Decimal(weight) for symbol, weight in raw_selections.items()
-            }
+        selections[record_date_str] = {
+            symbol: Decimal(str(weight)) for symbol, weight in raw_selections.items()
+        }
 
-        if len(selections) == 0:
-            logger.warning(
-                "Group history cache returned ZERO records -- cache may not "
-                "be populated for this group",
-                extra={
-                    "group_id": group_id,
-                    "lookback_days": lookback_days,
-                    "dates_found": 0,
-                },
-            )
-        else:
-            logger.debug(
-                "Cache lookup successful",
-                extra={
-                    "group_id": group_id,
-                    "lookback_days": lookback_days,
-                    "dates_found": len(selections),
-                },
-            )
-
-    except ClientError as e:
+    if len(selections) == 0:
         logger.warning(
-            "Failed to query group history cache",
-            extra={
-                "group_id": group_id,
-                "error": str(e),
-            },
+            "Group history filtered to ZERO records for date range",
+            group_id=group_id,
+            lookback_days=lookback_days,
+            dates_found=0,
         )
-    except Exception as e:
-        logger.warning(
-            "Unexpected error querying group history cache",
-            extra={
-                "group_id": group_id,
-                "error": str(e),
-            },
+    else:
+        logger.debug(
+            "Cache lookup successful",
+            group_id=group_id,
+            lookback_days=lookback_days,
+            dates_found=len(selections),
         )
 
     return selections
@@ -153,12 +141,10 @@ def lookup_historical_returns(
     lookback_days: int,
     end_date: date | None = None,
 ) -> list[Decimal]:
-    """Look up pre-computed historical portfolio daily returns from the cache.
+    """Look up pre-computed historical portfolio daily returns from S3.
 
-    Queries the same DynamoDB table as ``lookup_historical_selections`` but
-    extracts the ``portfolio_daily_return`` field written by the Group Cache
-    Lambda.  Returns a date-sorted list of Decimal returns suitable for
-    direct metric computation (moving-average, stdev, etc.).
+    Reads from S3 Parquet files and extracts the ``portfolio_daily_return``
+    column for accurate metric computation (moving-average, stdev, etc.).
 
     Args:
         group_id: Group identifier (e.g. "ftl_starburst__yinn_yang_mean_reversion")
@@ -180,9 +166,9 @@ def lookup_historical_returns(
         10
 
     """
-    table = get_dynamodb_table()
-    if table is None:
-        logger.debug("Group history table not available for return lookup")
+    store = get_group_history_store()
+    if store is None:
+        logger.debug("Group history store not available for return lookup")
         return []
 
     if end_date is None:
@@ -190,77 +176,62 @@ def lookup_historical_returns(
 
     start_date = end_date - timedelta(days=lookback_days)
 
-    try:
-        response = table.query(  # type: ignore[attr-defined]
-            KeyConditionExpression=("group_id = :gid AND record_date BETWEEN :start AND :end"),
-            ExpressionAttributeValues={
-                ":gid": group_id,
-                ":start": start_date.isoformat(),
-                ":end": end_date.isoformat(),
-            },
-            # Only fetch what we need
-            ProjectionExpression="record_date, portfolio_daily_return",
-        )
-
-        items = response.get("Items", [])
-
-        # Sort by date (oldest first) and extract returns
-        items.sort(key=lambda x: x.get("record_date", ""))
-
-        returns: list[Decimal] = []
-        for item in items:
-            raw_return = item.get("portfolio_daily_return")
-            if raw_return is not None:
-                try:
-                    returns.append(Decimal(str(raw_return)))
-                except (InvalidOperation, ValueError):
-                    logger.warning(
-                        "Invalid portfolio_daily_return value",
-                        extra={
-                            "group_id": group_id,
-                            "record_date": item.get("record_date"),
-                            "raw_value": str(raw_return),
-                        },
-                    )
-
-        if len(returns) == 0:
-            logger.warning(
-                "Historical returns lookup returned ZERO records -- group "
-                "cache is empty or unpopulated for the requested window",
-                extra={
-                    "group_id": group_id,
-                    "lookback_days": lookback_days,
-                    "returns_found": 0,
-                },
-            )
-        else:
-            logger.debug(
-                "Historical returns lookup successful",
-                extra={
-                    "group_id": group_id,
-                    "lookback_days": lookback_days,
-                    "returns_found": len(returns),
-                },
-            )
-        return returns
-
-    except ClientError as e:
+    # Read group data from S3
+    df = store.read_group_data(group_id)
+    if df is None or df.empty:
         logger.warning(
-            "Failed to query historical returns",
-            extra={"group_id": group_id, "error": str(e)},
+            "Historical returns lookup returned ZERO records -- group "
+            "cache is empty or unpopulated for the requested window",
+            group_id=group_id,
+            lookback_days=lookback_days,
+            returns_found=0,
         )
-    except Exception as e:
+        return []
+
+    # Filter by date range
+    df["record_date"] = pd.to_datetime(df["record_date"])
+    mask = (df["record_date"].dt.date >= start_date) & (df["record_date"].dt.date <= end_date)
+    df_filtered = df[mask]
+
+    # Sort by date (oldest first)
+    df_filtered = df_filtered.sort_values("record_date")
+
+    # Extract returns
+    returns: list[Decimal] = []
+    for _, row in df_filtered.iterrows():
+        raw_return = row.get("portfolio_daily_return")
+        if raw_return is not None:
+            try:
+                returns.append(Decimal(str(raw_return)))
+            except (InvalidOperation, ValueError):
+                logger.warning(
+                    "Invalid portfolio_daily_return value",
+                    group_id=group_id,
+                    record_date=row.get("record_date"),
+                    raw_value=str(raw_return),
+                )
+
+    if len(returns) == 0:
         logger.warning(
-            "Unexpected error querying historical returns",
-            extra={"group_id": group_id, "error": str(e)},
+            "Historical returns lookup returned ZERO records after filtering",
+            group_id=group_id,
+            lookback_days=lookback_days,
+            returns_found=0,
+        )
+    else:
+        logger.debug(
+            "Historical returns lookup successful",
+            group_id=group_id,
+            lookback_days=lookback_days,
+            returns_found=len(returns),
         )
 
-    return []
+    return returns
 
 
 def is_cache_available() -> bool:
     """Check if the group history cache is configured and available."""
-    return bool(GROUP_HISTORY_TABLE and get_dynamodb_table() is not None)
+    return get_group_history_store() is not None
 
 
 def write_historical_return(
@@ -271,7 +242,7 @@ def write_historical_return(
     *,
     ttl_days: int = 30,
 ) -> bool:
-    """Write a single historical return entry to the group cache.
+    """Write a single historical return entry to the group cache in S3.
 
     Used by on-demand backfill when the strategy worker detects a cache miss
     during portfolio scoring and re-evaluates the group for historical dates.
@@ -281,59 +252,52 @@ def write_historical_return(
         record_date: ISO date string (YYYY-MM-DD)
         selections: Symbol-to-weight mapping (weights as strings)
         portfolio_daily_return: Daily return as Decimal (e.g. Decimal("0.0153"))
-        ttl_days: TTL in days for the DynamoDB item (default: 30)
+        ttl_days: TTL in days (unused for S3, kept for API compatibility)
 
     Returns:
         True if write succeeded, False otherwise.
 
     """
-    table = get_dynamodb_table()
-    if table is None:
-        logger.warning("Cannot write to group cache: table not available")
+    store = get_group_history_store()
+    if store is None:
+        logger.warning("Cannot write to group cache: store not available")
         return False
-
-    ttl_epoch = int((datetime.now(UTC) + timedelta(days=ttl_days)).timestamp())
 
     try:
-        table.put_item(  # type: ignore[attr-defined]
-            Item={
-                "group_id": group_id,
-                "record_date": record_date,
-                "selections": selections,
-                "selection_count": len(selections),
-                "portfolio_daily_return": str(portfolio_daily_return),
-                "evaluated_at": datetime.now(UTC).isoformat(),
-                "source": "on_demand_backfill",
-                "ttl": ttl_epoch,
-            },
-        )
-        logger.debug(
-            "Wrote historical return to cache",
-            extra={
-                "group_id": group_id,
-                "record_date": record_date,
-                "portfolio_daily_return": str(portfolio_daily_return),
-            },
-        )
-        return True
+        # Create a single-row DataFrame with the new record
+        import json
 
-    except ClientError as e:
-        logger.warning(
-            "Failed to write historical return to cache",
-            extra={
-                "group_id": group_id,
-                "record_date": record_date,
-                "error": str(e),
-            },
+        new_record = pd.DataFrame(
+            [
+                {
+                    "record_date": record_date,
+                    "selections": json.dumps(selections),
+                    "selection_count": len(selections),
+                    "portfolio_daily_return": str(portfolio_daily_return),
+                    "evaluated_at": datetime.now(UTC).isoformat(),
+                    "source": "on_demand_backfill",
+                }
+            ]
         )
-        return False
+
+        # Append to existing data
+        success = store.append_records(group_id, new_record)
+
+        if success:
+            logger.debug(
+                "Wrote historical return to cache",
+                group_id=group_id,
+                record_date=record_date,
+                portfolio_daily_return=str(portfolio_daily_return),
+            )
+
+        return success
+
     except Exception as e:
         logger.warning(
             "Unexpected error writing historical return to cache",
-            extra={
-                "group_id": group_id,
-                "record_date": record_date,
-                "error": str(e),
-            },
+            group_id=group_id,
+            record_date=record_date,
+            error=str(e),
         )
         return False

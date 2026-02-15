@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """Business Unit: scripts | Status: current.
 
-Backfill DynamoDB group cache for all named groups in a .clj strategy file.
+Backfill S3 group cache for all named groups in a .clj strategy file.
 
 Parses the strategy file, discovers all ``(group "Name" ...)`` nodes,
 evaluates each group's AST body for every trading day in the lookback
-window, computes weighted portfolio daily returns, writes them to the
-``GroupHistoricalSelectionsTable`` in DynamoDB, and prints a summary
-report of what was uploaded.
+window, computes weighted portfolio daily returns, writes them to S3
+as Parquet files (similar to MarketDataStore pattern), and prints a
+summary report of what was uploaded.
 
 Performance optimisations:
     - All market data is pre-loaded into memory before evaluation begins,
       eliminating per-bar S3 metadata validation round-trips.
-    - DynamoDB writes are batched (25 items per request) instead of
-      individual put_item calls.
+    - S3 writes are grouped by group_id and written as Parquet files
+      instead of individual DynamoDB items.
     - Groups at the same nesting depth are processed in parallel using
       spawn-based multiprocessing (``--parallel N``).
     - Depth-level passes process deepest groups first so that outer
@@ -31,7 +31,7 @@ Usage:
     poetry run python scripts/backfill_group_cache.py \\
         ftl_starburst.clj --all
 
-    # Dry-run (compute but do not write to DynamoDB):
+    # Dry-run (compute but do not write to S3):
     poetry run python scripts/backfill_group_cache.py \\
         ftl_starburst.clj --dry-run
 
@@ -893,61 +893,59 @@ def _extract_symbols_from_ast(nodes: list[Any]) -> set[str]:
 # Wipe group cache table
 # ---------------------------------------------------------------------------
 def _wipe_group_cache() -> int:
-    """Delete all items from the group history DynamoDB table.
+    """Delete all group history files from S3.
 
-    Scans the table in pages (handling the 1MB scan limit) and
-    batch-deletes all items.  Returns the total number of items deleted.
+    Lists all group-history/ prefixes in the S3 bucket and deletes
+    all objects. Returns the total number of objects deleted.
     """
-    from engines.dsl.operators.group_cache_lookup import get_dynamodb_table
+    from the_alchemiser.shared.data_v2.group_history_store import GroupHistoryStore
 
-    table = get_dynamodb_table()
-    if table is None:
-        print(f"  {RED}Cannot connect to DynamoDB table{RESET}")
+    try:
+        store = GroupHistoryStore()
+    except ValueError as e:
+        print(f"  {RED}Cannot initialize GroupHistoryStore: {e}{RESET}")
+        return 0
+
+    # Get list of all groups
+    groups = store.list_groups()
+    if not groups:
+        print(f"  {DIM}No group history found in S3{RESET}")
         return 0
 
     total_deleted = 0
-    scan_kwargs: dict[str, Any] = {
-        "ProjectionExpression": "group_id, record_date",
-    }
 
-    while True:
-        resp = table.scan(**scan_kwargs)  # type: ignore[attr-defined]
-        items = resp.get("Items", [])
-        if not items:
-            break
+    # Delete each group's data and metadata files
+    for group_id in groups:
+        try:
+            # Delete data file
+            data_key = store._group_data_key(group_id)
+            store.s3_client.delete_object(Bucket=store.bucket_name, Key=data_key)
 
-        with table.batch_writer() as batch:  # type: ignore[attr-defined]
-            for item in items:
-                batch.delete_item(
-                    Key={
-                        "group_id": item["group_id"],
-                        "record_date": item["record_date"],
-                    }
-                )
+            # Delete metadata file
+            metadata_key = store._group_metadata_key(group_id)
+            store.s3_client.delete_object(Bucket=store.bucket_name, Key=metadata_key)
 
-        total_deleted += len(items)
-        print(f"  {DIM}Deleted {len(items)} items ({total_deleted} total)...{RESET}")
+            total_deleted += 2  # data + metadata
+            print(f"  {DIM}Deleted group: {group_id} ({total_deleted} objects total)...{RESET}")
 
-        if "LastEvaluatedKey" not in resp:
-            break
-        scan_kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+        except Exception as e:
+            print(f"  {YELLOW}Failed to delete group {group_id}: {e}{RESET}")
 
     return total_deleted
 
 
 # ---------------------------------------------------------------------------
-# Batch DynamoDB writer
+# Batch S3 writer
 # ---------------------------------------------------------------------------
-def _batch_write_dynamodb(
+def _batch_write_s3(
     items: list[dict[str, Any]],
     *,
     dry_run: bool = False,
 ) -> tuple[int, int]:
-    """Batch-write cache entries to DynamoDB. Returns (written, failed).
+    """Batch-write cache entries to S3 as Parquet. Returns (written, failed).
 
-    Uses the DynamoDB batch_writer context manager which automatically
-    handles batching (max 25 items per BatchWriteItem request) and
-    unprocessed item retries.
+    Groups items by group_id and writes each group's data as a single
+    Parquet file in S3, replacing the previous DynamoDB approach.
 
     Args:
         items: List of dicts with keys: group_id, record_date, selections,
@@ -961,50 +959,61 @@ def _batch_write_dynamodb(
     if dry_run or not items:
         return (len(items) if dry_run else 0), 0
 
-    from engines.dsl.operators.group_cache_lookup import get_dynamodb_table
+    from collections import defaultdict
+    import json
 
-    table = get_dynamodb_table()
-    if table is None:
+    from the_alchemiser.shared.data_v2.group_history_store import GroupHistoryStore
+
+    try:
+        store = GroupHistoryStore()
+    except ValueError as e:
+        print(f"  {RED}Cannot initialize GroupHistoryStore: {e}{RESET}")
         return 0, len(items)
 
-    ttl_epoch = int((datetime.now(UTC) + timedelta(days=30)).timestamp())
+    # Group items by group_id
+    items_by_group: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for item in items:
+        items_by_group[item["group_id"]].append(item)
+
     written = 0
     failed = 0
 
-    try:
-        with table.batch_writer() as batch:  # type: ignore[attr-defined]
-            for item in items:
-                try:
-                    batch.put_item(
-                        Item={
-                            "group_id": item["group_id"],
-                            "record_date": item["record_date"],
-                            "selections": item["selections"],
-                            "selection_count": len(item["selections"]),
-                            "portfolio_daily_return": str(
-                                item["portfolio_daily_return"]
-                            ),
-                            "evaluated_at": datetime.now(UTC).isoformat(),
-                            "source": "on_demand_backfill",
-                            "ttl": ttl_epoch,
-                        }
-                    )
-                    written += 1
-                except Exception as exc:
-                    failed += 1
-                    print(
-                        f"  {YELLOW}DynamoDB put_item failed for "
-                        f"group_id={item.get('group_id')}, "
-                        f"record_date={item.get('record_date')}: "
-                        f"{type(exc).__name__}: {exc}{RESET}"
-                    )
-    except Exception as exc:
-        # Entire batch operation failed
-        print(
-            f"  {RED}DynamoDB batch_writer failed: "
-            f"{type(exc).__name__}: {exc}{RESET}"
-        )
-        return written, len(items) - written
+    for group_id, group_items in items_by_group.items():
+        try:
+            # Convert items to DataFrame
+            records = []
+            for item in group_items:
+                records.append(
+                    {
+                        "record_date": item["record_date"],
+                        "selections": json.dumps(item["selections"]),
+                        "selection_count": len(item["selections"]),
+                        "portfolio_daily_return": str(item["portfolio_daily_return"]),
+                        "evaluated_at": datetime.now(UTC).isoformat(),
+                        "source": "backfill_script",
+                    }
+                )
+
+            df = pd.DataFrame(records)
+
+            # Append records to existing group data (or create new)
+            success = store.append_records(group_id, df)
+
+            if success:
+                written += len(group_items)
+            else:
+                failed += len(group_items)
+                print(
+                    f"  {YELLOW}S3 write failed for group_id={group_id}, "
+                    f"record_count={len(group_items)}{RESET}"
+                )
+
+        except Exception as exc:
+            failed += len(group_items)
+            print(
+                f"  {RED}S3 write failed for group_id={group_id}: "
+                f"{type(exc).__name__}: {exc}{RESET}"
+            )
 
     return written, failed
 
@@ -1233,7 +1242,7 @@ def backfill_strategy_groups(
     parallel_workers: int = 1,
     target_level: int | None = None,
 ) -> dict[str, Any]:
-    """Backfill DynamoDB group cache for all groups in a .clj strategy file.
+    """Backfill S3 group cache for all groups in a .clj strategy file.
 
     Processes groups in depth-level passes (deepest first) so that inner
     groups complete before outer groups that may depend on them.  Within
@@ -1244,7 +1253,7 @@ def backfill_strategy_groups(
         lookback_days: Calendar days to backfill. Ignored if backfill_all=True.
         backfill_all: If True, backfill all available historical data.
         warmup_days: Trading days for indicator warm-up period.
-        dry_run: If True, compute but do not write to DynamoDB.
+        dry_run: If True, compute but do not write to S3.
         wipe: If True, delete all existing cache entries before backfilling.
         group_patterns: Optional list of glob patterns to filter groups.
         parallel_workers: Number of parallel workers (1 = sequential).
@@ -1554,8 +1563,8 @@ def backfill_strategy_groups(
         # ---- Batch write all items for this level ----
         if level_items:
             print(f"\n  {DIM}Batch writing {len(level_items)} items to "
-                  f"DynamoDB ...{RESET}", end="", flush=True)
-            written, failed = _batch_write_dynamodb(
+                  f"S3 ...{RESET}", end="", flush=True)
+            written, failed = _batch_write_s3(
                 level_items, dry_run=dry_run,
             )
             total_writes += written
@@ -1574,7 +1583,7 @@ def backfill_strategy_groups(
     print(f"{BOLD}  BACKFILL REPORT{RESET}")
     print(f"{BOLD}{'=' * 72}{RESET}")
     print(f"  Strategy:        {strategy_name}")
-    print(f"  DynamoDB table:  {os.environ.get('GROUP_HISTORY_TABLE', '(not set)')}")
+    print(f"  Storage:         S3 (MarketDataBucket/group-history/)")
     lookback_mode = (
         "ALL available history (per-group)" if backfill_all
         else f"{lookback_days or 45} calendar days"
@@ -1604,19 +1613,19 @@ def backfill_strategy_groups(
 
     if total_failures > 0:
         print(f"\n  {RED}WARNING: {total_failures} write(s) failed -- "
-              f"check IAM permissions and table configuration{RESET}")
+              f"check IAM permissions and S3 bucket configuration{RESET}")
     elif total_writes == 0 and not dry_run:
         print(f"\n  {YELLOW}WARNING: Zero records written -- "
               f"all days produced no data{RESET}")
     elif dry_run:
         print(f"\n  {YELLOW}DRY RUN -- no records were written "
-              f"to DynamoDB{RESET}")
+              f"to S3{RESET}")
     else:
         print(f"\n  {GREEN}All records written successfully{RESET}")
 
-    # ---- Verification: re-read from DynamoDB ----
+    # ---- Verification: re-read from S3 ----
     if not dry_run and total_writes > 0:
-        print(f"\n{BOLD}  Verification (re-reading from DynamoDB):{RESET}")
+        print(f"\n{BOLD}  Verification (re-reading from S3):{RESET}")
         from engines.dsl.operators.group_cache_lookup import (
             lookup_historical_returns,
         )
@@ -1649,7 +1658,7 @@ def backfill_strategy_groups(
 def main() -> None:
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Backfill DynamoDB group cache for a .clj strategy file",
+        description="Backfill S3 group cache for a .clj strategy file",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
