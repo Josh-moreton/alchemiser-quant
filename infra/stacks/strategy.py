@@ -5,6 +5,7 @@ Strategy stack: orchestration, workers, analytics, and reports.
 Resources:
 - StrategyOrchestratorFunction (Lambda)
 - StrategyFunction / StrategyWorker (Lambda)
+- GroupBackfillWorkerFunction (Lambda) -- same code_uri as StrategyWorker
 - ScheduleManagerFunction (Lambda)
 - StrategyAnalyticsFunction (Lambda)
 - StrategyReportsFunction (Lambda)
@@ -156,7 +157,7 @@ class StrategyStack(cdk.Stack):
                     ],
                 ),
                 iam.PolicyStatement(
-                    actions=["s3:GetObject", "s3:ListBucket"],
+                    actions=["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
                     resources=[market_data_bucket.bucket_arn, f"{market_data_bucket.bucket_arn}/*"],
                 ),
                 iam.PolicyStatement(
@@ -216,6 +217,38 @@ class StrategyStack(cdk.Stack):
             },
         )
         self.strategy_function = strategy_fn.function
+
+        # ---- Group Backfill Worker Lambda ----
+        # Shares the same code_uri as Strategy Worker so it has access to DSL
+        # engines.  The Data Lambda's orchestrator invokes this per-group.
+        backfill_worker_role = lambda_execution_role(
+            self,
+            "GroupBackfillWorkerExecutionRole",
+            config=config,
+            policy_statements=[
+                iam.PolicyStatement(
+                    actions=["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
+                    resources=[market_data_bucket.bucket_arn, f"{market_data_bucket.bucket_arn}/*"],
+                ),
+            ],
+        )
+        backfill_worker_fn = AlchemiserFunction(
+            self,
+            "GroupBackfillWorkerFunction",
+            config=config,
+            function_name=config.resource_name("group-backfill-worker"),
+            code_uri="functions/strategy_worker/",
+            handler="group_backfill_handler.lambda_handler",
+            layers=[shared_code_layer, awswrangler_managed_layer, self.strategy_layer],
+            role=backfill_worker_role,
+            timeout_seconds=900,
+            memory_size=1024,
+            extra_env={
+                "MARKET_DATA_BUCKET": market_data_bucket.bucket_name,
+                "STAGE": config.stage,
+            },
+        )
+        self.group_backfill_worker_function = backfill_worker_fn.function
 
         # Async failure destination -> EventBridge
         _lambda.CfnEventInvokeConfig(

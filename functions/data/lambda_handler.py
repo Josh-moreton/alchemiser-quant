@@ -42,10 +42,11 @@ logger = get_logger(__name__)
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Handle data Lambda invocations for market data refresh.
 
-    Handles three types of invocations:
+    Handles four types of invocations:
     1. Scheduled refresh (EventBridge Schedule) - refreshes all configured symbols
     2. MarketDataFetchRequested event - on-demand fetch for specific symbol with deduplication
-    3. Manual invocation - specific symbols or full seed
+    3. GroupBackfillRequested event - orchestrate group history backfill
+    4. Manual invocation - specific symbols or full seed
 
     Args:
         event: Lambda event (varies by trigger type)
@@ -55,6 +56,10 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         Response with refresh statistics
 
     """
+    # Check if this is a GroupBackfillRequested event (sync or EventBridge)
+    if _is_group_backfill_event(event):
+        return _handle_group_backfill(event)
+
     # Check if this is a MarketDataFetchRequested event
     if _is_fetch_request_event(event):
         return _handle_fetch_request(event)
@@ -69,6 +74,36 @@ def _is_fetch_request_event(event: dict[str, Any]) -> bool:
     source = event.get("source", "")
 
     return detail_type == "MarketDataFetchRequested" and source.startswith("alchemiser.")
+
+
+def _is_group_backfill_event(event: dict[str, Any]) -> bool:
+    """Check if event is a GroupBackfillRequested invocation.
+
+    Supports both EventBridge events (detail-type + source) and direct
+    synchronous invocations (action field).
+    """
+    detail_type = event.get("detail-type")
+    source = event.get("source", "")
+
+    if detail_type == "GroupBackfillRequested" and source.startswith("alchemiser."):
+        return True
+
+    return event.get("action") == "group_backfill"
+
+
+def _handle_group_backfill(event: dict[str, Any]) -> dict[str, Any]:
+    """Route group backfill requests to the orchestrator.
+
+    Args:
+        event: EventBridge event or direct invocation payload.
+
+    Returns:
+        Response from orchestrator with processing results.
+
+    """
+    from group_backfill_orchestrator import handle_group_backfill
+
+    return handle_group_backfill(event)
 
 
 def _handle_fetch_request(event: dict[str, Any]) -> dict[str, Any]:

@@ -114,6 +114,9 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         container = ApplicationContainer()
         register_strategy(container)
 
+        # Step 1b: Run group data preflight (backfill stale groups before eval)
+        _run_group_preflight(dsl_file, correlation_id)
+
         # Step 2: Evaluate DSL strategy to get target weights
         handler = SingleFileSignalHandler(
             container=container,
@@ -343,5 +346,55 @@ def _report_strategy_completion(
                 "outcome": outcome,
                 "error": str(e),
                 "error_type": type(e).__name__,
+            },
+        )
+
+
+def _run_group_preflight(dsl_file: str, correlation_id: str) -> None:
+    """Run group data preflight to backfill stale groups before evaluation.
+
+    Non-fatal: if preflight fails, the strategy evaluator will fall back
+    to in-process backfill within group_scoring.py.
+
+    Args:
+        dsl_file: DSL filename (e.g. "ftl_starburst.clj").
+        correlation_id: Workflow correlation ID.
+
+    """
+    try:
+        from group_data_preflight import run_preflight
+
+        result = run_preflight(
+            strategy_file=dsl_file,
+            correlation_id=correlation_id,
+        )
+
+        if result.get("backfill_triggered"):
+            logger.info(
+                "Group preflight completed with backfill",
+                extra={
+                    "dsl_file": dsl_file,
+                    "groups_checked": result.get("groups_checked", 0),
+                    "groups_stale": result.get("groups_stale", 0),
+                    "correlation_id": correlation_id,
+                },
+            )
+        elif result.get("groups_checked", 0) > 0:
+            logger.info(
+                "Group preflight: all groups fresh",
+                extra={
+                    "dsl_file": dsl_file,
+                    "groups_checked": result.get("groups_checked", 0),
+                    "correlation_id": correlation_id,
+                },
+            )
+    except Exception as exc:
+        logger.warning(
+            "Group preflight failed, continuing with evaluation",
+            extra={
+                "dsl_file": dsl_file,
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+                "correlation_id": correlation_id,
             },
         )

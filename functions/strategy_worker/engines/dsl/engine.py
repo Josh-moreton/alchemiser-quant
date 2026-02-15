@@ -22,10 +22,10 @@ else:
     from importlib.abc import Traversable
 
 from engines.dsl.dsl_evaluator import DslEvaluator
-from engines.dsl.sexpr_parser import SexprParseError, SexprParser
 from errors import StrategyV2Error
 
 from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
+from the_alchemiser.shared.dsl.sexpr_parser import SexprParseError, SexprParser
 from the_alchemiser.shared.events.base import BaseEvent
 from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.events.dsl_events import (

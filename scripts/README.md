@@ -212,6 +212,72 @@ See [VALIDATION_SCRIPT_README.md](./VALIDATION_SCRIPT_README.md) for comprehensi
 
 ## Other Scripts
 
+### `backfill_group_cache.py`
+
+Backfill group history cache for DSL strategy groups. Evaluates each named group in a strategy file over a historical window, computes weighted portfolio daily returns, and writes the results to both DynamoDB (legacy) and S3 Parquet files (new).
+
+**Purpose:**
+Group history is used by filter operators (e.g., moving-average-return, max-drawdown) to score and rank portfolios. Pre-computing this history allows strategies to run efficiently without re-evaluating groups on every bar.
+
+**Storage:**
+- **S3 (new)**: `s3://{bucket}/groups/{group_id}/history.parquet` + metadata.json
+- **DynamoDB (legacy)**: GroupHistoricalSelectionsTable (for backward compatibility)
+
+**Usage:**
+
+```bash
+# Backfill all groups in a strategy (default 45 calendar days)
+poetry run python scripts/backfill_group_cache.py \
+  shared_layer/python/the_alchemiser/shared/strategies/ftl_starburst.clj
+
+# Custom lookback period
+poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --days 60
+
+# Backfill ALL available history (as far back as data exists)
+poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --all
+
+# Dry-run (compute but do not write)
+poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --dry-run
+
+# Target specific groups with pattern matching
+poetry run python scripts/backfill_group_cache.py ftl_starburst.clj \
+  --group "WYLD Mean Reversion*"
+
+# Parallel processing (4 workers per depth level)
+poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --parallel 4
+
+# Specific deployment stage (dev/prod resources)
+poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --stage dev
+```
+
+**Parameters:**
+- `--days`: Calendar days to look back (default: 45)
+- `--all`: Backfill all available history (ignores --days)
+- `--dry-run`: Compute without writing to DynamoDB or S3
+- `--group`: Pattern to match specific groups (supports wildcards)
+- `--parallel`: Number of parallel workers per depth level (default: 1)
+- `--stage`: Deployment stage (dev/prod) for resource selection
+- `--level`: Target specific nesting depth only
+
+**Output:**
+- Console report showing per-group statistics
+- S3 Parquet files for each group with metadata
+- DynamoDB records (legacy, for transition period)
+
+**Environment Variables:**
+- `MARKET_DATA_BUCKET`: S3 bucket for market data and group history
+- `GROUP_HISTORY_TABLE`: DynamoDB table name (legacy)
+- `AWS_DEFAULT_REGION`: AWS region (default: us-east-1)
+
+**Performance Optimizations:**
+- Pre-loads all market data into memory (eliminates S3 round-trips)
+- Batch writes (25 items per DynamoDB request, single Parquet per group)
+- Parallel group evaluation at each nesting depth
+- Processes deepest groups first (outer groups can use inner caches)
+
+**Migration Note:**
+The script now writes to both DynamoDB and S3 simultaneously. Once all production workflows are verified to read from S3, the DynamoDB table can be deprecated.
+
 ### `seed_market_data.py`
 Seed historical market data to S3 for local/dev testing.
 

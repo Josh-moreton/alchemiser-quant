@@ -169,6 +169,7 @@ class DslContext:
         *,
         debug_mode: bool = False,
         market_data_service: MarketDataPort | None = None,
+        strategy_file: str = "",
     ) -> None:
         """Initialize DSL context.
 
@@ -180,6 +181,7 @@ class DslContext:
             evaluate_node: Function to evaluate AST nodes
             debug_mode: If True, enables detailed condition tracing for debugging
             market_data_service: Optional market data port for on-demand backfill
+            strategy_file: Strategy .clj filename being evaluated (for Lambda backfill)
 
         """
         self.indicator_service = indicator_service
@@ -190,6 +192,7 @@ class DslContext:
         self.timestamp = datetime.now(UTC)
         self.debug_mode = debug_mode
         self.market_data_service = market_data_service
+        self.strategy_file = strategy_file
         # Decision path stored as list of dicts for serialization compatibility.
         # Note: This is initialized here but immediately replaced with evaluator's
         # shared list (see dsl_evaluator.py line 289) to ensure all contexts
