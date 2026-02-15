@@ -22,7 +22,6 @@ import uuid
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 import boto3
@@ -30,9 +29,11 @@ from botocore.config import Config
 
 from the_alchemiser.shared.dsl.group_discovery import (
     GroupInfo,
+    derive_group_id,
     find_filter_targeted_groups,
 )
 from the_alchemiser.shared.dsl.sexpr_parser import SexprParser
+from the_alchemiser.shared.dsl.strategy_paths import get_strategies_dir
 from the_alchemiser.shared.events import GroupBackfillCompleted
 from the_alchemiser.shared.events.eventbridge_publisher import publish_to_eventbridge
 from the_alchemiser.shared.logging import get_logger
@@ -184,7 +185,7 @@ def _discover_groups(strategy_file: str) -> list[dict[str, Any]]:
         parent_filter_metric.
 
     """
-    strategies_dir = _get_strategies_dir()
+    strategies_dir = get_strategies_dir()
     clj_path = strategies_dir / strategy_file
     if not clj_path.exists():
         logger.error("Strategy file not found", path=str(clj_path))
@@ -201,20 +202,11 @@ def _discover_groups(strategy_file: str) -> list[dict[str, Any]]:
         if existing is None or gi.depth > existing.depth:
             best_by_name[gi.name] = gi
 
-    # Derive group IDs (import here to keep module-level imports lean)
-    import hashlib
-    import re
-
-    def _derive_group_id(group_name: str) -> str:
-        slug = re.sub(r"[^a-z0-9]+", "_", group_name.lower()).strip("_")[:60]
-        hash_prefix = hashlib.sha256(group_name.encode("utf-8")).hexdigest()[:8]
-        return f"{slug}_{hash_prefix}"
-
     result: list[dict[str, Any]] = []
     for gi in sorted(best_by_name.values(), key=lambda g: (-g.depth, g.name)):
         result.append(
             {
-                "group_id": _derive_group_id(gi.name),
+                "group_id": derive_group_id(gi.name),
                 "group_name": gi.name,
                 "depth": gi.depth,
                 "parent_filter_metric": gi.parent_filter_metric,
@@ -375,25 +367,3 @@ def _publish_completion(
             "Failed to publish GroupBackfillCompleted event",
             extra={"error": str(exc), "correlation_id": correlation_id},
         )
-
-
-def _get_strategies_dir() -> Path:
-    """Resolve the strategies directory."""
-    lambda_path = Path("/opt/python/the_alchemiser/shared/strategies")
-    if lambda_path.exists():
-        return lambda_path
-
-    local_candidates = [
-        Path(__file__).parent.parent.parent
-        / "shared_layer"
-        / "python"
-        / "the_alchemiser"
-        / "shared"
-        / "strategies",
-        Path(os.environ.get("STRATEGIES_DIR", "")),
-    ]
-    for candidate in local_candidates:
-        if candidate.exists():
-            return candidate
-
-    raise ValueError("Cannot locate strategies directory. Set STRATEGIES_DIR environment variable.")

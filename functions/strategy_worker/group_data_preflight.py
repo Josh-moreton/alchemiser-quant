@@ -17,9 +17,10 @@ from __future__ import annotations
 import json
 import os
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
+from the_alchemiser.shared.dsl.group_discovery import derive_group_id
+from the_alchemiser.shared.dsl.strategy_paths import get_strategies_dir
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -60,7 +61,15 @@ def run_preflight(
         return {"groups_checked": 0, "groups_stale": 0, "backfill_triggered": False}
 
     # Locate strategy file
-    strategies_dir = _get_strategies_dir()
+    try:
+        strategies_dir = get_strategies_dir()
+    except ValueError:
+        logger.warning(
+            "Cannot locate strategies directory for preflight",
+            extra={"correlation_id": correlation_id},
+        )
+        return {"groups_checked": 0, "groups_stale": 0, "backfill_triggered": False}
+
     clj_path = strategies_dir / strategy_file
     if not clj_path.exists():
         logger.warning(
@@ -78,14 +87,6 @@ def run_preflight(
         return {"groups_checked": 0, "groups_stale": 0, "backfill_triggered": False}
 
     # Deduplicate by name
-    import hashlib
-    import re
-
-    def _derive_group_id(name: str) -> str:
-        slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")[:60]
-        h = hashlib.sha256(name.encode("utf-8")).hexdigest()[:8]
-        return f"{slug}_{h}"
-
     seen: set[str] = set()
     unique_groups: list[dict[str, Any]] = []
     for gi in all_groups:
@@ -94,7 +95,7 @@ def run_preflight(
         seen.add(gi.name)
         unique_groups.append(
             {
-                "group_id": _derive_group_id(gi.name),
+                "group_id": derive_group_id(gi.name),
                 "group_name": gi.name,
                 "depth": gi.depth,
                 "parent_filter_metric": gi.parent_filter_metric,
@@ -288,25 +289,3 @@ def _invoke_data_lambda_backfill(
             },
         )
         return {"status": "error", "error": str(exc)}
-
-
-def _get_strategies_dir() -> Path:
-    """Resolve the strategies directory."""
-    lambda_path = Path("/opt/python/the_alchemiser/shared/strategies")
-    if lambda_path.exists():
-        return lambda_path
-
-    local_candidates = [
-        Path(__file__).resolve().parent.parent.parent.parent
-        / "shared_layer"
-        / "python"
-        / "the_alchemiser"
-        / "shared"
-        / "strategies",
-        Path(os.environ.get("STRATEGIES_DIR", "")),
-    ]
-    for candidate in local_candidates:
-        if candidate.exists():
-            return candidate
-
-    raise ValueError("Cannot locate strategies directory. Set STRATEGIES_DIR environment variable.")

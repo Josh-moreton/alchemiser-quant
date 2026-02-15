@@ -12,6 +12,9 @@ Also provides symbol extraction from AST nodes for market data pre-loading.
 
 from __future__ import annotations
 
+import hashlib
+import re
+
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 
 
@@ -55,6 +58,29 @@ class GroupInfo:
     def __setstate__(self, state: dict[str, object]) -> None:  # noqa: D105
         for slot, value in state.items():
             object.__setattr__(self, slot, value)
+
+
+def derive_group_id(group_name: str) -> str:
+    """Derive a deterministic cache-compatible group_id from a DSL group name.
+
+    Uses a sanitised slug of the group name combined with a short SHA-256
+    hash prefix for uniqueness. The slug provides human readability while
+    the hash prevents collisions between similarly-named groups.
+
+    Examples:
+        "MAX DD: TQQQ vs UVXY" -> "max_dd_tqqq_vs_uvxy_a1b2c3d4"
+        "WAM Updated Package: Muted WAMCore" -> "wam_updated_package_muted_wamcore_e5f6a7b8"
+
+    Args:
+        group_name: The raw group name from the DSL (group ...) expression.
+
+    Returns:
+        A deterministic, DynamoDB-safe group_id string.
+
+    """
+    slug = re.sub(r"[^a-z0-9]+", "_", group_name.lower()).strip("_")[:60]
+    hash_prefix = hashlib.sha256(group_name.encode("utf-8")).hexdigest()[:8]
+    return f"{slug}_{hash_prefix}"
 
 
 def find_filter_targeted_groups(

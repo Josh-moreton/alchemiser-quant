@@ -31,11 +31,11 @@ import os
 import sys
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 import structlog as _structlog
 
+from the_alchemiser.shared.dsl.strategy_paths import get_strategies_dir
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
 
 # Deep nesting in FTL Starburst etc.
@@ -190,7 +190,7 @@ def _run_backfill(
     from the_alchemiser.shared.dsl.sexpr_parser import SexprParser
 
     # 1. Locate and parse strategy file
-    strategies_dir = _get_strategies_dir()
+    strategies_dir = get_strategies_dir()
     clj_path = strategies_dir / strategy_file
     if not clj_path.exists():
         raise ValueError(f"Strategy file not found: {clj_path}")
@@ -274,35 +274,3 @@ def _run_backfill(
             )
 
     return result
-
-
-def _get_strategies_dir() -> Path:
-    """Resolve the strategies directory within the shared layer.
-
-    In Lambda, the shared layer is mounted at /opt/python so strategies
-    live at /opt/python/the_alchemiser/shared/strategies/.
-
-    Returns:
-        Path to the strategies directory.
-
-    """
-    # Lambda runtime path
-    lambda_path = Path("/opt/python/the_alchemiser/shared/strategies")
-    if lambda_path.exists():
-        return lambda_path
-
-    # Local development fallback
-    local_candidates = [
-        Path(__file__).parent.parent.parent
-        / "shared_layer"
-        / "python"
-        / "the_alchemiser"
-        / "shared"
-        / "strategies",
-        Path(os.environ.get("STRATEGIES_DIR", "")),
-    ]
-    for candidate in local_candidates:
-        if candidate.exists():
-            return candidate
-
-    raise ValueError("Cannot locate strategies directory. Set STRATEGIES_DIR environment variable.")

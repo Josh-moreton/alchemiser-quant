@@ -1,4 +1,4 @@
-"""Business Unit: data | Status: current.
+"""Business Unit: strategy | Status: current.
 
 Group backfill evaluation service.
 
