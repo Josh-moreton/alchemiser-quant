@@ -707,6 +707,8 @@ Resources:
       ContentUri: layers/portfolio/
       CompatibleRuntimes:
         - python3.12
+      CompatibleArchitectures:
+        - x86_64
       RetentionPolicy: Retain
     Metadata:
       BuildMethod: python3.12
@@ -723,6 +725,8 @@ Resources:
       ContentUri: layers/execution/
       CompatibleRuntimes:
         - python3.12
+      CompatibleArchitectures:
+        - x86_64
       RetentionPolicy: Retain
     Metadata:
       BuildMethod: python3.12
@@ -739,6 +743,8 @@ Resources:
       ContentUri: layers/notifications/
       CompatibleRuntimes:
         - python3.12
+      CompatibleArchitectures:
+        - x86_64
       RetentionPolicy: Retain
     Metadata:
       BuildMethod: python3.12
