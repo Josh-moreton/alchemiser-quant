@@ -267,7 +267,7 @@ def _invoke_data_lambda_backfill(
                     "correlation_id": correlation_id,
                 },
             )
-            return dict(body)  # type: ignore[arg-type]
+            return dict(body)
 
         logger.warning(
             "Preflight: Data Lambda returned non-200",

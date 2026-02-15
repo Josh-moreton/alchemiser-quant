@@ -24,7 +24,7 @@ from the_alchemiser.shared.data_v2.group_history_store import GroupHistoryStore
 from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
-from the_alchemiser.shared.types.market_data import BarModel
+from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
@@ -111,7 +111,7 @@ class InMemoryAdapter(MarketDataPort):
         """Not used for backfill."""
         return None
 
-    def get_latest_quote(self, symbol: Symbol) -> object:
+    def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:
         """Not used for backfill."""
         return None
 
