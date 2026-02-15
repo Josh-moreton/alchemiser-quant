@@ -234,7 +234,7 @@ def evaluate_group_signal(
 
     last_result = None
     for expr in ast_body:
-        last_result = engine.evaluator._evaluate_node(expr, correlation_id, trace)
+        last_result = engine.evaluator.evaluate_node(expr, correlation_id, trace)
 
     if isinstance(last_result, list) and len(last_result) == 1:
         last_result = last_result[0]

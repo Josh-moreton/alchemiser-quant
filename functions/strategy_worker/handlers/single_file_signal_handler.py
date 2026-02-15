@@ -113,6 +113,9 @@ class SingleFileSignalHandler:
         )
 
         try:
+            # Set strategy_file on evaluator so operators can access it
+            self.dsl_engine.evaluator.strategy_file = self.dsl_file
+
             # Evaluate the single DSL file
             target_allocation, trace = self.dsl_engine.evaluate_strategy(
                 strategy_config_path=self.dsl_file,

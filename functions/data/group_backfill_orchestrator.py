@@ -34,7 +34,7 @@ from the_alchemiser.shared.dsl.group_discovery import (
 )
 from the_alchemiser.shared.dsl.sexpr_parser import SexprParser
 from the_alchemiser.shared.dsl.strategy_paths import get_strategies_dir
-from the_alchemiser.shared.events import GroupBackfillCompleted
+from the_alchemiser.shared.events import GroupBackfillCompleted, GroupBackfillDetail
 from the_alchemiser.shared.events.eventbridge_publisher import publish_to_eventbridge
 from the_alchemiser.shared.logging import get_logger
 
@@ -111,7 +111,7 @@ def handle_group_backfill(event: dict[str, Any]) -> dict[str, Any]:
     total_processed = 0
     total_failed = 0
     total_rows = 0
-    group_details: dict[str, Any] = {}
+    group_details: dict[str, GroupBackfillDetail] = {}
 
     worker_function_name = os.environ.get("GROUP_BACKFILL_WORKER_FUNCTION_NAME", "")
     if not worker_function_name:
@@ -143,14 +143,14 @@ def handle_group_backfill(event: dict[str, Any]) -> dict[str, Any]:
                 total_processed += 1
                 rows = result.get("rows_written", 0)
                 total_rows += rows
-                group_details[group_id] = {"rows": rows, "status": "success"}
+                group_details[group_id] = GroupBackfillDetail(rows=rows, status="success")
             else:
                 total_failed += 1
-                group_details[group_id] = {
-                    "rows": 0,
-                    "status": "failed",
-                    "error": result.get("error", "unknown"),
-                }
+                group_details[group_id] = GroupBackfillDetail(
+                    rows=0,
+                    status="failed",
+                    error=result.get("error", "unknown"),
+                )
 
     # Publish completion event
     _publish_completion(
@@ -324,7 +324,7 @@ def _publish_completion(
     groups_processed: int,
     groups_failed: int,
     total_rows: int,
-    group_details: dict[str, Any],
+    group_details: dict[str, GroupBackfillDetail],
     correlation_id: str,
 ) -> None:
     """Publish GroupBackfillCompleted event to EventBridge.

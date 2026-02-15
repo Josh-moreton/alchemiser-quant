@@ -15,7 +15,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..constants import (
     CONTRACT_VERSION,
@@ -744,24 +744,33 @@ class DataLakeUpdateCompleted(BaseEvent):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-class GroupBackfillTarget(BaseEvent):
+class GroupBackfillTarget(BaseModel):
     """DTO describing a single group to backfill.
 
     Embedded within GroupBackfillRequested to specify which groups need
-    historical data populated in S3.
+    historical data populated in S3.  This is a plain DTO, not an event.
     """
 
-    event_type: str = Field(default="GroupBackfillTarget", description=EVENT_TYPE_DESCRIPTION)
-    __event_version__: str = CONTRACT_VERSION
-
-    schema_version: str = Field(
-        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
-    )
+    model_config = ConfigDict(strict=True, frozen=True)
 
     group_id: str = Field(..., description="Deterministic group cache key")
     group_name: str = Field(..., description="Human-readable group name from strategy file")
     depth: int = Field(..., description="Nesting depth (0 = top-level)")
     parent_filter_metric: str = Field(..., description="Metric name from parent filter operator")
+
+
+class GroupBackfillDetail(BaseModel):
+    """Per-group result detail for GroupBackfillCompleted.
+
+    Replaces untyped ``dict[str, Any]`` to provide explicit field types
+    and validation for backfill result reporting.
+    """
+
+    model_config = ConfigDict(strict=True, frozen=True)
+
+    rows: int = Field(default=0, description="Parquet rows written for this group")
+    status: str = Field(..., description="Backfill outcome: 'success' or 'failed'")
+    error: str | None = Field(default=None, description="Error message if status is 'failed'")
 
 
 class GroupBackfillRequested(BaseEvent):
@@ -780,13 +789,10 @@ class GroupBackfillRequested(BaseEvent):
     )
 
     strategy_file: str = Field(..., description="Strategy .clj filename (e.g. ftl_starburst.clj)")
-    groups: list[dict[str, Any]] = Field(
+    groups: list[GroupBackfillTarget] = Field(
         default_factory=list,
-        description=(
-            "List of group targets to backfill. Each dict has keys: "
-            "group_id, group_name, depth, parent_filter_metric. "
-            "If empty, Data Lambda auto-discovers groups from the strategy file."
-        ),
+        description="List of group targets to backfill. "
+        "If empty, Data Lambda auto-discovers groups from the strategy file.",
     )
     lookback_days: int = Field(default=45, description="Calendar days of history to backfill")
     requesting_component: str = Field(
@@ -814,9 +820,9 @@ class GroupBackfillCompleted(BaseEvent):
     total_rows_written: int = Field(
         default=0, description="Total Parquet rows written across all groups"
     )
-    group_details: dict[str, Any] = Field(
+    group_details: dict[str, GroupBackfillDetail] = Field(
         default_factory=dict,
-        description="Per-group backfill details (group_id -> {rows, status})",
+        description="Per-group backfill details keyed by group_id",
     )
 
 

@@ -317,14 +317,13 @@ class SexprParser:
         if tok_type == "STRING":
             # Remove quotes and unescape common sequences
             raw = token_value[1:-1]
-            # Unescape \" and \\
-            string_value = (
-                raw.replace(r"\\\"", '"')
-                .replace(r"\\n", "\n")
-                .replace(r"\\t", "\t")
-                .replace(r"\\r", "\r")
-                .replace(r"\\\\", "\\")
-            )
+            # Unescape common sequences while avoiding double-replacement issues
+            string_value = raw.replace("\\\\", "\x00")  # temporary placeholder for backslash
+            string_value = string_value.replace('\\"', '"')
+            string_value = string_value.replace("\\n", "\n")
+            string_value = string_value.replace("\\t", "\t")
+            string_value = string_value.replace("\\r", "\r")
+            string_value = string_value.replace("\x00", "\\")
             return ASTNode.atom(string_value)
         if tok_type == "FLOAT" or tok_type == "INTEGER":
             return ASTNode.atom(Decimal(token_value))

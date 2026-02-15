@@ -356,18 +356,11 @@ def _run_group_preflight(dsl_file: str, correlation_id: str) -> None:
     Non-fatal: if preflight fails, the strategy evaluator will fall back
     to in-process backfill within group_scoring.py.
 
-    Also sets CURRENT_STRATEGY_FILE env var so that on-demand backfill
-    within group_scoring.py can identify the strategy file for Lambda
-    invocations.
-
     Args:
         dsl_file: DSL filename (e.g. "ftl_starburst.clj").
         correlation_id: Workflow correlation ID.
 
     """
-    # Set strategy file for on-demand backfill within group_scoring
-    os.environ["CURRENT_STRATEGY_FILE"] = dsl_file
-
     try:
         from group_data_preflight import run_preflight
 

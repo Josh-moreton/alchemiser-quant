@@ -34,12 +34,16 @@ the recursion guard and must always be empty before a new evaluation begins.
 
 from __future__ import annotations
 
+import json
 import math
+import os
 import re
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
+import boto3
+from botocore.config import Config as BotoConfig
 from engines.dsl.context import DslContext
 from engines.dsl.operators.group_cache_lookup import (
     is_cache_available,
@@ -1056,6 +1060,7 @@ def _fetch_or_backfill_returns(
         group_name=group_name,
         lookback_days=lookback_calendar_days,
         correlation_id=context.correlation_id,
+        strategy_file=context.strategy_file,
     )
     if lambda_result is not None:
         # Re-read from cache after Lambda backfill
@@ -1092,6 +1097,7 @@ def _try_lambda_backfill(
     group_name: str,
     lookback_days: int,
     correlation_id: str,
+    strategy_file: str = "",
 ) -> bool | None:
     """Invoke Data Lambda to backfill a single group via the orchestrator.
 
@@ -1106,21 +1112,19 @@ def _try_lambda_backfill(
         group_name: Human-readable group name.
         lookback_days: Calendar days to backfill.
         correlation_id: Tracing identifier.
+        strategy_file: Strategy .clj filename (falls back to env var).
 
     Returns:
         True on success, False on failure, None if not available.
 
     """
-    import json
-    import os
-
     data_function_name = os.environ.get("DATA_FUNCTION_NAME", "")
     if not data_function_name:
         return None
 
-    # Discover strategy file from context
-    strategy_file = os.environ.get("CURRENT_STRATEGY_FILE", "")
-    if not strategy_file:
+    # Use provided strategy_file or fall back to env var for backward compat
+    resolved_strategy_file = strategy_file or os.environ.get("CURRENT_STRATEGY_FILE", "")
+    if not resolved_strategy_file:
         logger.debug(
             "Lambda backfill skipped: no CURRENT_STRATEGY_FILE env var",
             extra={"group_id": group_id},
@@ -1128,10 +1132,7 @@ def _try_lambda_backfill(
         return None
 
     try:
-        import boto3
-        from botocore.config import Config
-
-        config = Config(
+        config = BotoConfig(
             read_timeout=910,
             connect_timeout=10,
             retries={"max_attempts": 0},
@@ -1140,7 +1141,7 @@ def _try_lambda_backfill(
 
         payload = {
             "action": "group_backfill",
-            "strategy_file": strategy_file,
+            "strategy_file": resolved_strategy_file,
             "groups": [
                 {
                     "group_id": group_id,

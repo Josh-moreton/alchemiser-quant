@@ -16,8 +16,11 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
+
+import boto3
+from botocore.config import Config as BotoConfig
 
 from the_alchemiser.shared.dsl.group_discovery import derive_group_id
 from the_alchemiser.shared.dsl.strategy_paths import get_strategies_dir
@@ -86,21 +89,18 @@ def run_preflight(
     if not all_groups:
         return {"groups_checked": 0, "groups_stale": 0, "backfill_triggered": False}
 
-    # Deduplicate by name
-    seen: set[str] = set()
-    unique_groups: list[dict[str, Any]] = []
+    # Deduplicate by name, keeping deepest occurrence (matches orchestrator logic)
+    best_by_name: dict[str, dict[str, Any]] = {}
     for gi in all_groups:
-        if gi.name in seen:
-            continue
-        seen.add(gi.name)
-        unique_groups.append(
-            {
+        existing = best_by_name.get(gi.name)
+        if existing is None or gi.depth > existing["depth"]:
+            best_by_name[gi.name] = {
                 "group_id": derive_group_id(gi.name),
                 "group_name": gi.name,
                 "depth": gi.depth,
                 "parent_filter_metric": gi.parent_filter_metric,
             }
-        )
+    unique_groups: list[dict[str, Any]] = list(best_by_name.values())
 
     # Check staleness of each group
     stale_groups = _check_staleness(unique_groups)
@@ -182,9 +182,7 @@ def _check_staleness(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 stale.append(group)
                 continue
 
-            from datetime import date as date_type
-
-            last_date = date_type.fromisoformat(metadata.last_record_date)
+            last_date = date.fromisoformat(metadata.last_record_date)
             age_days = (today - last_date).days
             if age_days > max_age_days:
                 stale.append(group)
@@ -201,6 +199,16 @@ def _invoke_data_lambda_backfill(
     correlation_id: str,
 ) -> dict[str, Any]:
     """Invoke Data Lambda synchronously for group backfill.
+
+    This blocks the strategy worker Lambda while the Data Lambda orchestrates
+    backfill workers.  Both the strategy worker and the Data Lambda have a
+    900-second timeout, so the effective budget for this call is bounded by
+    whichever Lambda times out first.  The ``read_timeout=910`` on the boto3
+    config intentionally exceeds the 900-second Lambda limit so that the
+    Lambda timeout (not the SDK) is the controlling constraint.
+
+    For strategies with many nested depth levels, ensure total backfill time
+    stays well within the 900-second window.
 
     Args:
         strategy_file: Strategy filename.
@@ -221,10 +229,7 @@ def _invoke_data_lambda_backfill(
         return {"status": "skipped", "reason": "DATA_FUNCTION_NAME not configured"}
 
     try:
-        import boto3
-        from botocore.config import Config
-
-        config = Config(
+        config = BotoConfig(
             read_timeout=910,
             connect_timeout=10,
             retries={"max_attempts": 0},
