@@ -89,7 +89,10 @@ class StrategyStack(cdk.Stack):
             " && pip install -q msgpack websockets -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q 'pydantic>=2.0.0' -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
             " && pip install -q dependency-injector -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
-            " && pip install -q pydantic-settings sseclient-py structlog 'cachetools>=5.5,<7' -t /asset-output/python --upgrade"
+            " && pip install -q charset-normalizer pyyaml -t /asset-output/python --upgrade --platform manylinux2014_aarch64 --only-binary=:all: --python-version 3.12 --implementation cp"
+            " && pip install -q pydantic-settings python-dotenv sseclient-py structlog 'cachetools>=5.5,<7' -t /asset-output/python --upgrade --no-deps"
+            " && pip install -q httpx httpcore anyio h11 requests certifi"
+            " idna urllib3 python-dateutil pytz tzdata -t /asset-output/python --upgrade --no-deps"
         )
         self.strategy_layer = _lambda.LayerVersion(
             self,
