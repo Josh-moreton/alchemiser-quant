@@ -10,6 +10,7 @@ Resources:
 - BadDataMarkersTable (DynamoDB)
 - DataRefreshSchedule (EventBridge Scheduler)
 - EventBridge rule for MarketDataFetchRequested
+- GroupBackfillWorkerFunction invoke permission (deterministic ARN)
 """
 
 from __future__ import annotations
@@ -175,6 +176,15 @@ class DataStack(cdk.Stack):
                     actions=["events:PutEvents"],
                     resources=[event_bus.event_bus_arn],
                 ),
+                # Allow Data Lambda to invoke Group Backfill Worker (defined in StrategyStack).
+                # Uses deterministic naming to avoid circular cross-stack references.
+                iam.PolicyStatement(
+                    actions=["lambda:InvokeFunction"],
+                    resources=[
+                        f"arn:aws:lambda:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}"
+                        f":function:{config.resource_name('group-backfill-worker')}",
+                    ],
+                ),
             ],
         )
 
@@ -205,6 +215,7 @@ class DataStack(cdk.Stack):
                 "FETCH_REQUESTS_TABLE": self.fetch_requests_table.table_name,
                 "BAD_DATA_MARKERS_TABLE": self.bad_data_markers_table.table_name,
                 "FETCH_COOLDOWN_MINUTES": str(config.fetch_cooldown_minutes),
+                "GROUP_BACKFILL_WORKER_FUNCTION_NAME": config.resource_name("group-backfill-worker"),
             },
         )
         self.data_function = data_fn.function

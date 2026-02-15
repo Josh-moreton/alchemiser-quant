@@ -67,6 +67,7 @@ class DslEvaluator:
         self.indicator_service = indicator_service
         self.event_bus = event_bus
         self.debug_mode = debug_mode
+        self.strategy_file = ""
         self.event_publisher = DslEventPublisher(event_bus)
 
         # Initialize dispatcher and register all operators
@@ -347,6 +348,7 @@ class DslEvaluator:
             evaluate_node=self._evaluate_node,
             debug_mode=self.debug_mode,
             market_data_service=market_data_service,
+            strategy_file=self.strategy_file,
         )
         # Share decision_path and debug_traces with context so all contexts accumulate to the same list
         context.decision_path = self.decision_path
@@ -360,6 +362,24 @@ class DslEvaluator:
             return self._evaluate_function_application(node, context)
         # Evaluate each element and return as list
         return self._evaluate_list_elements(node, correlation_id, trace)
+
+    def evaluate_node(self, node: ASTNode, correlation_id: str, trace: Trace) -> DSLValue:
+        """Evaluate a single AST node (public API).
+
+        Provides a public entry point for evaluating individual AST nodes,
+        used by backfill services that need to evaluate group AST bodies
+        outside the normal strategy evaluation flow.
+
+        Args:
+            node: AST node to evaluate
+            correlation_id: Correlation ID for tracking
+            trace: Trace for logging
+
+        Returns:
+            Evaluation result
+
+        """
+        return self._evaluate_node(node, correlation_id, trace)
 
     def _evaluate_node(self, node: ASTNode, correlation_id: str, trace: Trace) -> DSLValue:
         """Evaluate a single AST node.
